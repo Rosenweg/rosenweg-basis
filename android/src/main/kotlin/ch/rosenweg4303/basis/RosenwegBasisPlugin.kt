@@ -10,7 +10,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import ch.rosenweg4303.cloud.RosenwegAnmeldeSchirm
+import ch.rosenweg4303.cloud.RosenwegAnmeldung
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.PluginRegistry
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -26,16 +31,51 @@ import java.util.concurrent.Executors
  *  - geraetRufen             ContentResolver.call auf content://ch.rosenweg4303.telefon.anlage
  *                            {methode, arg, extras} -> Bundle als Map (nur Strings, Zahlen, bool)
  *
- * Richtung Dart: "ruecksprung" (Uri als Text), sobald RuecksprungActivity eine
- * Antwort von Authentik bekommt.
+ * Anmeldung auf Handys ohne Rosenweg Geraet - ueber commons-rosenweg (cloud), wie in den
+ * Kotlin-Apps (Stefan 26.11.2026: ein Anmeldeschirm fuer alle, nur einmal gepflegt):
+ *  - kontoStand              {angemeldet, name, email, mitKarte}
+ *  - anmeldeSchirm           RosenwegAnmeldeSchirm (Karte oder Rosenweg-Konto) -> true = angemeldet
+ *  - zugangsToken            Zugang fuer die API (Browser oder Karte), null = abgemeldet;
+ *                            Fehler "netz" = Server nur gerade nicht erreichbar
+ *  - zugangUngueltig, abmelden (nur diese App)
+ *  - bestaetigen             Browser mit prompt=login; angemeldetUm zeigt, wann es geklappt hat
+ *
+ * Den Ruecksprung des Browsers (<applicationId>:/anmeldung) nimmt RosenwegAnmeldungActivity aus
+ * commons-rosenweg an; Dart-Ruecksprung gibt es auf Android nicht mehr (ruecksprungAusstehend
+ * bleibt fuer die Schnittstelle, liefert null).
  */
-class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
+class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware,
+    PluginRegistry.ActivityResultListener {
     private var kanal: MethodChannel? = null
     private var person: EventChannel? = null
     private var personQuelle: GeraetPerson? = null
     private var kontext: Context? = null
     private val netz = Executors.newSingleThreadExecutor()
     private val haupt = Handler(Looper.getMainLooper())
+    private var aktivitaet: ActivityPluginBinding? = null
+    private var schirmErgebnis: MethodChannel.Result? = null
+
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        aktivitaet = binding
+        binding.addActivityResultListener(this)
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() = onDetachedFromActivity()
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) = onAttachedToActivity(binding)
+
+    override fun onDetachedFromActivity() {
+        aktivitaet?.removeActivityResultListener(this)
+        aktivitaet = null
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode != ANMELDESCHIRM) return false
+        val r = schirmErgebnis ?: return true
+        schirmErgebnis = null
+        val c = kontext
+        r.success(c != null && RosenwegAnmeldung.angemeldet(c))
+        return true
+    }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         kontext = binding.applicationContext
@@ -111,6 +151,45 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                     haupt.post { result.success(antwort) }
                 }
             }
+            "kontoStand" -> result.success(mapOf(
+                "angemeldet" to RosenwegAnmeldung.angemeldet(c),
+                "name" to RosenwegAnmeldung.name(c),
+                "email" to RosenwegAnmeldung.email(c),
+                "mitKarte" to RosenwegAnmeldung.mitKarte(c),
+            ))
+            "anmeldeSchirm" -> {
+                val a = aktivitaet?.activity ?: return result.error("keine_aktivitaet", "App nicht im Vordergrund", null)
+                if (RosenwegAnmeldung.angemeldet(c)) return result.success(true)
+                schirmErgebnis?.success(false)
+                schirmErgebnis = result
+                a.startActivityForResult(Intent(a, RosenwegAnmeldeSchirm::class.java), ANMELDESCHIRM)
+            }
+            "zugangsToken" -> netz.execute {
+                // blockiert (Erneuern ueber das Netz): nie im UI-Thread
+                try {
+                    val t = RosenwegAnmeldung.zugangsToken(c)
+                    haupt.post { result.success(t) }
+                } catch (e: java.io.IOException) {
+                    haupt.post { result.error("netz", "Server nicht erreichbar", null) }
+                } catch (e: Exception) {
+                    Log.w(TAG, "zugangsToken: ${e.javaClass.simpleName}")
+                    haupt.post { result.error("unbekannt", e.javaClass.simpleName, null) }
+                }
+            }
+            "zugangUngueltig" -> {
+                RosenwegAnmeldung.zugangUngueltig()
+                result.success(null)
+            }
+            "abmelden" -> {
+                RosenwegAnmeldung.abmelden(c)
+                result.success(null)
+            }
+            "angemeldetUm" -> result.success(RosenwegAnmeldung.angemeldetUm(c))
+            "bestaetigen" -> {
+                val a = aktivitaet?.activity ?: return result.error("keine_aktivitaet", "App nicht im Vordergrund", null)
+                RosenwegAnmeldung.starten(a, true)
+                result.success(null)
+            }
             else -> result.notImplemented()
         }
     }
@@ -146,6 +225,7 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         const val TAG = "RosenwegBasis"
         const val KANAL = "ch.rosenweg4303.basis"
         const val ANLAGE_AUTHORITY = "ch.rosenweg4303.telefon.anlage"
+        private const val ANMELDESCHIRM = 4303
 
         @Volatile internal var aktiv: RosenwegBasisPlugin? = null
 
@@ -156,22 +236,5 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             val p = aktiv
             if (p == null) ausstehend = uri else p.melden(uri)
         }
-    }
-}
-
-/**
- * Ruecksprung der Anmeldung (<applicationId>:/anmeldung), keine Oberflaeche.
- * Reicht die Antwort an Dart weiter und holt die App wieder nach vorn — wie
- * RosenwegAnmeldungActivity in commons-rosenweg, nur dass der Tausch gegen das
- * Token in Dart passiert (dort liegt der PKCE-Verifier).
- */
-class RuecksprungActivity : Activity() {
-    override fun onCreate(b: Bundle?) {
-        super.onCreate(b)
-        intent?.data?.toString()?.let { RosenwegBasisPlugin.ruecksprung(it) }
-        packageManager.getLaunchIntentForPackage(packageName)?.let {
-            startActivity(it.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK))
-        }
-        finish()
     }
 }

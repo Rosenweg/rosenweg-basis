@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'anmeldung/android_konto.dart';
 import 'anmeldung/rosenweg_konto.dart';
 import 'anmeldung/ruecksprung.dart';
 import 'konfig.dart';
@@ -31,7 +32,9 @@ enum Phase {
 /// Der Anmelde-Ablauf einer App an einer Stelle.
 ///
 ///   Telefon mit Rosenweg Geraet (geteilt) → Anfragen ueber Geraet, keine eigene Anmeldung
-///   sonst → Rosenweg-Konto (still, wenn <= 30 Tage) → bereit
+///   anderes Android-Handy → Anmeldeschirm von commons-rosenweg ([AndroidKonto]:
+///         Rosenweg-Karte oder Rosenweg-Konto, wie der Sperrbildschirm) → bereit
+///   sonst (Desktop) → Rosenweg-Konto (still, wenn <= 30 Tage) → bereit
 ///         → sonst Kerberos-Ticket der Sitzung (Station, Windows-Domaene) → bereit
 ///         → sonst Knopf "Anmelden" (Browser)
 ///
@@ -39,14 +42,23 @@ enum Phase {
 /// Anmeldeschirm, Warten und Fehler.
 class RosenwegSitzung extends ChangeNotifier {
   RosenwegSitzung(this.app,
-      {RosenwegKonto? konto, Transport? transport, Future<bool> Function()? geraetDa, Stream<String>? personWechsel})
+      {RosenwegKonto? konto,
+      AndroidKonto? android,
+      Transport? transport,
+      Future<bool> Function()? geraetDa,
+      Stream<String>? personWechsel})
       : konto = konto ?? RosenwegKonto(app),
+        android = android ?? (konto == null && RosenwegPlattform.istAndroid ? AndroidKontoKanal() : null),
         _transport = transport, // ignore: prefer_initializing_formals
         _geraetDa = geraetDa ?? _standardGeraetDa,
         _personWechsel = personWechsel; // ignore: prefer_initializing_formals
 
   final RosenwegApp app;
   final RosenwegKonto konto;
+
+  /// Android ohne Rosenweg Geraet: Anmeldung ueber commons-rosenweg (Kotlin).
+  /// null auf dem Desktop.
+  final AndroidKonto? android;
   final Transport? _transport;
   final Future<bool> Function() _geraetDa;
   final Stream<String>? _personWechsel;
@@ -64,7 +76,10 @@ class RosenwegSitzung extends ChangeNotifier {
   /// die ganze App (auch geoeffnete Seiten) neu, sobald er sich aendert.
   final personStand = ValueNotifier<int>(0);
 
-  late RosenwegApi api = _apiFuer(_transport ?? HttpTransport(basis: app.konfig.api, zugang: konto));
+  late RosenwegApi api = _apiFuer(_transport ?? HttpTransport(basis: app.konfig.api, zugang: android ?? konto));
+
+  /// Name der angemeldeten Person (Anzeige), gleich ob Android oder Desktop.
+  String? get name => android != null ? android!.name : konto.name;
 
   RosenwegApi _apiFuer(Transport t) => RosenwegApi(t, nichtAngemeldet: _nichtMehrAngemeldet);
 
@@ -90,6 +105,16 @@ class RosenwegSitzung extends ChangeNotifier {
         _setzen(Phase.bereit);
         return;
       }
+      final a = android;
+      if (a != null) {
+        // Wie die Kotlin-Apps (RosenwegAnmeldeSchirm.zeigenFallsNoetig): gleich den Schirm zeigen
+        if (await a.angemeldet) {
+          _setzen(Phase.bereit);
+        } else {
+          await anmelden();
+        }
+        return;
+      }
       if (await konto.ausstehendeAbschliessen() || await konto.angemeldet || await konto.stillAnmelden()) {
         _setzen(Phase.bereit);
       } else {
@@ -103,6 +128,17 @@ class RosenwegSitzung extends ChangeNotifier {
   /// Knopf "Mit Rosenweg-Konto anmelden". Erst still (Kerberos; z. B. nach
   /// "Abmelden" in der App), sonst im Browser.
   Future<void> anmelden() async {
+    final a = android;
+    if (a != null) {
+      // Anmeldeschirm von commons-rosenweg (Karte oder Rosenweg-Konto)
+      try {
+        _setzen(Phase.anmelden);
+        _setzen(await a.anmeldeSchirm() ? Phase.bereit : Phase.abgemeldet);
+      } catch (e) {
+        _setzen(Phase.fehler, '$e');
+      }
+      return;
+    }
     try {
       _setzen(Phase.pruefen);
       if (await konto.stillAnmelden()) {
@@ -126,6 +162,7 @@ class RosenwegSitzung extends ChangeNotifier {
   /// App bleibt dabei sichtbar; true = bestaetigt.
   Future<bool> bestaetigen() async {
     if (geteiltesTelefon) return false;
+    if (android != null) return android!.bestaetigen();
     try {
       await konto.anmelden(bestaetigen: true);
       return true;
@@ -136,6 +173,11 @@ class RosenwegSitzung extends ChangeNotifier {
 
   Future<void> abmelden() async {
     if (geteiltesTelefon) return;
+    if (android != null) {
+      await android!.abmelden();
+      await anmelden(); // Anmeldeschirm, wie nach dem Start
+      return;
+    }
     await konto.abmelden();
     _setzen(Phase.abgemeldet);
   }
@@ -158,6 +200,11 @@ class RosenwegSitzung extends ChangeNotifier {
   /// Anmeldung widerrufen/abgelaufen: einmal still neu (Kerberos), sonst
   /// zurueck zum Knopf.
   Future<void> _neuStill() async {
+    if (android != null) {
+      // Kotlin hat eine widerrufene Sitzung schon verworfen; sonst gilt die Anmeldung weiter
+      _setzen(await android!.angemeldet ? Phase.bereit : Phase.abgemeldet);
+      return;
+    }
     _setzen(Phase.pruefen);
     await konto.abmelden();
     _setzen(await konto.stillAnmelden() ? Phase.bereit : Phase.abgemeldet);

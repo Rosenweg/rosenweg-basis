@@ -22,7 +22,12 @@ class _Transport implements Transport {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUpAll(() => Protokoll.nurKonsole = true);
+  setUpAll(() {
+    Protokoll.nurKonsole = true;
+    // Desktop-Weg (Browser); Android steht unten mit einer Attrappe von AndroidKonto
+    RosenwegPlattform.plattformFuerTests = TargetPlatform.linux;
+  });
+  tearDownAll(() => RosenwegPlattform.plattformFuerTests = null);
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
   testWidgets('ohne Anmeldung: Anmeldeschirm mit einem Knopf', (t) async {
@@ -107,4 +112,83 @@ void main() {
     expect(fehlerText(ServerNichtErreichbar()), contains('nicht erreichbar'));
     expect(fehlerText(ApiFehler(400, 'Ungültige STWEG')), 'Ungültige STWEG');
   });
+
+  group('Android ohne Rosenweg Geraet: Anmeldeschirm von commons-rosenweg', () {
+    testWidgets('nicht angemeldet: Schirm oeffnet sich gleich, danach bereit', (t) async {
+      final a = _Android(angemeldetAm: false, schirmMeldetAn: true);
+      final s = RosenwegSitzung(app, android: a, geraetDa: () async => false);
+      await t.pumpWidget(RosenwegRahmen(sitzung: s, inhalt: (_) => const Text('INHALT')));
+      await t.runAsync(s.starten);
+      await t.pump();
+      expect(a.schirmGeoeffnet, 1);
+      expect(s.phase, Phase.bereit);
+      expect(find.text('INHALT'), findsOneWidget);
+    });
+
+    testWidgets('schon angemeldet: kein Schirm, Token kommt aus Kotlin', (t) async {
+      final a = _Android(angemeldetAm: true);
+      final s = RosenwegSitzung(app, android: a, geraetDa: () async => false);
+      await t.runAsync(s.starten);
+      expect(a.schirmGeoeffnet, 0);
+      expect(s.phase, Phase.bereit);
+      expect(await (s.api.transport as HttpTransport).zugang.zugangsToken(), 'rw_app_x');
+    });
+
+    testWidgets('Schirm ohne Anmeldung verlassen: Knopf "Anmelden"', (t) async {
+      final a = _Android(angemeldetAm: false, schirmMeldetAn: false);
+      final s = RosenwegSitzung(app, android: a, geraetDa: () async => false);
+      await t.pumpWidget(RosenwegRahmen(sitzung: s, inhalt: (_) => const Text('INHALT')));
+      await t.runAsync(s.starten);
+      await t.pump();
+      expect(s.phase, Phase.abgemeldet);
+      expect(find.text('Anmelden'), findsOneWidget);
+      expect(find.text('Mit Rosenweg-Konto anmelden'), findsNothing);
+    });
+
+    testWidgets('Abmelden: nur diese App, Schirm wieder offen', (t) async {
+      final a = _Android(angemeldetAm: true, schirmMeldetAn: false);
+      final s = RosenwegSitzung(app, android: a, geraetDa: () async => false);
+      await t.runAsync(s.starten);
+      await t.runAsync(s.abmelden);
+      expect(a.abgemeldet, isTrue);
+      expect(a.schirmGeoeffnet, 1);
+      expect(s.phase, Phase.abgemeldet);
+    });
+  });
+}
+
+/// Attrappe fuer den Kanal zu commons-rosenweg.
+class _Android implements AndroidKonto {
+  _Android({required this.angemeldetAm, this.schirmMeldetAn = true});
+  bool angemeldetAm;
+  final bool schirmMeldetAn;
+  var schirmGeoeffnet = 0;
+  var abgemeldet = false;
+  @override
+  String? name = 'Anna';
+  @override
+  String? email;
+  @override
+  bool mitKarte = true;
+  @override
+  Future<bool> get angemeldet async => angemeldetAm;
+  @override
+  Future<bool> anmeldeSchirm() async {
+    schirmGeoeffnet++;
+    angemeldetAm = schirmMeldetAn;
+    return schirmMeldetAn;
+  }
+
+  @override
+  Future<bool> bestaetigen() async => true;
+  @override
+  Future<void> abmelden() async {
+    abgemeldet = true;
+    angemeldetAm = false;
+  }
+
+  @override
+  Future<String?> zugangsToken() async => angemeldetAm ? 'rw_app_x' : null;
+  @override
+  void zugangUngueltig() {}
 }

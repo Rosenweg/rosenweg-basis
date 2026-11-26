@@ -37,7 +37,7 @@ Version 0.1.0 (26.11.2026); 0.2.0 mit Kerberos-Anmeldung und Personenwechsel ist
 | Plattform | Stand |
 |---|---|
 | Linux (Rosenweg OS, `.deb` vom PXE-Server) | ja; stille Anmeldung über GSS-API (`libgssapi-krb5-2`) |
-| Android (eigene Handys und geteilte Telefone) | ja; Android-Plugin `ch.rosenweg4303.basis` |
+| Android 8 und neuer (eigene Handys und geteilte Telefone) | ja; Android-Plugin `ch.rosenweg4303.basis`, minSdk 26; Anmeldeschirm aus commons-rosenweg (`ch.rosenweg4303:cloud` aus GitHub Packages, `mavenLocal()` als Rückfall) |
 | Windows | Kerberos-Anmeldung über SSPI vorbereitet |
 
 ## Eine App in wenigen Zeilen
@@ -86,7 +86,7 @@ Mehr: [docs/bedienung.md](docs/bedienung.md).
 | Aussehen | `rosenwegThema`, `RosenwegFarben` (Rot `#D32F2F`, Grundton `#8B1E3F`), deutsche Texte (de-CH) |
 | Bausteine | `AnmeldeSchirm`, `FehlerAnzeige`, `LadeAnzeige`, `Abschnitt`, `Hinweis`, `zeigeMeldung`, `frage`, `zeigeUeber`, `RosenwegLogo` |
 | Protokoll | `Protokoll.schreiben` – `~/.local/state/<ordner>/app.log`, nie Tokens |
-| Android | Plugin: Rücksprung-Activity, DNS-Server, Rosenweg Gerät (`ContentResolver.call`) |
+| Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte oder Rosenweg-Konto, Token aus Kotlin), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) |
 
 Mehr: [docs/entwickeln.md](docs/entwickeln.md).
 
@@ -141,7 +141,7 @@ sh werkzeug/logo/erzeugen.sh ../rosenweg-profil rosenweg-profil "Rosenweg Profil
 sh werkzeug/logo/android-apps.sh ../fossify-rosenweg/calculator-rosenweg calculator-rosenweg
 ```
 
-Für die Android-Apps (Fossify-Forks, Rosenweg Karten, Rosenweg Gerät) steht in `werkzeug/logo/android-apps.txt`, welche App welches Zeichen trägt; `android-apps.sh` schreibt Mipmaps, adaptive Icon und monochromes Designsymbol. Mehr: [docs/logos.md](docs/logos.md).
+Für die Android-Apps (Fossify-Forks, Rosenweg Karten, Rosenweg Gerät, Rosenweg Kiosk) steht in `werkzeug/logo/android-apps.txt`, welche App welches Zeichen trägt; `android-apps.sh` schreibt Mipmaps, adaptive Icon und monochromes Designsymbol. Mehr: [docs/logos.md](docs/logos.md).
 
 ## Neue App anlegen
 

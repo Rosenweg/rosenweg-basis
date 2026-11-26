@@ -15,7 +15,7 @@ sh werkzeug/logo/vorschau.sh ~/Downloads/rosenweg-app-logos.png assets/logo/rose
 `logos/rosenweg-vm/`: Logo für rosenweg-vm (Monitor als Zeichen), dort
 übernommen (ab Version 1.0.1).
 
-Android-Apps (Fossify-Forks, Rosenweg Karten, Rosenweg Gerät): welche App
+Android-Apps (Fossify-Forks, Rosenweg Karten, Rosenweg Gerät, Rosenweg Kiosk): welche App
 welches Zeichen trägt, steht in `werkzeug/logo/android-apps.txt`. Jede App
 ruft aus ihrem `assets/logo/erzeugen.sh` nur `android-apps.sh` auf; es schreibt
 Mipmaps aller Dichten, adaptive icon und monochromes Designsymbol. Bei den
