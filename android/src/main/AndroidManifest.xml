@@ -19,20 +19,7 @@
     </queries>
 
     <application>
-        <!-- Ruecksprung der Rosenweg-Anmeldung (Authentik rosenweg-apps):
-             <applicationId>:/anmeldung, wie RosenwegAnmeldungActivity in commons-rosenweg. -->
-        <activity
-            android:name="ch.rosenweg4303.basis.RuecksprungActivity"
-            android:exported="true"
-            android:launchMode="singleTask"
-            android:noHistory="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="${applicationId}" android:path="/anmeldung" />
-            </intent-filter>
-        </activity>
+        <!-- Ruecksprung der Browser-Anmeldung (<applicationId>:/anmeldung) und Anmeldeschirm
+             kommen aus commons-rosenweg (cloud): RosenwegAnmeldungActivity, RosenwegAnmeldeSchirm. -->
     </application>
 </manifest>

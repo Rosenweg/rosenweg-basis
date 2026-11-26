@@ -22,6 +22,18 @@ allprojects {
     }
 }
 
+// commons-rosenweg (Anmeldeschirm, Rosenweg-Anmeldung, Karten-Sitzung) liegt wie fuer die
+// Kotlin-Apps im lokalen Maven-Repository (commons-rosenweg: ./gradlew publishToMavenLocal).
+// Die App loest die Abhaengigkeiten des Plugins mit ihren eigenen Repositories auf: darum
+// rootProject, beschraenkt auf ch.rosenweg4303.
+rootProject.allprojects {
+    repositories {
+        mavenLocal {
+            content { includeGroup("ch.rosenweg4303") }
+        }
+    }
+}
+
 plugins {
     id("com.android.library")
 }
@@ -43,7 +55,7 @@ android {
     }
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 26   // commons-rosenweg (cloud) verlangt 26
     }
 
 }
@@ -52,4 +64,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    // Anmeldeschirm (Karte oder Rosenweg-Konto), Rosenweg-Anmeldung und Karten-Sitzung -
+    // derselbe Code wie in den Kotlin-Apps und (Aussehen/Kartenleser) in Rosenweg Geraet
+    implementation("ch.rosenweg4303:cloud:0.9.0")
 }

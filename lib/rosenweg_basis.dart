@@ -20,6 +20,7 @@
 /// Telefone.
 library;
 
+export 'src/anmeldung/android_konto.dart';
 export 'src/anmeldung/rosenweg_konto.dart' show RosenwegKonto, AnmeldeFehler;
 export 'src/anmeldung/ruecksprung.dart';
 export 'src/anmeldung/kerberos.dart' show KerberosTicket, KeinKerberos;

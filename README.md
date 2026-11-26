@@ -43,7 +43,7 @@ und zeigt bis dahin Warten, Anmeldeschirm oder Fehler. Die App sieht erst
 | Aussehen | `rosenwegThema`, `RosenwegFarben` (Rot `#D32F2F`, Dunkelrot, Grundton `#8B1E3F`), deutsche Flutter-Texte (de-CH) | |
 | Bausteine | `AnmeldeSchirm`, `FehlerAnzeige`, `LadeAnzeige`, `Abschnitt` (Karte mit Titel), `Hinweis`, `zeigeMeldung`, `frage`, `fehlerText`, `zeigeUeber` (GPL, Quelltext, Lizenzen), `RosenwegLogo` | |
 | Protokoll | `Protokoll.schreiben` — `~/.local/state/<ordner>/app.log`, nie Tokens | rosenweg-vm `protokoll.dart` |
-| Android | Plugin `ch.rosenweg4303.basis`: Rücksprung-Activity (`<applicationId>:/anmeldung`), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) | |
+| Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte oder Rosenweg-Konto, Token aus Kotlin; braucht `ch.rosenweg4303:cloud` aus mavenLocal, minSdk 26), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) | commons-rosenweg `cloud` |
 
 ## Bedienung — gleich in allen Apps
 
