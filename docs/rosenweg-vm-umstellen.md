@@ -22,3 +22,29 @@ rosenweg-vm ist nicht geändert worden. Was ein Umbau dort hiesse:
 
 Reihenfolge: Basis taggen (`v0.1.0`) → vm: Konto/Schlüsselbund/Protokoll
 tauschen (gleiches Verhalten, Tests grün) → Oberfläche → Logo.
+
+## SSO (Kerberos) in rosenweg-vm
+
+Mit der Umstellung auf `RosenwegKonto` kommt die stille Kerberos-Anmeldung
+(`stillAnmelden`, siehe `docs/authentik.md`) ohne eigenen Code mit — auf
+Linux-Stationen und auf der Windows-Fassung von rosenweg-vm. Schritte:
+
+1. Basis mit SSO taggen (`v0.2.0`), vm auf `rosenweg_basis` (git, Tag).
+2. Mindestens `RosenwegKonto` tauschen (Tabelle oben, Zeilen Schlüsselbund und
+   Konto). Bleibt `AppZustand` vorerst, dort in `starten()` nach
+   `konto.angemeldet` ein `|| await konto.stillAnmelden()` und in `anmelden()`
+   zuerst `stillAnmelden()` — genau wie `RosenwegSitzung`. Mit `AnmeldeTor`
+   (Empfehlung oben) entfällt das.
+3. Auf Linux-Stationen den Tunnel erst nach `bereit` aufbauen (wie heute);
+   Phase `pruefen` zeigt während der stillen Anmeldung (≤ 1 s im Haus, höchstens
+   ~20 s ohne erreichbaren KDC) den Ladekreis.
+4. `linux/paket/bauen.sh`: `libgssapi-krb5-2` zu `Depends` (per `dlopen`,
+   `dpkg-shlibdeps` findet es nicht). Windows braucht nichts (`secur32.dll`).
+5. Tests: `stille_anmeldung_test.dart` der Basis deckt den Ablauf; in vm ein
+   Test, dass `AppZustand.starten` ohne Refresh-Token mit stiller Anmeldung
+   direkt zu `tunnel` geht.
+6. Neues `.deb` bauen, `os-stationen pakete/rosenweg-vm/paket.conf`
+   (VERSION, SHA256) anheben, `hochladen.sh`, erst `test`, dann `main`.
+
+Bis dahin meldet sich rosenweg-vm weiter über den Browser an — an den
+Stationen mit dem Knopf „SSO Login“ (Chromium reicht das Ticket weiter).

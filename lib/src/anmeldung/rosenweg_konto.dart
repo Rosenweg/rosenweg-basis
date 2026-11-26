@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
@@ -12,6 +13,7 @@ import '../plattform.dart';
 import '../protokoll.dart';
 import 'ruecksprung.dart';
 import 'schluesselbund.dart';
+import 'stille_anmeldung.dart';
 
 /// Anmeldung mit dem Rosenweg-Konto (Authentik "rosenweg-apps", PKCE S256).
 ///
@@ -23,7 +25,9 @@ import 'schluesselbund.dart';
 /// - Android-Ruecksprung `<kennung>:/anmeldung` (wie commons-rosenweg),
 ///   samt Abschluss nach einem Neustart der App ([ausstehendeAbschliessen]);
 /// - [anmelden] mit `bestaetigen: true` fuer Aktionen, die eine frische
-///   Anmeldung verlangen (Passwortwechsel: API antwortet 403 `reauth`).
+///   Anmeldung verlangen (Passwortwechsel: API antwortet 403 `reauth`);
+/// - [stillAnmelden]: mit dem Kerberos-Ticket der Sitzung (Linux-Station,
+///   Windows-Rechner der Domaene), ganz ohne Browser ([StilleAnmeldung]).
 class RosenwegKonto implements Zugangsquelle {
   RosenwegKonto(
     this.app, {
@@ -31,16 +35,32 @@ class RosenwegKonto implements Zugangsquelle {
     Anmeldeweg? weg,
     http.Client? client,
     DateTime Function()? jetzt,
+    StilleAnmeldung? Function()? still,
   })  : _speicher = speicher ?? Schluesselbund(app.ordner),
         _weg = weg ?? Anmeldeweg.fuer(app.telefonRuecksprung),
         _client = client ?? http.Client(),
-        _jetzt = jetzt ?? DateTime.now;
+        _jetzt = jetzt ?? DateTime.now,
+        _still = still ?? (() => _standardStill(app.konfig));
 
   final RosenwegApp app;
   final Schluesselbund _speicher;
   final Anmeldeweg _weg;
   final http.Client _client;
   final DateTime Function() _jetzt;
+  final StilleAnmeldung? Function() _still;
+
+  /// Kerberos nur auf Linux und Windows (Domaene); Telefone und macOS nie.
+  static StilleAnmeldung? _standardStill(RosenwegKonfig k) {
+    final quelle = k.kerberosQuelle;
+    if (quelle == null || RosenwegPlattform.istAndroid) return null;
+    if (!(Platform.isLinux || Platform.isWindows)) return null;
+    return StilleAnmeldung(authentik: Uri.parse(k.authentik).replace(path: '/'), quelle: quelle, dienst: k.kerberosDienst);
+  }
+
+  /// Ruecksprung der stillen Anmeldung. Passt auf die Desktop-Regel in
+  /// Authentik (`^http://localhost:[0-9]+/anmeldung$`); Port 0, weil dort
+  /// niemand lauscht: die App liest den Code aus der Weiterleitung selbst.
+  static const stillerRuecksprung = 'http://localhost:0/anmeldung';
 
   RosenwegKonfig get _k => app.konfig;
 
@@ -117,6 +137,44 @@ class RosenwegKonto implements Zugangsquelle {
 
   /// Knopf "Abbrechen" waehrend die Anmeldeseite offen ist.
   void abbrechen() => _offen?.abbrechen();
+
+  /// Anmeldung mit dem Kerberos-Ticket der Sitzung, ohne Browser und ohne
+  /// Eingabe. true = angemeldet. false = hier nicht moeglich (kein Ticket,
+  /// nicht in der Domaene, Authentik will etwas fragen) — dann bleibt
+  /// [anmelden]. Wirft nicht.
+  ///
+  /// Gilt als Anmeldung "im Browser" fuer die 30-Tage-Regel: das Ticket
+  /// beweist eine frische Anmeldung am Geraet. Fuer [anmelden] mit
+  /// `bestaetigen: true` (Passwortwechsel) taugt es bewusst nicht.
+  Future<bool> stillAnmelden() async {
+    final still = _still();
+    if (still == null) return false;
+    final verifier = _zufall(48);
+    final state = _zufall(24);
+    final challenge = base64UrlEncode(sha256.convert(ascii.encode(verifier)).bytes).replaceAll('=', '');
+    final url = Uri.parse('${_k.authentik}/authorize/').replace(queryParameters: {
+      'response_type': 'code',
+      'client_id': _k.clientId,
+      'redirect_uri': stillerRuecksprung,
+      'scope': _k.scopes,
+      'state': state,
+      'code_challenge': challenge,
+      'code_challenge_method': 'S256',
+    });
+    final antwort = await still.ausfuehren(url, stillerRuecksprung);
+    if (antwort == null) {
+      Protokoll.schreiben('Stille Anmeldung nicht moeglich: ${still.grund}');
+      return false;
+    }
+    try {
+      await _abschliessen(antwort, verifier: verifier, state: state, rueck: stillerRuecksprung);
+      Protokoll.schreiben('Still angemeldet (Kerberos)');
+      return true;
+    } catch (e) {
+      Protokoll.schreiben('Stille Anmeldung: Abschluss fehlgeschlagen', e);
+      return false;
+    }
+  }
 
   /// Android: kam der Ruecksprung, waehrend die App beendet war? Dann jetzt
   /// abschliessen. true = dabei angemeldet. Auf Desktops immer false.

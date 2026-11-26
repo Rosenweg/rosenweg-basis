@@ -16,6 +16,8 @@ class RosenwegKonfig {
     this.hausDnsWert = 'Rosenweg GBT',
     this.hausDnsZeit = const Duration(milliseconds: 1500),
     this.anmeldungHoechstensAlt = const Duration(days: 30),
+    this.kerberosQuelle = 'ad-kerberos',
+    this.kerberosDienst = 'HTTP/authentik.rosenweg4303.ch@AD.ROSENWEG4303.CH',
   });
 
   /// Authentik, Anwendung "rosenweg-apps": oeffentlicher Client mit PKCE,
@@ -42,6 +44,16 @@ class RosenwegKonfig {
   /// Anmeldung im Browser hoechstens 30 Tage her ist; danach wieder durch den
   /// Browser. Gezaehlt ab der Browser-Anmeldung, nicht ab dem letzten Erneuern.
   final Duration anmeldungHoechstensAlt;
+
+  /// Stille Anmeldung mit dem Kerberos-Ticket der Sitzung (Linux-Stationen
+  /// mit Domaenenanmeldung, Windows-Rechner der Domaene): Slug der
+  /// Kerberos-Quelle in Authentik. null = aus.
+  final String? kerberosQuelle;
+
+  /// Principal von Authentik fuer SPNEGO (SPN der Kerberos-Quelle,
+  /// `HTTP@authentik.rosenweg4303.ch` in Authentik), mit Realm, damit kein
+  /// DNS-Umweg den Namen verbiegt.
+  final String kerberosDienst;
 
   static const standard = RosenwegKonfig();
 }
