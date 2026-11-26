@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -43,6 +45,34 @@ void main() {
     expect(s.geteiltesTelefon, isTrue);
     expect(s.api.transport, isA<GeraetTransport>());
     expect(find.text('INHALT'), findsOneWidget);
+  });
+
+  testWidgets('geteiltes Telefon: Personenwechsel baut die App neu (auch geoeffnete Seiten)', (t) async {
+    final wechsel = StreamController<String>.broadcast();
+    final s = RosenwegSitzung(app, geraetDa: () async => true, personWechsel: wechsel.stream);
+    await t.pumpWidget(RosenwegRahmen(
+        sitzung: s,
+        inhalt: (_) => Builder(
+            builder: (c) => TextButton(
+                onPressed: () => Navigator.of(c).push(MaterialPageRoute<void>(builder: (_) => const Text('SEITE'))),
+                child: const Text('INHALT')))));
+    await t.runAsync(s.starten);
+    await t.pump();
+    await t.tap(find.text('INHALT'));
+    await t.pumpAndSettle();
+    expect(find.text('SEITE'), findsOneWidget);
+    wechsel.add('angemeldet');
+    await t.pumpAndSettle();
+    expect(s.personStand.value, 1);
+    expect(find.text('SEITE'), findsNothing);
+    expect(find.text('INHALT'), findsOneWidget);
+    await wechsel.close();
+  });
+
+  testWidgets('eigenes Handy: Personenwechsel-Meldung aendert nichts', (t) async {
+    final s = RosenwegSitzung(app, geraetDa: () async => false);
+    s.personGewechselt();
+    expect(s.personStand.value, 0);
   });
 
   testWidgets('fester Transport (Tests): bereit sobald angemeldet', (t) async {

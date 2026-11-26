@@ -69,26 +69,46 @@ class HttpTransport implements Transport {
 }
 
 /// Geteiltes Telefon: die Anfrage geht an Rosenweg Geraet
-/// (`call("portal_anfrage", pfad, {methode, koerper, paket})`), das sie mit
-/// dem Zugang der am Telefon angemeldeten Person an die API stellt. Die App
-/// sieht nie ein Token. Vorschlag, in Rosenweg Geraet noch nicht gebaut —
+/// (`call("portal_anfrage", pfad, {methode, koerper, paket})`, AnlageProvider
+/// ab v236), das sie ueber die Telefonanlage im Namen der am Telefon
+/// angemeldeten Person an die API stellt. Die App sieht nie ein Token —
 /// siehe docs/geteilte-telefone.md.
+///
+/// Jede Antwort traegt eine `sitzung`-Marke, die mit jeder An-/Abmeldung am
+/// Telefon wechselt. Wechselt sie zwischen zwei Antworten, ruft der Transport
+/// [personGewechselt] (die App laedt dann neu, statt Daten zweier Personen zu
+/// mischen).
 class GeraetTransport implements Transport {
-  GeraetTransport(this.paket);
+  GeraetTransport(this.paket, {this.personGewechselt, GeraetRufen? rufen}) : _rufen = rufen ?? _standardRufen;
   final String paket;
+  final void Function()? personGewechselt;
+  final GeraetRufen _rufen;
+  String? _sitzung;
 
   static const methodeName = 'portal_anfrage';
 
+  static Future<Map<String, Object?>> _standardRufen(String pfad, Map<String, Object?> extras) =>
+      RosenwegPlattform.geraetRufen(methodeName, arg: pfad, extras: extras);
+
   @override
   Future<ApiAntwort> senden(String methode, String pfad, {Object? koerper}) async {
-    final b = await RosenwegPlattform.geraetRufen(methodeName, arg: pfad, extras: {
+    final b = await _rufen(pfad, {
       'methode': methode,
       'koerper': koerper == null ? null : jsonEncode(koerper),
       'paket': paket,
     });
+    final s = b['sitzung'];
+    if (s is String && s.isNotEmpty) {
+      final vorher = _sitzung;
+      _sitzung = s;
+      if (vorher != null && vorher != s) personGewechselt?.call();
+    }
     return geraetAntwortLesen(b);
   }
 }
+
+/// `portal_anfrage` an Rosenweg Geraet (in Tests eine Attrappe).
+typedef GeraetRufen = Future<Map<String, Object?>> Function(String pfad, Map<String, Object?> extras);
 
 /// Bundle von Rosenweg Geraet → Antwort (oeffentlich fuer Tests).
 ApiAntwort geraetAntwortLesen(Map<String, Object?> b) {

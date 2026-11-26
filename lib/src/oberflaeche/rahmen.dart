@@ -36,8 +36,16 @@ class RosenwegRahmen extends StatelessWidget {
   final RosenwegSitzung sitzung;
   final WidgetBuilder inhalt;
 
+  // Personenwechsel am geteilten Telefon: neuer Schluessel = neue App (auch
+  // geoeffnete Seiten und ihr Zustand sind weg), die Daten kommen neu.
   @override
-  Widget build(BuildContext context) => MaterialApp(
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+        valueListenable: sitzung.personStand,
+        builder: (context, stand, _) => _app(stand),
+      );
+
+  Widget _app(int stand) => MaterialApp(
+        key: ValueKey(stand),
         title: sitzung.app.name,
         debugShowCheckedModeBanner: false,
         theme: rosenwegThema(Brightness.light),

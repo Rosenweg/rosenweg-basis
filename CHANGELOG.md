@@ -5,6 +5,10 @@
   `KerberosTicket` (GSS-API / SSPI per FFI). Die Sitzung versucht sie beim
   Start, beim Knopf und nach widerrufenem Refresh-Token; sonst Browser wie
   bisher. Neue Abhängigkeit `ffi`; Linux-Paket braucht `libgssapi-krb5-2`.
+- Geteilte Telefone: `portal_anfrage` ist in Rosenweg Gerät gebaut (ab v236,
+  über die Telefonanlage). `GeraetTransport` liest die Sitzungsmarke; bei
+  einem Personenwechsel (Marke oder Broadcast `ANGEMELDET`/`ABGEMELDET` von
+  Gerät) baut `RosenwegRahmen` die ganze App neu (`personStand`).
 
 ## 0.1.0 (26.11.2026)
 

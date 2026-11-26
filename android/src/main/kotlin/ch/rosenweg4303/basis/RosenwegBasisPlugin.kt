@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.Executors
@@ -30,6 +31,8 @@ import java.util.concurrent.Executors
  */
 class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private var kanal: MethodChannel? = null
+    private var person: EventChannel? = null
+    private var personQuelle: GeraetPerson? = null
     private var kontext: Context? = null
     private val netz = Executors.newSingleThreadExecutor()
     private val haupt = Handler(Looper.getMainLooper())
@@ -37,12 +40,20 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         kontext = binding.applicationContext
         kanal = MethodChannel(binding.binaryMessenger, KANAL).also { it.setMethodCallHandler(this) }
+        // Geteilte Telefone: An-/Abmeldung am Telefon (eigener Kanal, GeraetPerson.kt)
+        val quelle = GeraetPerson(binding.applicationContext)
+        personQuelle = quelle
+        person = EventChannel(binding.binaryMessenger, GeraetPerson.KANAL).also { it.setStreamHandler(quelle) }
         aktiv = this
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         kanal?.setMethodCallHandler(null)
         kanal = null
+        person?.setStreamHandler(null)
+        person = null
+        personQuelle?.onCancel(null)   // Empfaenger abmelden
+        personQuelle = null
         if (aktiv === this) aktiv = null
     }
 

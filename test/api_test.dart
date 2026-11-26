@@ -185,6 +185,37 @@ void main() {
           throwsA(isA<GeraetFehler>().having((e) => '$e', 'text', contains('Signatur'))));
     });
 
+    test('GeraetTransport: Pfad und Extras wie in Rosenweg Geraet (AnlageProvider portal_anfrage)', () async {
+      final gesehen = <(String, Map<String, Object?>)>[];
+      final t = GeraetTransport('ch.rosenweg4303.salz', rufen: (pfad, extras) async {
+        gesehen.add((pfad, extras));
+        return {'status': 201, 'json': '{"ok":true}', 'sitzung': 'a1'};
+      });
+      final a = await t.senden('POST', '/api/salz/buchungen', koerper: {'saecke': 1});
+      expect(a.status, 201);
+      expect(gesehen.single.$1, '/api/salz/buchungen');
+      expect(gesehen.single.$2, {'methode': 'POST', 'koerper': '{"saecke":1}', 'paket': 'ch.rosenweg4303.salz'});
+    });
+
+    test('GeraetTransport: andere Sitzungsmarke = Personenwechsel, erste und gleiche nicht', () async {
+      var marke = 'a1';
+      var wechsel = 0;
+      final t = GeraetTransport('ch.rosenweg4303.salz',
+          personGewechselt: () => wechsel++, rufen: (_, _) async => {'status': 200, 'json': '{}', 'sitzung': marke});
+      await t.senden('GET', '/api/salz/lager');
+      await t.senden('GET', '/api/salz/lager');
+      expect(wechsel, 0);
+      marke = 'b2';
+      await t.senden('GET', '/api/salz/lager');
+      expect(wechsel, 1);
+    });
+
+    test('Geraet: Pfad fuer diese App nicht freigegeben (403 der Anlage)', () async {
+      final api = RosenwegApi(GeraetTransport('ch.rosenweg4303.salz',
+          rufen: (_, _) async => {'status': 403, 'json': '{"error":"Diese App darf das auf geteilten Telefonen nicht"}'}));
+      await expectLater(api.get('/api/admin'), throwsA(isA<KeineBerechtigung>()));
+    });
+
     test('HTML statt JSON vom Geraet weitergereicht', () {
       expect(() => geraetAntwortLesen({'status': 502, 'json': '<html>'}), throwsA(isA<ServerNichtErreichbar>()));
     });
