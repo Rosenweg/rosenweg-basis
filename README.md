@@ -75,6 +75,20 @@ sh werkzeug/logo/vorschau.sh ~/Downloads/rosenweg-app-logos.png assets/logo/rose
 `logos/rosenweg-vm/`: korrigiertes Logo für rosenweg-vm (Monitor als
 Zeichen), dort noch nicht übernommen.
 
+Android-Apps (Fossify-Forks, Rosenweg Karten, Rosenweg Gerät): welche App
+welches Zeichen trägt, steht in `werkzeug/logo/android-apps.txt`. Jede App
+ruft aus ihrem `assets/logo/erzeugen.sh` nur `android-apps.sh` auf; es schreibt
+Mipmaps aller Dichten, adaptive icon und monochromes Designsymbol. Bei den
+Fossify-Apps zeigen die 18 wählbaren Icon-Farben alle auf das Rosenweg-Icon.
+`startbildschirm.py` zeigt die Icons wie auf dem Telefon (hell, dunkel,
+Designsymbole); Stand: `logos/android-apps/startbildschirm.png`.
+
+```sh
+sh werkzeug/logo/android-apps.sh ../fossify-rosenweg/calculator-rosenweg calculator-rosenweg
+python3 werkzeug/logo/startbildschirm.py --aus ~/Downloads/rosenweg-android-logos.png \
+    ../fossify-rosenweg/calculator-rosenweg/assets/logo/rosenweg-rechner …
+```
+
 ## Neue App anlegen
 
 1. `flutter create --platforms=android,linux --org ch.rosenweg4303 --project-name rosenweg_<name> rosenweg-<name>`

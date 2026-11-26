@@ -1,0 +1,22 @@
+# Rosenweg-Android-Apps und ihre Logos (gelesen von android-apps.sh und startbildschirm.py)
+# repo | logo-name | titel (wie auf dem Startbildschirm) | zeichen (zeichen/<name>.svg) | art
+#   art fossify: Fossify-Fork, res unter app/src/main/res, waehlbare Icon-Farben zeigen aufs Rosenweg-Icon
+#   art kotlin:  eigene Kotlin/Java-App, res unter app/src/main/res
+#   art flutter: Flutter-App, res unter android/app/src/main/res
+calculator-rosenweg|rosenweg-rechner|Rosenweg Rechner|rechner|fossify
+calendar-rosenweg|rosenweg-kalender|Rosenweg Kalender|kalender|fossify
+camera-rosenweg|rosenweg-kamera|Rosenweg Kamera|kamera|fossify
+clock-rosenweg|rosenweg-uhr|Rosenweg Uhr|uhr|fossify
+contacts-rosenweg|rosenweg-kontakte|Rosenweg Kontakte|kontakte|fossify
+documents-rosenweg|rosenweg-dokumente|Rosenweg Dokumente|dokumente|fossify
+file-manager-rosenweg|rosenweg-dateimanager|Rosenweg Files|dateien|fossify
+gallery-rosenweg|rosenweg-galerie|Rosenweg Galerie|galerie|fossify
+launcher-rosenweg|rosenweg-launcher|Rosenweg Launcher|startbildschirm|fossify
+messages-rosenweg|rosenweg-messenger|Rosenweg Messenger|messenger|fossify
+notes-rosenweg|rosenweg-notizen|Rosenweg Notizen|notizen|fossify
+paint-rosenweg|rosenweg-paint|Rosenweg Paint|malen|fossify
+phone-rosenweg|rosenweg-telefon|Rosenweg Telefon|telefon|fossify
+voice-recorder-rosenweg|rosenweg-diktiergeraet|Rosenweg Diktiergerät|diktiergeraet|fossify
+keyboard-rosenweg|rosenweg-tastatur|Rosenweg Tastatur|tastatur|fossify
+rosenweg-karten|rosenweg-karten|Rosenweg Karten|karten|kotlin
+android-sip-rosenweg|rosenweg-geraet|Rosenweg Gerät|geraet|kotlin

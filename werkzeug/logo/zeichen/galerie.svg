@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <title>Bild mit Bergen (Rosenweg Galerie)</title>
+  <path fill-rule="evenodd" d="M60 52 H340 A40 40 0 0 1 380 92 V308 A40 40 0 0 1 340 348 H60 A40 40 0 0 1 20 308 V92 A40 40 0 0 1 60 52 Z M72 90 H328 A14 14 0 0 1 342 104 V296 A14 14 0 0 1 328 310 H72 A14 14 0 0 1 58 296 V104 A14 14 0 0 1 72 90 Z"/>
+  <path d="M80 290 L164 168 L228 256 L264 210 L322 290 Z"/>
+  <path d="M244 146 A32 32 0 1 1 308 146 A32 32 0 1 1 244 146 Z"/>
+</svg>

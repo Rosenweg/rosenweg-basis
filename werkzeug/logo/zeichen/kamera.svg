@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <title>Kamera (Rosenweg Kamera)</title>
+  <path d="M128 116 L154 70 A20 20 0 0 1 172 60 H228 A20 20 0 0 1 246 70 L272 116 Z"/>
+  <path fill-rule="evenodd" d="M64 104 H336 A44 44 0 0 1 380 148 V316 A44 44 0 0 1 336 360 H64 A44 44 0 0 1 20 316 V148 A44 44 0 0 1 64 104 Z M108 232 A92 92 0 1 1 292 232 A92 92 0 1 1 108 232 Z"/>
+  <path d="M146 232 A54 54 0 1 1 254 232 A54 54 0 1 1 146 232 Z"/>
+  <path d="M298 154 A18 18 0 1 1 334 154 A18 18 0 1 1 298 154 Z"/>
+</svg>
