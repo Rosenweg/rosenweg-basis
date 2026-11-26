@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'anmeldung/rosenweg_konto.dart';
 import 'anmeldung/ruecksprung.dart';
 import 'konfig.dart';
 import 'netz/api.dart';
+import 'netz/geraet_person.dart';
 import 'plattform.dart';
 import 'protokoll.dart';
 
@@ -35,15 +38,19 @@ enum Phase {
 /// Die App liest [api] und baut ihre Seiten; [AnmeldeTor] zeigt davor
 /// Anmeldeschirm, Warten und Fehler.
 class RosenwegSitzung extends ChangeNotifier {
-  RosenwegSitzung(this.app, {RosenwegKonto? konto, Transport? transport, Future<bool> Function()? geraetDa})
+  RosenwegSitzung(this.app,
+      {RosenwegKonto? konto, Transport? transport, Future<bool> Function()? geraetDa, Stream<String>? personWechsel})
       : konto = konto ?? RosenwegKonto(app),
         _transport = transport, // ignore: prefer_initializing_formals
-        _geraetDa = geraetDa ?? _standardGeraetDa;
+        _geraetDa = geraetDa ?? _standardGeraetDa,
+        _personWechsel = personWechsel; // ignore: prefer_initializing_formals
 
   final RosenwegApp app;
   final RosenwegKonto konto;
   final Transport? _transport;
   final Future<bool> Function() _geraetDa;
+  final Stream<String>? _personWechsel;
+  StreamSubscription<String>? _personAbo;
 
   static Future<bool> _standardGeraetDa() async => RosenwegPlattform.istAndroid && await RosenwegPlattform.geraetDa();
 
@@ -52,6 +59,10 @@ class RosenwegSitzung extends ChangeNotifier {
 
   /// Geteiltes Telefon: Rosenweg Geraet meldet an und ab, nicht die App.
   bool geteiltesTelefon = false;
+
+  /// Zaehlt die Personenwechsel am geteilten Telefon. [RosenwegRahmen] baut
+  /// die ganze App (auch geoeffnete Seiten) neu, sobald er sich aendert.
+  final personStand = ValueNotifier<int>(0);
 
   late RosenwegApi api = _apiFuer(_transport ?? HttpTransport(basis: app.konfig.api, zugang: konto));
 
@@ -74,7 +85,8 @@ class RosenwegSitzung extends ChangeNotifier {
       }
       if (await _geraetDa()) {
         geteiltesTelefon = true;
-        api = _apiFuer(GeraetTransport(app.kennung));
+        api = _apiFuer(GeraetTransport(app.kennung, personGewechselt: personGewechselt));
+        _personAbo ??= (_personWechsel ?? GeraetPerson.wechsel).listen((_) => personGewechselt());
         _setzen(Phase.bereit);
         return;
       }
@@ -126,6 +138,14 @@ class RosenwegSitzung extends ChangeNotifier {
     if (geteiltesTelefon) return;
     await konto.abmelden();
     _setzen(Phase.abgemeldet);
+  }
+
+  /// Am geteilten Telefon hat sich jemand an- oder abgemeldet (Rosenweg Geraet,
+  /// oder die `sitzung`-Marke einer Antwort hat gewechselt): alles neu laden.
+  void personGewechselt() {
+    if (!geteiltesTelefon) return;
+    Protokoll.schreiben('Personenwechsel am Telefon — neu laden');
+    personStand.value++;
   }
 
   void _nichtMehrAngemeldet() {
