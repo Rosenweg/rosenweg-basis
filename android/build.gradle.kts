@@ -22,6 +22,34 @@ allprojects {
     }
 }
 
+// commons-rosenweg (Anmeldeschirm, Rosenweg-Anmeldung, Karten-Sitzung) kommt wie fuer die
+// Kotlin-Apps aus GitHub Packages, sonst aus dem lokalen Maven-Repository (publishToMavenLocal).
+// Die App loest die Abhaengigkeiten des Plugins mit ihren eigenen Repositories auf: darum
+// rootProject, beschraenkt auf ch.rosenweg4303.
+val gprUser = (findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR"))?.toString()
+val gprKey = (findProperty("gpr.key") ?: System.getenv("GPR_TOKEN") ?: System.getenv("GITHUB_TOKEN"))?.toString()
+rootProject.allprojects {
+    repositories {
+        // GitHub Packages (commons-rosenweg, Workflow pakete.yml); Anmeldedaten lokal aus
+        // ~/.gradle/gradle.properties (gpr.user/gpr.key), in Actions GPR_TOKEN oder GITHUB_TOKEN
+        if (gprUser != null && gprKey != null) {
+            maven {
+                name = "RosenwegCommons"
+                url = uri("https://maven.pkg.github.com/Rosenweg/commons-rosenweg")
+                credentials {
+                    username = gprUser
+                    password = gprKey
+                }
+                content { includeGroup("ch.rosenweg4303") }
+            }
+        }
+        // Rueckfall: publishToMavenLocal
+        mavenLocal {
+            content { includeGroup("ch.rosenweg4303") }
+        }
+    }
+}
+
 plugins {
     id("com.android.library")
 }
@@ -43,7 +71,7 @@ android {
     }
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 26   // commons-rosenweg (cloud) verlangt 26
     }
 
 }
@@ -52,4 +80,10 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    // Anmeldeschirm (Karte oder Rosenweg-Konto), Rosenweg-Anmeldung und Karten-Sitzung -
+    // derselbe Code wie in den Kotlin-Apps und (Aussehen/Kartenleser) in Rosenweg Geraet
+    implementation("ch.rosenweg4303:cloud:0.9.0")
 }
