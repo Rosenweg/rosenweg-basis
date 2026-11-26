@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Anmeldung und Haupt-API -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- DNS-Server des aktiven Netzes (Erkennung "im Haus") -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Geteilte Telefone: Rosenweg Geraet (AnlageProvider, nur Rosenweg-Signatur).
+         Wie im Cloud-Modul von commons-rosenweg. -->
+    <uses-permission android:name="ch.rosenweg4303.permission.ANLAGE" />
+    <queries>
+        <provider android:authorities="ch.rosenweg4303.telefon.anlage" />
+        <!-- Browser fuer die Anmeldeseite (url_launcher, Android 11+) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application>
+        <!-- Ruecksprung der Rosenweg-Anmeldung (Authentik rosenweg-apps):
+             <applicationId>:/anmeldung, wie RosenwegAnmeldungActivity in commons-rosenweg. -->
+        <activity
+            android:name="ch.rosenweg4303.basis.RuecksprungActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${applicationId}" android:path="/anmeldung" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <title>Monitor (Rosenweg Virtuelle Computer)</title>
+  <path fill-rule="evenodd" d="M44 52 H356 A28 28 0 0 1 384 80 V256 A28 28 0 0 1 356 284 H44 A28 28 0 0 1 16 256 V80 A28 28 0 0 1 44 52 Z M58 94 V242 H342 V94 Z"/>
+  <path d="M168 284 H232 L248 336 H152 Z"/>
+  <rect x="100" y="328" width="200" height="40" rx="20"/>
+</svg>

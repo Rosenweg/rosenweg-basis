@@ -1,0 +1,79 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# ============================================================================
+# werkzeug/logo/erzeugen.sh — App-Logo aus dem Baukasten, samt Plattform-Icons
+# ============================================================================
+#   werkzeug/logo/erzeugen.sh <app-wurzel> <name> "<Titel>" [zeichen.svg]
+#   werkzeug/logo/erzeugen.sh ../rosenweg-profil rosenweg-profil "Rosenweg Profil" \
+#       werkzeug/logo/zeichen/person.svg
+#
+# Schreibt in die App:
+#   assets/logo/<name>*.svg               Quellen (baukasten.py), drei Detailstufen
+#   assets/logo/<name>-512.png            fuer die App (Anmeldeschirm, Ueber) und Linux
+#   android/app/src/main/res/mipmap-*/    ic_launcher, _foreground, _monochrome
+#   android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+#   android/app/src/main/res/values/rosenweg_icon.xml
+# Die Linux-Symbole (hicolor 16…512) rechnet das Paket selbst aus den SVGs
+# (linux/paket/bauen.sh) nach derselben Regel (logo_quelle unten).
+#
+# Detailstufe nach Pixelgroesse: bis 40 px -winzig (Turm + Rose, ohne Weg),
+# bis 108 px -klein, darueber die volle Fassung.
+# Benoetigt: python3, rsvg-convert (librsvg).
+# ============================================================================
+set -eu
+HIER="$(cd "$(dirname "$0")" && pwd)"
+[ $# -ge 3 ] || { sed -n '4,7p' "$0"; exit 2; }
+APP="$(cd "$1" && pwd)"; NAME="$2"; TITEL="$3"; ZEICHEN="${4:-}"
+
+L="$APP/assets/logo"
+mkdir -p "$L"
+if [ -n "$ZEICHEN" ]; then
+  python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --zeichen "$ZEICHEN" --ziel "$L" ${ALLE:+--alle} >/dev/null
+else
+  python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --ziel "$L" ${ALLE:+--alle} >/dev/null
+fi
+
+# r <quelle ohne .svg> <groesse> <ziel>
+r() {
+  q="$1.svg"
+  if [ "$2" -le 40 ]; then q="$1-winzig.svg"; elif [ "$2" -le 108 ]; then q="$1-klein.svg"; fi
+  rsvg-convert -w "$2" -h "$2" "$q" -o "$3"
+}
+
+r "$L/$NAME" 512 "$L/$NAME-512.png"
+
+A="$APP/android/app/src/main/res"
+if [ -d "$APP/android/app" ]; then
+  for d in mdpi:1 hdpi:1.5 xhdpi:2 xxhdpi:3 xxxhdpi:4; do
+    n=${d%%:*}; f=${d##*:}
+    mkdir -p "$A/mipmap-$n"
+    r "$L/$NAME" "$(echo "48*$f/1" | bc)" "$A/mipmap-$n/ic_launcher.png"
+    # Vordergrund: sichtbar sind nur ~2/3 der 108 dp; Stufe nach sichtbarer Groesse.
+    r "$L/$NAME-vordergrund" "$(echo "108*$f/1" | bc)" "$A/mipmap-$n/ic_launcher_foreground.png"
+    r "$L/$NAME-monochrom" "$(echo "108*$f/1" | bc)" "$A/mipmap-$n/ic_launcher_monochrome.png"
+  done
+  mkdir -p "$A/mipmap-anydpi-v26" "$A/values"
+  cat > "$A/mipmap-anydpi-v26/ic_launcher.xml" <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Erzeugt von rosenweg-basis werkzeug/logo/erzeugen.sh -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/rosenweg_icon_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>
+</adaptive-icon>
+EOF
+  cat > "$A/values/rosenweg_icon.xml" <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Erzeugt von rosenweg-basis werkzeug/logo/erzeugen.sh -->
+<resources>
+    <color name="rosenweg_icon_background">#D32F2F</color>
+</resources>
+EOF
+fi
+
+# Alle ueblichen Groessen als PNG (fuer Ablage/Vorschau): GROESSEN=1 erzeugen.sh …
+if [ -n "${GROESSEN:-}" ]; then
+  mkdir -p "$L/png"
+  for s in 16 22 24 32 48 64 96 128 256 512 1024; do r "$L/$NAME" $s "$L/png/$NAME-$s.png"; done
+fi
+echo "Logo $NAME: $L"

@@ -1,0 +1,37 @@
+name: rosenweg_basis
+description: "Gemeinsame Basis der Rosenweg-Funktions-Apps: Anmeldung (Authentik rosenweg-apps), API-Client, Haus-Erkennung, Farben, Bausteine, Logo-Baukasten."
+version: 0.1.0
+publish_to: 'none'
+repository: https://github.com/Rosenweg/rosenweg-basis
+
+environment:
+  sdk: ^3.13.4
+  flutter: '>=3.38.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  crypto: ^3.0.8
+  flutter_secure_storage: ^11.2.0
+  http: ^1.6.0
+  package_info_plus: ^10.2.2
+  url_launcher: ^6.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  # Android-Teil: Ruecksprung der Anmeldung (<applicationId>:/anmeldung),
+  # DNS-Server des aktiven Netzes, Schnittstelle zu Rosenweg Geraet.
+  # Linux braucht keinen nativen Teil.
+  plugin:
+    platforms:
+      android:
+        package: ch.rosenweg4303.basis
+        pluginClass: RosenwegBasisPlugin
+  assets:
+    - assets/logo/rosenweg-512.png
