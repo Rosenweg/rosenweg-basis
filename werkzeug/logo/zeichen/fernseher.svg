@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <title>Fernseher mit Antenne und Wiedergabe-Zeichen (Rosenweg Kiosk)</title>
+  <rect x="189" y="8" width="22" height="112" rx="11" transform="rotate(-40 200 116)"/>
+  <rect x="189" y="8" width="22" height="112" rx="11" transform="rotate(40 200 116)"/>
+  <path fill-rule="evenodd" d="M46 112 H354 A30 30 0 0 1 384 142 V306 A30 30 0 0 1 354 336 H46 A30 30 0 0 1 16 306 V142 A30 30 0 0 1 46 112 Z M60 148 V300 H340 V148 Z"/>
+  <path d="M170 176 L170 272 L254 224 Z"/>
+  <path d="M84 334 H138 L126 376 H96 Z"/>
+  <path d="M262 334 H316 L304 376 H274 Z"/>
+</svg>
