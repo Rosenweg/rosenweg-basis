@@ -20,3 +20,4 @@ voice-recorder-rosenweg|rosenweg-diktiergeraet|Rosenweg Diktiergerät|diktierger
 keyboard-rosenweg|rosenweg-tastatur|Rosenweg Tastatur|tastatur|fossify
 rosenweg-karten|rosenweg-karten|Rosenweg Karten|karten|kotlin
 android-sip-rosenweg|rosenweg-geraet|Rosenweg Gerät|geraet|kotlin
+rosenweg-tv-kiosk|rosenweg-kiosk|Rosenweg Kiosk|fernseher|kotlin
