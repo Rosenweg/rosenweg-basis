@@ -13,6 +13,13 @@
 #   android/app/src/main/res/mipmap-*/    ic_launcher, _foreground, _monochrome
 #   android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
 #   android/app/src/main/res/values/rosenweg_icon.xml
+#
+# Umgebung:
+#   ANDROID_RES=<pfad>   anderer res-Ordner (Kotlin-Apps: app/src/main/res)
+#   FOSSIFY_FARBEN=1     Fossify-Apps: die 18 waehlbaren Icon-Farben
+#                        (R.mipmap.ic_launcher_red …, Aktivitaets-Aliase)
+#                        zeigen alle auf das eine Rosenweg-Icon
+#   ALLE=1, GROESSEN=1   siehe unten
 # Die Linux-Symbole (hicolor 16…512) rechnet das Paket selbst aus den SVGs
 # (linux/paket/bauen.sh) nach derselben Regel (logo_quelle unten).
 #
@@ -42,8 +49,9 @@ r() {
 
 r "$L/$NAME" 512 "$L/$NAME-512.png"
 
-A="$APP/android/app/src/main/res"
-if [ -d "$APP/android/app" ]; then
+A="${ANDROID_RES:-$APP/android/app/src/main/res}"
+case "$A" in /*) ;; *) A="$APP/$A" ;; esac
+if [ -n "${ANDROID_RES:-}" ] || [ -d "$APP/android/app" ]; then
   for d in mdpi:1 hdpi:1.5 xhdpi:2 xxhdpi:3 xxxhdpi:4; do
     n=${d%%:*}; f=${d##*:}
     mkdir -p "$A/mipmap-$n"
@@ -62,13 +70,20 @@ if [ -d "$APP/android/app" ]; then
     <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>
 </adaptive-icon>
 EOF
-  cat > "$A/values/rosenweg_icon.xml" <<'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Erzeugt von rosenweg-basis werkzeug/logo/erzeugen.sh -->
-<resources>
-    <color name="rosenweg_icon_background">#D32F2F</color>
-</resources>
-EOF
+  {
+    echo '<?xml version="1.0" encoding="utf-8"?>'
+    echo '<!-- Erzeugt von rosenweg-basis werkzeug/logo/erzeugen.sh -->'
+    echo '<resources>'
+    echo '    <color name="rosenweg_icon_background">#D32F2F</color>'
+    if [ -n "${FOSSIFY_FARBEN:-}" ]; then
+      echo '    <!-- Fossify: waehlbare Icon-Farben; alle zeigen auf das Rosenweg-Icon -->'
+      for c in red pink purple deep_purple indigo blue light_blue cyan teal light_green lime \
+               yellow amber orange deep_orange brown blue_grey grey_black; do
+        echo "    <item name=\"ic_launcher_$c\" type=\"mipmap\">@mipmap/ic_launcher</item>"
+      done
+    fi
+    echo '</resources>'
+  } > "$A/values/rosenweg_icon.xml"
 fi
 
 # Alle ueblichen Groessen als PNG (fuer Ablage/Vorschau): GROESSEN=1 erzeugen.sh …

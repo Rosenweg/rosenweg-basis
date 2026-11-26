@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <title>Sprechblase (Rosenweg Messenger)</title>
+  <path fill-rule="evenodd" d="M84 40 H316 A64 64 0 0 1 380 104 V240 A64 64 0 0 1 316 304 H84 A64 64 0 0 1 20 240 V104 A64 64 0 0 1 84 40 Z M84 172 A32 32 0 1 1 148 172 A32 32 0 1 1 84 172 Z M168 172 A32 32 0 1 1 232 172 A32 32 0 1 1 168 172 Z M252 172 A32 32 0 1 1 316 172 A32 32 0 1 1 252 172 Z"/>
+  <path d="M92 280 L64 374 A10 10 0 0 0 80 384 L196 290 Z"/>
+</svg>

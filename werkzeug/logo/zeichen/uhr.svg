@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <title>Uhr (Rosenweg Uhr)</title>
+  <path fill-rule="evenodd" d="M18 200 A182 182 0 1 1 382 200 A182 182 0 1 1 18 200 Z M58 200 A142 142 0 1 1 342 200 A142 142 0 1 1 58 200 Z"/>
+  <path d="M200 88 H200 A20 20 0 0 1 220 108 V200 A20 20 0 0 1 200 220 H200 A20 20 0 0 1 180 200 V108 A20 20 0 0 1 200 88 Z"/>
+  <rect x="180" y="180" width="40" height="112" rx="20" transform="rotate(-60 200 200)"/>
+  <path d="M170 200 A30 30 0 1 1 230 200 A30 30 0 1 1 170 200 Z"/>
+</svg>
