@@ -29,6 +29,8 @@ enum Phase {
 ///
 ///   Telefon mit Rosenweg Geraet (geteilt) → Anfragen ueber Geraet, keine eigene Anmeldung
 ///   sonst → Rosenweg-Konto (still, wenn <= 30 Tage) → bereit
+///         → sonst Kerberos-Ticket der Sitzung (Station, Windows-Domaene) → bereit
+///         → sonst Knopf "Anmelden" (Browser)
 ///
 /// Die App liest [api] und baut ihre Seiten; [AnmeldeTor] zeigt davor
 /// Anmeldeschirm, Warten und Fehler.
@@ -76,7 +78,7 @@ class RosenwegSitzung extends ChangeNotifier {
         _setzen(Phase.bereit);
         return;
       }
-      if (await konto.ausstehendeAbschliessen() || await konto.angemeldet) {
+      if (await konto.ausstehendeAbschliessen() || await konto.angemeldet || await konto.stillAnmelden()) {
         _setzen(Phase.bereit);
       } else {
         _setzen(Phase.abgemeldet);
@@ -86,9 +88,15 @@ class RosenwegSitzung extends ChangeNotifier {
     }
   }
 
-  /// Knopf "Mit Rosenweg-Konto anmelden".
+  /// Knopf "Mit Rosenweg-Konto anmelden". Erst still (Kerberos; z. B. nach
+  /// "Abmelden" in der App), sonst im Browser.
   Future<void> anmelden() async {
     try {
+      _setzen(Phase.pruefen);
+      if (await konto.stillAnmelden()) {
+        _setzen(Phase.bereit);
+        return;
+      }
       _setzen(Phase.anmelden);
       await konto.anmelden();
       _setzen(Phase.bereit);
@@ -123,9 +131,16 @@ class RosenwegSitzung extends ChangeNotifier {
   void _nichtMehrAngemeldet() {
     if (geteiltesTelefon) return; // Geraet entscheidet; die App zeigt die Meldung
     if (phase == Phase.bereit) {
-      konto.abmelden();
-      _setzen(Phase.abgemeldet);
+      _neuStill();
     }
+  }
+
+  /// Anmeldung widerrufen/abgelaufen: einmal still neu (Kerberos), sonst
+  /// zurueck zum Knopf.
+  Future<void> _neuStill() async {
+    _setzen(Phase.pruefen);
+    await konto.abmelden();
+    _setzen(await konto.stillAnmelden() ? Phase.bereit : Phase.abgemeldet);
   }
 
   /// Nicht aufgefangener Fehler (rosenwegStarten): sichtbar machen statt

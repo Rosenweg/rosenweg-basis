@@ -22,7 +22,9 @@ library;
 
 export 'src/anmeldung/rosenweg_konto.dart' show RosenwegKonto, AnmeldeFehler;
 export 'src/anmeldung/ruecksprung.dart';
+export 'src/anmeldung/kerberos.dart' show KerberosTicket, KeinKerberos;
 export 'src/anmeldung/schluesselbund.dart' show Schluesselbund;
+export 'src/anmeldung/stille_anmeldung.dart';
 export 'src/konfig.dart';
 export 'src/netz/api.dart';
 export 'src/netz/fehler.dart';
