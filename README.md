@@ -1,13 +1,44 @@
-# rosenweg_basis
+<p align="center"><img src="assets/logo/rosenweg-512.png" width="96" alt="Logo"></p>
+<h1 align="center">Rosenweg Basis</h1>
+<p align="center">Gemeinsame Flutter-Basis aller Rosenweg-Apps – gleiche Anmeldung, gleiche API, gleiches Aussehen.</p>
+<p align="center"><a href="#neue-app-anlegen">Neue App anlegen</a> · <a href="docs/bedienung.md">Anleitung</a></p>
 
-Gemeinsame Flutter-Basis für alle Rosenweg-Funktions-Apps — was
-`commons-rosenweg` (Modul `cloud`, `RosenwegAnmeldung.kt`) für die
-Fossify-Forks ist. Jede Portal-Funktion wird eine eigene App mit eigenem Repo,
-für **Linux** (Rosenweg OS, `.deb` vom PXE-Server) und **Android** (eigene
-Handys und geteilte Telefone). Die Basis sorgt dafür, dass sie sich alle
-gleich anmelden, gleich mit der API reden und gleich aussehen.
+## Inhalt
 
-Lizenz: GPL-3.0-or-later (wie rosenweg-vm).
+- [Überblick](#überblick)
+- [Läuft auf](#läuft-auf)
+- [Eine App in wenigen Zeilen](#eine-app-in-wenigen-zeilen)
+- [Bedienung – gleich in allen Apps](#bedienung--gleich-in-allen-apps)
+- [Aufbau (öffentliche API)](#aufbau-öffentliche-api)
+- [Anmeldung und Authentik](#anmeldung-und-authentik)
+- [Geteilte Telefone](#geteilte-telefone)
+- [Logos](#logos)
+- [Neue App anlegen](#neue-app-anlegen)
+- [Prüfen und CI](#prüfen-und-ci)
+- [Weitere Dokumente](#weitere-dokumente)
+- [Lizenz](#lizenz)
+
+## Überblick
+
+Jede Portal-Funktion wird eine eigene Flutter-App mit eigenem Repo. Diese Basis sorgt dafür, dass sie sich alle gleich anmelden, gleich mit der Rosenweg-API reden und gleich aussehen – was `commons-rosenweg` (Modul `cloud`) für die Fossify-Forks ist.
+
+Was drin ist:
+
+- **Anmeldung** mit dem Rosenweg-Konto (Authentik `rosenweg-apps`, PKCE), danach 30 Tage still; an Stationen und Windows-Rechnern der Domäne per Kerberos ganz ohne Browser.
+- **API-Client** mit verständlichen Fehlern (Server weg, zu viele Anfragen, keine Berechtigung, neu anmelden).
+- **Geteilte Telefone:** Anfragen über Rosenweg Gerät, ohne eigenes Token.
+- **Aussehen und Bausteine:** Thema, Farben, Anmeldeschirm, Fehler- und Ladeanzeige, „Über“ mit GPL.
+- **Logo-Baukasten** für alle App-Logos (Turm, Weg und Rose mit App-Zeichen).
+
+Version 0.1.0 (26.11.2026); 0.2.0 mit Kerberos-Anmeldung und Personenwechsel ist unveröffentlicht – siehe [CHANGELOG.md](CHANGELOG.md).
+
+## Läuft auf
+
+| Plattform | Stand |
+|---|---|
+| Linux (Rosenweg OS, `.deb` vom PXE-Server) | ja; stille Anmeldung über GSS-API (`libgssapi-krb5-2`) |
+| Android 8 und neuer (eigene Handys und geteilte Telefone) | ja; Android-Plugin `ch.rosenweg4303.basis`, minSdk 26; Anmeldeschirm aus commons-rosenweg (`ch.rosenweg4303:cloud` aus GitHub Packages, `mavenLocal()` als Rückfall) |
+| Windows | Kerberos-Anmeldung über SSPI vorbereitet |
 
 ## Eine App in wenigen Zeilen
 
@@ -24,78 +55,93 @@ const app = RosenwegApp(
 void main() => rosenwegStarten(app, (sitzung) => MeineSeite(api: sitzung.api));
 ```
 
-`rosenwegStarten` richtet Logdatei und Fehlerfang ein, prüft die Anmeldung
-und zeigt bis dahin Warten, Anmeldeschirm oder Fehler. Die App sieht erst
-`sitzung.api`, wenn jemand angemeldet ist.
+`rosenwegStarten` richtet Logdatei und Fehlerfang ein, prüft die Anmeldung und zeigt bis dahin Warten, Anmeldeschirm oder Fehler. Die App sieht erst `sitzung.api`, wenn jemand angemeldet ist.
+
+## Bedienung – gleich in allen Apps
+
+| Situation | Verhalten |
+|---|---|
+| Anmelden | ein Knopf „Mit Rosenweg-Konto anmelden“, meist ohne Eingabe; während die Seite offen ist: Hinweis und „Abbrechen“ |
+| Danach | still angemeldet, bis die letzte Browser-Anmeldung 30 Tage her ist |
+| Station / Windows-Domäne | Anmeldung mit dem Kerberos-Ticket der Sitzung, ohne Browser; fragt Authentik etwas, kommt der Browser |
+| Fehler | ganzer Satz mit „Nochmals“; ein kurzer Server-Neustart meldet niemanden ab |
+| Heikle Aktionen (Passwort) | API antwortet `403 reauth`, die App bietet „Jetzt neu anmelden“ an und macht danach selbst weiter |
+| Geteiltes Telefon | keine Anmeldung und kein „Abmelden“ in der App – das macht Rosenweg Gerät (Karte); wechselt die Person, baut sich die App neu |
+
+Mehr: [docs/bedienung.md](docs/bedienung.md).
 
 ## Aufbau (öffentliche API)
 
-| Teil | Klassen / Funktionen | Herkunft |
-|---|---|---|
-| Einstellungen | `RosenwegKonfig` (Authentik, Client `rosenweg-apps`, Scopes, API, Haus-DNS, 30-Tage-Regel), `RosenwegApp` | rosenweg-vm `konfig.dart` |
-| Anmeldung | `RosenwegKonto` (`anmelden({bestaetigen})`, `stillAnmelden()`, `abbrechen`, `zugangsToken`, `abmelden`, `ausstehendeAbschliessen`, `name/email/benutzername`), `AnmeldeFehler` | rosenweg-vm `rosenweg_konto.dart` |
-| Stille Anmeldung | `StilleAnmeldung`, `KerberosTicket` (Linux GSS-API, Windows SSPI, per FFI): SPNEGO an die Authentik-Kerberos-Quelle, dann PKCE ohne Browser | neu in 0.2.0 |
-| Rücksprung | `Anmeldeweg.fuer(...)`: `LocalhostAnmeldeweg` (Desktop, `http://localhost:<port>/anmeldung`), `SchemaAnmeldeweg` (Android, `<kennung>:/anmeldung`), `AnmeldungAbgebrochen` | rosenweg-vm `browser_anmeldung.dart` + commons-rosenweg |
-| Speicher | `Schluesselbund(eintrag)`: ein JSON-Eintrag in flutter_secure_storage, Rückfall „nur im Speicher“ ohne Secret Service | rosenweg-vm `schluesselbund.dart` |
-| API | `RosenwegApi` (`get/put/post/delete`, `objekt`, `liste`), `Transport` → `HttpTransport` (Bearer, 401 → einmal erneuern; POST nie wiederholt) / `GeraetTransport` (geteiltes Telefon, über `portal_anfrage` von Rosenweg Gerät), `jsonAnfrage` | rosenweg-vm `json_anfrage.dart` |
-| Fehler | `ServerNichtErreichbar` (502/503/504 ohne JSON, HTML, Netz; mit Rückoff), `ZuVieleAnfragen` (429 + Retry-After), `ApiFehler` (Text aus `error`), `NichtAngemeldet` (401), `KeineBerechtigung` (403, `neuAnmelden` bei `reauth`), `GeraetFehler` | |
-| Haus | `HausErkennung().imHaus()` — TXT `location.rosenweg4303.ch` = „Rosenweg GBT“ beim Resolver des Geräts; nur Hinweis, nie Sicherheit | rosenweg-vm `haus_erkennung.dart` |
-| Ablauf | `RosenwegSitzung` (Phasen `pruefen/abgemeldet/anmelden/bereit/fehler`, `geteiltesTelefon`, `personStand`, `bestaetigen()` für heikle Aktionen), `rosenwegStarten`, `RosenwegRahmen`, `AnmeldeTor` | rosenweg-vm `app_zustand.dart` |
-| Aussehen | `rosenwegThema`, `RosenwegFarben` (Rot `#D32F2F`, Dunkelrot, Grundton `#8B1E3F`), deutsche Flutter-Texte (de-CH) | |
-| Bausteine | `AnmeldeSchirm`, `FehlerAnzeige`, `LadeAnzeige`, `Abschnitt` (Karte mit Titel), `Hinweis`, `zeigeMeldung`, `frage`, `fehlerText`, `zeigeUeber` (GPL, Quelltext, Lizenzen), `RosenwegLogo` | |
-| Protokoll | `Protokoll.schreiben` — `~/.local/state/<ordner>/app.log`, nie Tokens | rosenweg-vm `protokoll.dart` |
-| Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte oder Rosenweg-Konto, Token aus Kotlin; braucht `ch.rosenweg4303:cloud` aus mavenLocal, minSdk 26), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) | commons-rosenweg `cloud` |
+| Teil | Klassen / Funktionen |
+|---|---|
+| Einstellungen | `RosenwegKonfig` (Authentik, Client, Scopes, API, Haus-DNS, 30-Tage-Regel), `RosenwegApp` |
+| Anmeldung | `RosenwegKonto` (`anmelden`, `stillAnmelden`, `abmelden`, `zugangsToken` …), `AnmeldeFehler` |
+| Stille Anmeldung | `StilleAnmeldung`, `KerberosTicket` (GSS-API / SSPI per FFI) |
+| Rücksprung | `Anmeldeweg.fuer(...)`: `LocalhostAnmeldeweg` (Desktop), `SchemaAnmeldeweg` (Android) |
+| Speicher | `Schluesselbund`: ein JSON-Eintrag in flutter_secure_storage, Rückfall „nur im Speicher“ |
+| API | `RosenwegApi` (`get/put/post/delete`, `objekt`, `liste`), `HttpTransport` (Bearer, 401 → einmal erneuern, POST nie wiederholt), `GeraetTransport` (geteiltes Telefon) |
+| Fehler | `ServerNichtErreichbar`, `ZuVieleAnfragen`, `ApiFehler`, `NichtAngemeldet`, `KeineBerechtigung`, `GeraetFehler` |
+| Haus | `HausErkennung().imHaus()` – TXT `location.rosenweg4303.ch`; nur Hinweis, nie Sicherheit |
+| Ablauf | `RosenwegSitzung`, `rosenwegStarten`, `RosenwegRahmen`, `AnmeldeTor` |
+| Aussehen | `rosenwegThema`, `RosenwegFarben` (Rot `#D32F2F`, Grundton `#8B1E3F`), deutsche Texte (de-CH) |
+| Bausteine | `AnmeldeSchirm`, `FehlerAnzeige`, `LadeAnzeige`, `Abschnitt`, `Hinweis`, `zeigeMeldung`, `frage`, `zeigeUeber`, `RosenwegLogo` |
+| Protokoll | `Protokoll.schreiben` – `~/.local/state/<ordner>/app.log`, nie Tokens |
+| Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte oder Rosenweg-Konto, Token aus Kotlin), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) |
 
-## Bedienung — gleich in allen Apps
+Mehr: [docs/entwickeln.md](docs/entwickeln.md).
 
-- Ein Knopf „Mit Rosenweg-Konto anmelden“; meist ohne Eingabe, weil der
-  Browser die Authentik-Sitzung kennt. Während die Seite offen ist:
-  Hinweis und „Abbrechen“.
-- Danach still angemeldet, bis die letzte Browser-Anmeldung 30 Tage her ist.
-- An Linux-Stationen und Windows-Rechnern der Domäne meldet die App sich
-  mit dem Kerberos-Ticket der Sitzung an, ganz ohne Browser (beim Start,
-  beim Knopf und nach widerrufenem Token). Fragt Authentik etwas oder fehlt
-  das Ticket, kommt der Browser wie oben. Das Linux-Paket braucht dafür
-  `libgssapi-krb5-2`; Einrichtung in [docs/authentik.md](docs/authentik.md).
-- Fehler als ganzer Satz mit „Nochmals“; ein kurzer Server-Neustart meldet
-  niemanden ab.
-- Heikle Aktionen (Passwort): die API antwortet `403 reauth`, die App bietet
-  „Jetzt neu anmelden“ an und macht danach selbst weiter.
-- Geteilte Telefone: keine eigene Anmeldung, kein „Abmelden“ in der App —
-  das macht Rosenweg Gerät (Karte). Die Anfragen gehen über Rosenweg Gerät
-  (`portal_anfrage`, ab v236) und die Telefonanlage; die App sieht kein Token.
-  Wechselt die Person am Telefon, baut `RosenwegRahmen` die ganze App neu.
+## Anmeldung und Authentik
+
+| In Authentik (`rosenweg-apps`) | Wert |
+|---|---|
+| Rücksprung Desktop (Regex) | `^http://localhost:[0-9]+/anmeldung$` – einmal für alle Apps |
+| Rücksprung Android (strikt) | `ch.rosenweg4303.<app>:/anmeldung` – je App |
+| Bereiche | `openid email profile offline_access` |
+| Refresh-Token | mindestens 30 Tage gültig |
+| Zustimmung | implizit, sonst fällt die stille Anmeldung alle 4 Wochen auf den Browser zurück |
+| Frische Anmeldung | `prompt=login` und `max_age=0` müssen durchgehen (Passwortwechsel) |
+
+**Kerberos:** SPNEGO an die Authentik-Kerberos-Quelle, Ablauf über die Ablauf-API abschliessen, dann die gewohnte PKCE-Autorisierung ohne Browser. Ohne Ticket oder bei einer Rückfrage bleibt der Knopf.
+
+**Haupt-API:** Die Apps schicken das Access-Token als `Authorization: Bearer …`. Die allgemeine Annahme solcher Tokens ist in der API noch in Arbeit (`requireUserLogin`, Frische-Prüfung für den Passwortwechsel).
+
+Mehr: [docs/authentik.md](docs/authentik.md).
+
+## Geteilte Telefone
+
+Gibt es auf Android den Provider `ch.rosenweg4303.telefon.anlage` (Rosenweg Gerät), meldet sich niemand in der App an. Alle Anfragen gehen per `call("portal_anfrage", <pfad>, …)` an Rosenweg Gerät (ab v236), von dort über die Telefonanlage an die Haupt-API – mit einem Token, das nur für diese eine Anfrage gilt.
+
+| Stelle | prüft |
+|---|---|
+| Rosenweg Gerät | Signatur des Aufrufers (`ch.rosenweg4303.permission.ANLAGE`), Paket `ch.rosenweg4303.*`, Methode, Pfad, Grösse, höchstens 120 Anfragen je App und Minute |
+| Telefonanlage | wer angemeldet ist und ob die App den Pfad darf (`portal_pfade`) |
+| Haupt-API | Signatur, Frist, Methode und Pfad, Konto aktiv; nichts, was einen Ausweis ändert |
+
+| Antwort | in der App |
+|---|---|
+| Methode unbekannt | „Rosenweg Gerät ist zu alt für diese App – bitte aktualisieren.“ |
+| andere Signatur | „Rosenweg Gerät verweigert den Zugriff (andere Signatur?).“ |
+| niemand angemeldet | „Bitte zuerst mit der Karte anmelden.“ |
+| 403 / 429 | Pfad nicht freigegeben / zu viele Anfragen |
+
+Die APKs müssen deshalb mit dem Rosenweg-Schlüssel signiert sein. Mehr: [docs/geteilte-telefone.md](docs/geteilte-telefone.md).
 
 ## Logos
 
-`werkzeug/logo/`: Baukasten für alle App-Logos — das Rosenweg-Wappen
-vereinfacht (Turm, Weg, Rose auf Rot; der Turm allein wäre mit dem Wappen von
-Kaiseraugst zu verwechseln) und rechts unten das Zeichen der App in einer
-weissen Plakette. Drei Detailstufen: voll (ab 109 px), `-klein` (41–108 px),
-`-winzig` (bis 40 px, Turm und Rose ohne Weg). Siehe Kopf von
-`werkzeug/logo/baukasten.py`.
+`werkzeug/logo/` ist der Baukasten für alle App-Logos: das Rosenweg-Wappen vereinfacht (Turm, Weg, Rose auf Rot – der Turm allein wäre mit dem Wappen von Kaiseraugst zu verwechseln) und rechts unten das Zeichen der App in einer weissen Plakette.
+
+| Stufe | Grösse |
+|---|---|
+| voll | ab 109 px |
+| `-klein` | 41–108 px |
+| `-winzig` | bis 40 px, Turm und Rose ohne Weg |
 
 ```sh
 sh werkzeug/logo/erzeugen.sh ../rosenweg-profil rosenweg-profil "Rosenweg Profil" werkzeug/logo/zeichen/person.svg
-sh werkzeug/logo/vorschau.sh ~/Downloads/rosenweg-app-logos.png assets/logo/rosenweg ../rosenweg-profil/assets/logo/rosenweg-profil
-```
-
-`logos/rosenweg-vm/`: Logo für rosenweg-vm (Monitor als Zeichen), dort
-übernommen (ab Version 1.0.1).
-
-Android-Apps (Fossify-Forks, Rosenweg Karten, Rosenweg Gerät): welche App
-welches Zeichen trägt, steht in `werkzeug/logo/android-apps.txt`. Jede App
-ruft aus ihrem `assets/logo/erzeugen.sh` nur `android-apps.sh` auf; es schreibt
-Mipmaps aller Dichten, adaptive icon und monochromes Designsymbol. Bei den
-Fossify-Apps zeigen die 18 wählbaren Icon-Farben alle auf das Rosenweg-Icon.
-`startbildschirm.py` zeigt die Icons wie auf dem Telefon (hell, dunkel,
-Designsymbole); Stand: `logos/android-apps/startbildschirm.png`.
-
-```sh
 sh werkzeug/logo/android-apps.sh ../fossify-rosenweg/calculator-rosenweg calculator-rosenweg
-python3 werkzeug/logo/startbildschirm.py --aus ~/Downloads/rosenweg-android-logos.png \
-    ../fossify-rosenweg/calculator-rosenweg/assets/logo/rosenweg-rechner …
 ```
+
+Für die Android-Apps (Fossify-Forks, Rosenweg Karten, Rosenweg Gerät, Rosenweg Kiosk) steht in `werkzeug/logo/android-apps.txt`, welche App welches Zeichen trägt; `android-apps.sh` schreibt Mipmaps, adaptive Icon und monochromes Designsymbol. Mehr: [docs/logos.md](docs/logos.md).
 
 ## Neue App anlegen
 
@@ -103,20 +149,28 @@ python3 werkzeug/logo/startbildschirm.py --aus ~/Downloads/rosenweg-android-logo
 2. applicationId/APPLICATION_ID auf `ch.rosenweg4303.<name>` setzen.
 3. `rosenweg_basis` als git-Abhängigkeit mit festem Tag (z. B. `ref: v0.2.0`), lokal `pubspec_overrides.yaml` mit `path: ../rosenweg-basis`.
 4. Zeichen zeichnen (`werkzeug/logo/zeichen/<name>.svg`, 400×400), `erzeugen.sh`.
-5. Authentik: Rücksprung `ch.rosenweg4303.<name>:/anmeldung` eintragen (docs/authentik.md).
+5. Authentik: Rücksprung `ch.rosenweg4303.<name>:/anmeldung` eintragen.
 6. `linux/paket/` aus rosenweg-profil kopieren und Namen ersetzen.
 
-## Weiter
-
-- [docs/authentik.md](docs/authentik.md) — was in Authentik eingetragen sein muss
-- [docs/geteilte-telefone.md](docs/geteilte-telefone.md) — Schnittstelle zu Rosenweg Gerät
-- [docs/rosenweg-vm-umstellen.md](docs/rosenweg-vm-umstellen.md) — was rosenweg-vm später ändern müsste
-
-## Prüfen
+## Prüfen und CI
 
 ```sh
 flutter analyze && flutter test
 ```
 
-Dasselbe läuft bei jedem Push und PR in `.github/workflows/pruefen.yml`
-auf dem eigenen Runner. Änderungen stehen in [CHANGELOG.md](CHANGELOG.md).
+Dasselbe läuft bei jedem Push und PR in `.github/workflows/pruefen.yml` auf dem eigenen Runner. Keine Secrets nötig. Änderungen stehen in [CHANGELOG.md](CHANGELOG.md).
+
+## Weitere Dokumente
+
+| Datei | Inhalt |
+|---|---|
+| [docs/entwickeln.md](docs/entwickeln.md) | Beispiel, öffentliche API im Detail mit Herkunft |
+| [docs/bedienung.md](docs/bedienung.md) | Bedienung, gleich in allen Apps |
+| [docs/authentik.md](docs/authentik.md) | was in Authentik eingetragen sein muss, Kerberos |
+| [docs/geteilte-telefone.md](docs/geteilte-telefone.md) | Schnittstelle zu Rosenweg Gerät, Personenwechsel |
+| [docs/logos.md](docs/logos.md) | Logo-Baukasten |
+| [docs/rosenweg-vm-umstellen.md](docs/rosenweg-vm-umstellen.md) | was rosenweg-vm für die Umstellung auf die Basis ändern müsste |
+
+## Lizenz
+
+GPL-3.0-or-later, siehe [LICENSE](LICENSE).
