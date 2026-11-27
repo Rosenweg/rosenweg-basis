@@ -1,6 +1,8 @@
 # Rosenweg-Flutter-Apps (Plan "Alle Portal-Funktionen als Flutter-Apps", Abschnitt 1e) und ihre Logos.
 # Gelesen von kontaktbogen.sh und werkzeug/neue-app.sh (Vorschlag fuer Zeichen und Gruppe).
-# repo | titel | zeichen (zeichen/<name>.svg) | gruppe (bewohner|verwaltung|technik) | kennung (ch.rosenweg4303.<kennung>)
+# repo | titel | zeichen (zeichen/<name>.svg) | gruppe (bewohner|verwaltung|technik) | kennung (ch.rosenweg4303.<kennung>) | farben
+#   farben (optional, mit Komma): weitere Gruppenfarben, wo die App fuer diese Gruppe etwas freischaltet
+#     (RosenwegApp.farbGruppen, docs/gruppenfarbe.md; Entscheid Stefan 28.11.2026); gruppe ist die Mindestfarbe
 #   gruppe: Farbe des Grundes (baukasten.py --gruppe): bewohner = Rosenweg-Rot (alle Bewohner),
 #     verwaltung = Rosenweg-Blau (Ausschuss, Hausverwaltung), technik = Dunkelgruen (Technik, Admin);
 #     Entscheid Stefan 27.11.2026, nach der Hauptzielgruppe der App
@@ -9,16 +11,16 @@
 #   Rosenweg Karten: in Rosenweg Zutritt aufgegangen (Stefan, 27.11.2026); Zutritt ist eine Technik-App (gruen),
 #     Zeichen Schluessel mit Ausweiskarte
 rosenweg-profil|Rosenweg Profil|person|bewohner|profil
-rosenweg-salz|Rosenweg Salz|salz|bewohner|salz
+rosenweg-salz|Rosenweg Salz|salz|bewohner|salz|technik
 rosenweg-vm|Rosenweg Virtuelle Computer|monitor|bewohner|vm
-rosenweg-mein-telefon|Rosenweg Mein Telefon|mein-telefon|bewohner|meintelefon
+rosenweg-mein-telefon|Rosenweg Mein Telefon|mein-telefon|bewohner|meintelefon|technik
 rosenweg-zutritt|Rosenweg Zutritt|zutritt|technik|zutritt
-rosenweg-waschkueche|Rosenweg Waschküche|waschkueche|bewohner|waschkueche
-rosenweg-reparatur|Rosenweg Reparatur|reparatur|bewohner|reparatur
+rosenweg-waschkueche|Rosenweg Waschküche|waschkueche|bewohner|waschkueche|verwaltung,technik
+rosenweg-reparatur|Rosenweg Reparatur|reparatur|bewohner|reparatur|verwaltung,technik
 rosenweg-wetter|Rosenweg Wetter|wetter|bewohner|wetter
 rosenweg-energie|Rosenweg Energie|energie|bewohner|energie
 rosenweg-zev|Rosenweg ZEV|zev|bewohner|zev
-rosenweg-termine|Rosenweg Termine|termine|bewohner|termine
+rosenweg-termine|Rosenweg Termine|termine|bewohner|termine|verwaltung,technik
 rosenweg-vollmachten|Rosenweg Vollmachten|vollmachten|verwaltung|vollmachten
 rosenweg-unterlagen|Rosenweg Unterlagen|unterlagen|bewohner|unterlagen
 rosenweg-projekte|Rosenweg Projekte|projekte|bewohner|projekte

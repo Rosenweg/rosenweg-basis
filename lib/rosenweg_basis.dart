@@ -32,6 +32,7 @@ export 'src/anmeldung/kerberos.dart' show KerberosTicket, KeinKerberos;
 export 'src/anmeldung/schluesselbund.dart' show Schluesselbund;
 export 'src/anmeldung/stille_anmeldung.dart';
 export 'src/fehler_fuer_person.dart';
+export 'src/gruppenfarbe.dart';
 export 'src/hintergrund.dart';
 export 'src/konfig.dart';
 export 'src/liste.dart';
