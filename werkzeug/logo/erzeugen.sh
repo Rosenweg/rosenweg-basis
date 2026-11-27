@@ -20,7 +20,8 @@
 #                        (R.mipmap.ic_launcher_red …, Aktivitaets-Aliase)
 #                        zeigen alle auf das eine Rosenweg-Icon
 #   ALLE=1, GROESSEN=1   siehe unten
-#   GRUPPE=<gruppe>      Farbe des Zeichens (bewohner, verwaltung, technik; baukasten.py)
+#   GRUPPE=<gruppe>      Farbe des Grundes (bewohner rot, verwaltung blau, technik gruen;
+#                        baukasten.py), auch Hintergrund des Android adaptive icon
 # Flutter-Apps mit allen Plattformen: app-symbole.sh (ruft dieses Skript auf).
 # Die Linux-Symbole (hicolor 16…512) rechnet das Paket selbst aus den SVGs
 # (linux/paket/bauen.sh) nach derselben Regel (logo_quelle unten).
@@ -36,6 +37,7 @@ APP="$(cd "$1" && pwd)"; NAME="$2"; TITEL="$3"; ZEICHEN="${4:-}"
 
 L="$APP/assets/logo"
 mkdir -p "$L"
+GRUND="$(python3 "$HIER/baukasten.py" --grundfarbe "${GRUPPE:-bewohner}")"
 if [ -n "$ZEICHEN" ]; then
   python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --zeichen "$ZEICHEN" --ziel "$L" ${ALLE:+--alle} \
     ${GRUPPE:+--gruppe "$GRUPPE"} >/dev/null
@@ -77,7 +79,7 @@ EOF
     echo '<?xml version="1.0" encoding="utf-8"?>'
     echo '<!-- Erzeugt von rosenweg-basis werkzeug/logo/erzeugen.sh -->'
     echo '<resources>'
-    echo '    <color name="rosenweg_icon_background">#D32F2F</color>'
+    echo "    <color name=\"rosenweg_icon_background\">$GRUND</color>"
     if [ -n "${FOSSIFY_FARBEN:-}" ]; then
       echo '    <!-- Fossify: waehlbare Icon-Farben; alle zeigen auf das Rosenweg-Icon -->'
       for c in red pink purple deep_purple indigo blue light_blue cyan teal light_green lime \

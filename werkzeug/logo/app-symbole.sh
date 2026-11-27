@@ -8,7 +8,7 @@
 #       "Rosenweg Telefonbuch" werkzeug/logo/zeichen/telefonbuch.svg bewohner
 #
 # Stil A2 wie rosenweg-vm: Turm, Weg (wo lesbar) und Rose, rechts unten das
-# Zeichen der App, Farbe des Zeichens nach Zielgruppe (bewohner = rot,
+# Zeichen der App; Farbe des Grundes nach Zielgruppe (bewohner = rot,
 # verwaltung = blau, technik = gruen; baukasten.py --gruppe).
 #
 # Schreibt in die App (fehlt ein Plattform-Ordner, wird er uebersprungen):
@@ -38,6 +38,7 @@ done
 
 ALLE=1 GRUPPE="$GRUPPE" sh "$HIER/erzeugen.sh" "$APP" "$NAME" "$TITEL" "$ZEICHEN" >/dev/null
 L="$APP/assets/logo"
+GRUND="$(python3 "$HIER/baukasten.py" --grundfarbe "$GRUPPE")"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 stufe() { # stufe <quelle ohne .svg> <groesse> -> SVG der passenden Detailstufe
   if [ "$2" -le 40 ]; then echo "$1-winzig.svg"; elif [ "$2" -le 108 ]; then echo "$1-klein.svg"; else echo "$1.svg"; fi
@@ -47,11 +48,11 @@ r() { rsvg-convert -w "$2" -h "$2" "$(stufe "$1" "$2")" -o "$3"; }
 r "$L/$NAME" 96 "$L/$NAME-klein.png"
 r "$L/$NAME" 192 "$L/$NAME-192.png"
 
-# iOS: vollflaechig ohne Alpha (iOS rundet selbst), Hintergrund Logo-Rot
+# iOS: vollflaechig ohne Alpha (iOS rundet selbst), Hintergrund in der Gruppenfarbe
 I="$APP/ios/Runner/Assets.xcassets/AppIcon.appiconset"
 if [ -d "$I" ]; then
   ios() { r "$L/$NAME-vollflaeche" "$2" "$T/i.png"
-          magick "$T/i.png" -background '#D32F2F' -alpha remove -alpha off "$I/$1"; }
+          magick "$T/i.png" -background "$GRUND" -alpha remove -alpha off "$I/$1"; }
   ios Icon-App-20x20@1x.png 20;  ios Icon-App-20x20@2x.png 40;  ios Icon-App-20x20@3x.png 60
   ios Icon-App-29x29@1x.png 29;  ios Icon-App-29x29@2x.png 58;  ios Icon-App-29x29@3x.png 87
   ios Icon-App-40x40@1x.png 40;  ios Icon-App-40x40@2x.png 80;  ios Icon-App-40x40@3x.png 120
