@@ -52,12 +52,27 @@ class RosenwegAktualisierung extends ChangeNotifier {
     String? plattform,
     this.ersteVerzoegerung = const Duration(seconds: 20),
     this.abstand = const Duration(hours: 12),
+    this.standAdresse = standardStand,
+    Future<String?> Function()? geraetKennung,
   })  : _client = client ?? http.Client(),
         _installiert = installiert ?? _standardInstalliert,
         plattform = plattform ?? plattformSchluessel(),
-        _aktivFest = aktiv;
+        _aktivFest = aktiv,
+        _geraetKennung = geraetKennung ?? standardGeraetKennung {
+    zuletzt = this;
+  }
 
   static const standardKatalog = 'https://pbx.rosenweg4303.ch/api/apps/index.json';
+
+  /// Versionsstand ans NOC (Telefonanlage, Tabelle apps_stand; ohne Personendaten).
+  static const standardStand = 'https://pbx.rosenweg4303.ch/api/apps/stand';
+
+  /// Der Updater dieser App (zuletzt erzeugt, in der Regel von [rosenwegStarten]):
+  /// fuer den Knopf "Nach Updates suchen" in den gemeinsamen Einstellungen.
+  static RosenwegAktualisierung? zuletzt;
+
+  final String standAdresse;
+  final Future<String?> Function() _geraetKennung;
 
   final RosenwegApp app;
   final String katalog;
@@ -124,6 +139,11 @@ class RosenwegAktualisierung extends ChangeNotifier {
   /// Beim Start: nach [ersteVerzoegerung] pruefen, dann alle [abstand].
   void starten() {
     if (!aktiv) {
+      // Auch ohne Update den Stand melden (Stationen, verwaltete PCs), damit das NOC sie sieht.
+      if (plattform != null && kReleaseMode) {
+        _uhr?.cancel();
+        _uhr = Timer(ersteVerzoegerung, standMelden);
+      }
       final grund = plattform == null
           ? 'Plattform'
           : RosenwegStation.erkannt
@@ -152,23 +172,138 @@ class RosenwegAktualisierung extends ChangeNotifier {
   Future<void> pruefen() async {
     if (!aktiv || stand == AktualisierungsStand.laedt || stand == AktualisierungsStand.installiert) return;
     try {
-      installiert ??= await _installiert();
-      final r = await _client.get(Uri.parse(katalog)).timeout(const Duration(seconds: 20));
-      if (r.statusCode != 200) throw HttpException('Katalog ${r.statusCode}');
-      final f = fassungImKatalog(jsonDecode(utf8.decode(r.bodyBytes)), app.kennung, plattform!, basis: Uri.parse(katalog));
-      if (f == null || !istNeuer(f.version, installiert!)) {
-        neu = null;
-        if (stand == AktualisierungsStand.verfuegbar) _setzen(AktualisierungsStand.nichts);
-        return;
-      }
-      if (neu?.version != f.version) {
-        Protokoll.schreiben('Neue Fassung ${f.version} (installiert $installiert)');
-        neu = f;
-        datei = null;
-        _setzen(AktualisierungsStand.verfuegbar);
-      }
+      await _pruefen();
     } catch (e) {
       Protokoll.schreiben('Aktualisierung pruefen', e);
+    }
+  }
+
+  /// "Nach Updates suchen" (Knopf in den Einstellungen): sofort pruefen.
+  /// Ergebnis fuer die Person; wirft nie. Neue Fassung: danach
+  /// [aktualisieren] ("Installieren").
+  Future<PruefErgebnis> jetztPruefen() async {
+    if (!aktiv) return PruefErgebnis.aus(ausGrund);
+    if (stand == AktualisierungsStand.laedt) return const PruefErgebnis._(PruefArt.laeuft, 'Die neue Fassung wird gerade geladen …');
+    try {
+      installiert ??= await _installiert();
+      final f = await _pruefen();
+      spaeter = false;
+      if (f == null) return PruefErgebnis._(PruefArt.aktuell, 'Aktuell: ${app.name} $installiert ist die neueste Fassung.');
+      notifyListeners();
+      return PruefErgebnis._(PruefArt.neu, 'Neue Fassung ${f.version} (installiert $installiert)', neu: f);
+    } catch (e) {
+      Protokoll.schreiben('Nach Updates suchen', e);
+      return PruefErgebnis._(PruefArt.fehler, klartext(e));
+    }
+  }
+
+  /// Warum der Updater hier aus ist, als Satz fuer die Person (leer, wenn er laeuft).
+  String get ausGrund {
+    if (aktiv) return '';
+    if (plattform == null) {
+      return RosenwegPlattform.istAndroid
+          ? 'Auf Android hält der Rosenweg Updater die Apps aktuell.'
+          : 'Auf diesem Gerät gibt es (noch) keine Updates über die App.';
+    }
+    if (RosenwegStation.erkannt) return 'Auf dieser Rosenweg-Station hält die Station selbst die Apps aktuell.';
+    if (plattform != null && RosenwegVerwaltet.erkannt) return 'Diese Installation wird zentral verwaltet und aktualisiert (${RosenwegVerwaltet.grund}).';
+    return 'Entwicklungsfassung: keine Updates über die App.';
+  }
+
+  /// Technischer Fehler -> Satz fuer die Person.
+  static String klartext(Object e) => switch (e) {
+        AktualisierungsFehler(:final text) => text,
+        SocketException() => 'Keine Verbindung zum Rosenweg-Server. Ist der Computer mit dem Internet verbunden?',
+        TimeoutException() => 'Der Rosenweg-Server antwortet nicht. Bitte später nochmals versuchen.',
+        HandshakeException() || TlsException() => 'Die sichere Verbindung zum Rosenweg-Server ist fehlgeschlagen (Datum und Uhrzeit richtig?).',
+        HttpException(:final message) => 'Der Rosenweg-Server hat die Liste der Apps nicht geliefert ($message).',
+        FormatException() => 'Der Rosenweg-Server hat eine unlesbare Antwort geschickt. Bitte später nochmals versuchen.',
+        _ => 'Unerwarteter Fehler: $e',
+      };
+
+  Future<NeueFassung?> _pruefen() async {
+    installiert ??= await _installiert();
+    final r = await _client.get(Uri.parse(katalog)).timeout(const Duration(seconds: 20));
+    if (r.statusCode != 200) throw HttpException('Fehler ${r.statusCode}');
+    final f = fassungImKatalog(jsonDecode(utf8.decode(r.bodyBytes)), app.kennung, plattform!, basis: Uri.parse(katalog));
+    unawaited(standMelden());
+    if (f == null || !istNeuer(f.version, installiert!)) {
+      neu = null;
+      if (stand == AktualisierungsStand.verfuegbar) _setzen(AktualisierungsStand.nichts);
+      return null;
+    }
+    if (neu?.version != f.version) {
+      Protokoll.schreiben('Neue Fassung ${f.version} (installiert $installiert)');
+      neu = f;
+      datei = null;
+      _setzen(AktualisierungsStand.verfuegbar);
+    }
+    return f;
+  }
+
+  /// Versionsstand ans NOC melden: Geraet (gehasht), Paket, Version,
+  /// Plattform - keine Personendaten. Fehler bleiben still.
+  Future<void> standMelden() async {
+    final pf = plattform;
+    if (pf == null) return;
+    try {
+      final g = await _geraetKennung();
+      if (g == null) return;
+      installiert ??= await _installiert();
+      final body = standJson(geraet: g, plattform: pf, paket: app.kennung, version: installiert!,
+          station: RosenwegStation.erkannt || RosenwegVerwaltet.erkannt, system: Platform.operatingSystem);
+      final r = await _client
+          .post(Uri.parse(standAdresse), headers: {'Content-Type': 'application/json'}, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 15));
+      if (r.statusCode != 200) Protokoll.schreiben('Stand melden: ${r.statusCode}');
+    } catch (e) {
+      Protokoll.schreiben('Stand melden', e);
+    }
+  }
+
+  /// Inhalt der Meldung (testbar).
+  static Map<String, Object?> standJson(
+          {required String geraet,
+          required String plattform,
+          required String paket,
+          required String version,
+          bool station = false,
+          String system = ''}) =>
+      {
+        'geraet': geraet,
+        'plattform': plattform,
+        'station': station,
+        'system': system,
+        'apps': [
+          {'paket': paket, 'version': version.split('+').first},
+        ],
+      };
+
+  /// Geraet fuer das NOC: SHA-256 der Maschinen-ID (Linux /etc/machine-id,
+  /// macOS IOPlatformUUID, Windows MachineGuid) mit festem Praefix - wie
+  /// der Android-Updater, nicht umkehrbar. null, wenn es keine gibt.
+  static Future<String?> standardGeraetKennung() async {
+    try {
+      String? id;
+      if (Platform.isLinux) {
+        for (final p in ['/etc/machine-id', '/var/lib/dbus/machine-id']) {
+          final f = File(p);
+          if (await f.exists()) {
+            id = (await f.readAsString()).trim();
+            break;
+          }
+        }
+      } else if (Platform.isMacOS) {
+        final r = await Process.run('ioreg', ['-rd1', '-c', 'IOPlatformExpertDevice']);
+        id = RegExp(r'"IOPlatformUUID" = "([^"]+)"').firstMatch('${r.stdout}')?.group(1);
+      } else if (Platform.isWindows) {
+        final r = await Process.run('reg', ['query', r'HKLM\SOFTWARE\Microsoft\Cryptography', '/v', 'MachineGuid']);
+        id = RegExp(r'MachineGuid\s+REG_SZ\s+(\S+)').firstMatch('${r.stdout}')?.group(1);
+      }
+      if (id == null || id.isEmpty) return null;
+      return sha256.convert(utf8.encode('rosenweg-geraet:$id')).toString();
+    } catch (_) {
+      return null;
     }
   }
 
@@ -287,6 +422,21 @@ class RosenwegAktualisierung extends ChangeNotifier {
 }
 
 enum AktualisierungsStand { nichts, verfuegbar, laedt, installiert, fehler }
+
+enum PruefArt { aktuell, neu, fehler, aus, laeuft }
+
+/// Ergebnis von [RosenwegAktualisierung.jetztPruefen].
+class PruefErgebnis {
+  const PruefErgebnis._(this.art, this.text, {this.neu});
+  const PruefErgebnis.aus(this.text)
+      : art = PruefArt.aus,
+        neu = null;
+  final PruefArt art;
+
+  /// Satz fuer die Person.
+  final String text;
+  final NeueFassung? neu;
+}
 
 /// Eine Fassung aus dem Katalog.
 class NeueFassung {

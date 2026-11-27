@@ -28,6 +28,8 @@ import java.util.concurrent.Executors
  *  - ruecksprungAusstehend   Ruecksprung der Anmeldung, der kam, bevor Dart lauschte
  *                            (App war im Hintergrund beendet); einmalig
  *  - geraetDa                Rosenweg Geraet installiert (geteiltes Telefon)?
+ *  - updaterPruefen          "Nach Updates suchen": RosenwegUpdater.jetztPruefen (zeigt selbst
+ *                            "Aktuell" / "Neue Fassung X - Installieren" / Fehler) -> true
  *  - nfcStand                "fehlt" | "aus" | "an"; nfcEinstellungen (NFC-Einstellungen oeffnen)
  *                            Karte lesen: EventChannel "ch.rosenweg4303.basis/karte" (NfcKarte.kt)
  *  - geraetRufen             ContentResolver.call auf content://ch.rosenweg4303.telefon.anlage
@@ -128,6 +130,10 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Acti
                 val u = ausstehend
                 ausstehend = null
                 result.success(u)
+            }
+            "updaterPruefen" -> {
+                ch.rosenweg4303.updater.RosenwegUpdater.jetztPruefen(aktivitaet?.activity ?: c)
+                result.success(true)
             }
             "geraetDa" -> result.success(
                 try {

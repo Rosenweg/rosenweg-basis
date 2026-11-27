@@ -10,6 +10,7 @@ import '../konfig.dart';
 import '../plattform.dart';
 import '../protokoll.dart';
 import '../sitzung.dart';
+import 'aktualisierung_leiste.dart';
 import 'bausteine.dart';
 
 /// Farben und Texte des Rosenweg-Anmeldeschirms - dieselben wie
@@ -679,6 +680,9 @@ Future<void> zeigeAnmeldung(BuildContext context, RosenwegSitzung sitzung) => Na
         appBar: AppBar(title: const Text('Anmeldung')),
         body: ListView(padding: const EdgeInsets.all(16), children: [
           AnmeldungKarte(sitzung: sitzung, nachAbmelden: () => Navigator.of(c).pop()),
+          const SizedBox(height: 16),
+          // "Nach Updates suchen" (Android: Rosenweg Updater, Computer: RosenwegAktualisierung)
+          const AktualisierungKarte(),
         ]),
       ),
     ));

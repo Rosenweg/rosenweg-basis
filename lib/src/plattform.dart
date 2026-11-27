@@ -70,6 +70,11 @@ class RosenwegPlattform {
   /// NFC-Einstellungen des Systems oeffnen (NFC einschalten).
   static Future<void> nfcEinstellungen() => _rufen<void>('nfcEinstellungen');
 
+  /// "Nach Updates suchen" auf Android: Rosenweg Updater aus commons-rosenweg
+  /// (RosenwegUpdater.jetztPruefen) zeigt das Ergebnis selbst an. false, wenn
+  /// es den Android-Teil nicht gibt.
+  static Future<bool> updaterPruefen() async => await _rufen<bool>('updaterPruefen') ?? false;
+
   /// Jede aufgelegte Karte einmal (UID als Hex); solange jemand zuhoert, ist
   /// der Reader-Modus an.
   static Stream<String> karten() => _karteKanal.receiveBroadcastStream().where((e) => e is String).cast<String>();
