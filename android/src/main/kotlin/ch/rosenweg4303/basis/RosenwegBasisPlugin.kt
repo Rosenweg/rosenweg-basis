@@ -36,7 +36,8 @@ import java.util.concurrent.Executors
  * Anmeldung auf Handys ohne Rosenweg Geraet - ueber commons-rosenweg (cloud), wie in den
  * Kotlin-Apps (Stefan 26.11.2026: ein Anmeldeschirm fuer alle, nur einmal gepflegt):
  *  - kontoStand              {angemeldet, name, email, mitKarte}
- *  - anmeldeSchirm           RosenwegAnmeldeSchirm (Karte oder Rosenweg-Konto) -> true = angemeldet
+ *  - anmeldeSchirm           RosenwegAnmeldeSchirm (Karte oder Rosenweg-Konto) -> true = angemeldet;
+ *                            Argument "gruppe" (bewohner/verwaltung/technik) = Farbe
  *  - zugangsToken            Zugang fuer die API (Browser oder Karte), null = abgemeldet;
  *                            Fehler "netz" = Server nur gerade nicht erreichbar
  *  - zugangUngueltig, abmelden (nur diese App)
@@ -177,7 +178,12 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Acti
                 if (RosenwegAnmeldung.angemeldet(c)) return result.success(true)
                 schirmErgebnis?.success(false)
                 schirmErgebnis = result
-                a.startActivityForResult(Intent(a, RosenwegAnmeldeSchirm::class.java), ANMELDESCHIRM)
+                // Farbe wie das Logo der App (RosenwegApp.gruppe). Als Text statt
+                // RosenwegAnmeldeSchirm.EXTRA_GRUPPE, damit es auch mit cloud < 0.13.6 baut
+                // (dort wird das Extra nicht gelesen: blau).
+                val i = Intent(a, RosenwegAnmeldeSchirm::class.java)
+                call.argument<String>("gruppe")?.let { i.putExtra("ch.rosenweg4303.cloud.GRUPPE", it) }
+                a.startActivityForResult(i, ANMELDESCHIRM)
             }
             "zugangsToken" -> netz.execute {
                 // blockiert (Erneuern ueber das Netz): nie im UI-Thread

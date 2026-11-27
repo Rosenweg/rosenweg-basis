@@ -75,7 +75,7 @@ class RosenwegSitzung extends ChangeNotifier {
       // Ein Schluesselbund-Eintrag fuer Konto und Karte (macOS fragt bei
       // unsignierten Apps je Eintrag)
       : konto = konto ?? RosenwegKonto(app, speicher: speicher),
-        android = android ?? (konto == null && RosenwegPlattform.istAndroid ? AndroidKontoKanal() : null),
+        android = android ?? (konto == null && RosenwegPlattform.istAndroid ? AndroidKontoKanal(gruppe: app.gruppe) : null),
         karte = karte ??
             (konto == null && app.ohneBrowser && !RosenwegPlattform.istAndroid ? KartenSitzung(app, speicher: speicher) : null),
         _transport = transport, // ignore: prefer_initializing_formals

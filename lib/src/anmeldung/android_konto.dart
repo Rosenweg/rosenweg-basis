@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import '../konfig.dart';
 import '../netz/api.dart';
 import '../netz/fehler.dart';
 import '../plattform.dart';
@@ -40,11 +41,15 @@ abstract class AndroidKonto implements Zugangsquelle {
 
 /// Kanal zum Android-Teil (RosenwegBasisPlugin.kt), der commons-rosenweg ruft.
 class AndroidKontoKanal implements AndroidKonto {
-  AndroidKontoKanal({MethodChannel? kanal, this.bestaetigenHoechstens = const Duration(minutes: 5)})
+  AndroidKontoKanal({MethodChannel? kanal, this.bestaetigenHoechstens = const Duration(minutes: 5), this.gruppe})
       : _kanal = kanal ?? RosenwegPlattform.kanal;
 
   final MethodChannel _kanal;
   final Duration bestaetigenHoechstens;
+
+  /// Gruppe der App ([RosenwegApp.gruppe]) fuer die Farbe des nativen
+  /// Anmeldeschirms; null = dessen Standard (blau bzw. Ressource der App).
+  final RosenwegGruppe? gruppe;
 
   @override
   String? name;
@@ -78,7 +83,7 @@ class AndroidKontoKanal implements AndroidKonto {
 
   @override
   Future<bool> anmeldeSchirm() async {
-    final ok = await _kanal.invokeMethod<bool>('anmeldeSchirm') ?? false;
+    final ok = await _kanal.invokeMethod<bool>('anmeldeSchirm', {if (gruppe != null) 'gruppe': gruppe!.name}) ?? false;
     if (ok) await angemeldet;
     return ok;
   }

@@ -1,3 +1,23 @@
+## 0.6.1 (unveröffentlicht)
+
+- **Anmeldeschirm in der Gruppenfarbe der App** (Stefan 27.11.2026): Grund
+  wie der Logo-Grund (`baukasten.py --gruppe`) – Bewohner rot `#D62828`,
+  Ausschuss/Verwaltung blau `#1E3A8A`, Technik grün `#2E6B4F`. Neu
+  `RosenwegGruppe` und `RosenwegApp.gruppe` (null = blau wie bisher);
+  `AnmeldePalette` (blau/rot/grün) und `AnmeldeFarben.fuer(gruppe)`. Helle
+  Schrift, Meldungen und die weisse Schrift auf den Knöpfen erreichen auf
+  allen drei Gründen mindestens 4.5:1 (WCAG AA, Test
+  `anmelde_farben_test.dart`); auf Rot und Grün sind die Knöpfe dunkler als
+  der Grund. Logo, Texte, Knöpfe und Aufbau bleiben gleich.
+  - Android: die Gruppe geht als Argument `gruppe` an den nativen Schirm von
+    commons-rosenweg (Extra `ch.rosenweg4303.cloud.GRUPPE`, wirkt ab cloud
+    0.13.6; mit älterer cloud bleibt er blau).
+  - Vorlage: `gruppe: RosenwegGruppe.bewohner` in `lib/app.dart`;
+    `neue-app.sh` setzt sie aus `werkzeug/logo/flutter-apps.txt` bzw.
+    `--gruppe`. Vorlage auf `ref: v0.6.1`.
+  - Knöpfe des Schirms nehmen die Schriftfamilie des Themas.
+  - Bildschirmfotos: `RW_BILDER=<ordner> flutter test test/anmelde_farben_test.dart`.
+
 ## 0.6.0 (unveröffentlicht)
 
 Welle 0 des Flutter-Plans: Bausteine, die fast jede Portal-App braucht

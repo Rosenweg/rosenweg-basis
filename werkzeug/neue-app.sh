@@ -166,6 +166,9 @@ for wurzel, _, dateien in os.walk(app):
             # Schluessel im Register = kurzer Name; Technik-Apps in der Gruppe "Technik" auf /apps
             t = t.replace('"app": "vorlage"', f'"app": "{kurz}"')
             t = t.replace('"technik": false', f'"technik": {"true" if gruppe == "technik" else "false"}')
+        if n == "app.dart" and wurzel == os.path.join(app, "lib"):
+            # Farbe des Anmeldeschirms = Gruppe des Logos
+            t = t.replace("gruppe: RosenwegGruppe.bewohner", f"gruppe: RosenwegGruppe.{gruppe}")
         if n == "erzeugen.sh":
             t = t.replace("GRUPPE=bewohner", f"GRUPPE={gruppe}")
         if n == "main.cpp" and not titel.isascii():

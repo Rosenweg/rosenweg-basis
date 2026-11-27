@@ -1,7 +1,8 @@
 # Anmeldeschirm
 
 Derselbe Schirm wie auf Android (commons-rosenweg, Modul `anmeldeschirm`, und
-Sperrbildschirm der geteilten Telefone): blauer Grund, Rosenweg-Siegel, oben
+Sperrbildschirm der geteilten Telefone): Grund in der Gruppenfarbe der App,
+Rosenweg-Siegel, oben
 „<App> · zum Benutzen anmelden“, unten „Die Anmeldung gilt nur für <App>.“
 Jede App meldet sich selbst an; Abmelden betrifft nur sie.
 
@@ -10,6 +11,33 @@ zeigt `RosenwegAnmeldeSchirm`, solange niemand angemeldet ist. Für die
 Einstellungen gibt es `AnmeldungKarte` (Abschnitt) und `zeigeAnmeldung(context,
 sitzung)` (eigene Seite): angemeldet als, E-Mail, womit, „gilt nur für …“,
 Abmelden – immer aus `sitzung.stand`, dem echten Stand.
+
+## Farbe je Gruppe (ab 0.6.1)
+
+Der Schirm erscheint in der Farbe des Logo-Grundes der App
+(`werkzeug/logo/baukasten.py --gruppe`, Spalte 4 von
+`werkzeug/logo/flutter-apps.txt`). Nur die Farben wechseln.
+
+| `RosenwegApp.gruppe` | Grund | |
+|---|---|---|
+| `RosenwegGruppe.bewohner` | Rot `#D62828` | VM, Salz, Profil, alle Kotlin-Apps |
+| `RosenwegGruppe.verwaltung` oder nichts | Blau `#1E3A8A` | Ausschuss, Hausverwaltung; Standard |
+| `RosenwegGruppe.technik` | Grün `#2E6B4F` | Karten, Technik-Apps |
+
+```dart
+const app = RosenwegApp(
+  kennung: 'ch.rosenweg4303.karten',
+  // …
+  gruppe: RosenwegGruppe.technik,
+);
+```
+
+Auf Android gibt die Basis die Gruppe an den nativen Schirm von
+commons-rosenweg weiter (ab cloud 0.13.6; Kotlin-Apps setzen dort die
+Ressource `rosenweg_gruppe`). Die Werte stehen gleich in `AnmeldePalette`
+(hier) und `AnmeldeFarben` (commons, Modul anmeldeschirm). Auf Rot und Grün
+sind helle Schrift, Meldungen und die weisse Schrift der (dort dunkleren)
+Knöpfe mindestens 4.5:1 (WCAG AA).
 
 ## Je Plattform
 
