@@ -16,7 +16,9 @@
 - Logo-Baukasten: `FARBEN="verwaltung technik"` in `erzeugen.sh` /
   `app-symbole.sh` erzeugt Logos, Android- und iOS-Symbole je Farbe;
   `farben-einbauen.py` baut Aliasse und Xcode-Einstellung ein;
-  `neue-app.sh --farben`, `flutter-apps.txt` Spalte 6.
+  `neue-app.sh --farben`, `flutter-apps.txt` Spalte 6; Android-Apps:
+  `android-apps.txt` Spalte 7 (Messenger: Symbole fuer die Fossify-Aliasse
+  `.Blue`/`.Teal`, commons `RosenwegGruppenFarbe`).
 
 ## 0.8.3 – Kalenderdatei, Erinnerungen, dateiOeffnen
 
