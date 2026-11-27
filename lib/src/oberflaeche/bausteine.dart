@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../fehler_fuer_person.dart';
 import '../konfig.dart';
 import '../protokoll.dart';
+import '../sitzung.dart';
 import 'farben.dart';
 
 /// Logo der App in runder Ecke, wie auf dem Startbildschirm.
@@ -16,6 +17,42 @@ class RosenwegLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Image(image: app.logoOderTurm, width: groesse, height: groesse, filterQuality: FilterQuality.medium, semanticLabel: app.name);
+}
+
+/// Logo der App in der aktuellen Gruppenfarbe ([RosenwegSitzung.farbe]),
+/// wechselt live mit ihr. [klein] = Titelleiste (`<ordner>-klein.png`, bzw.
+/// `<ordner>-<farbe>-klein.png`), sonst das 512er.
+///
+/// ```dart
+/// RosenwegGeruest(logo: FarbLogo(sitzung: s, klein: true), …)
+/// ```
+class FarbLogo extends StatelessWidget {
+  const FarbLogo({super.key, required this.sitzung, this.klein = false, this.groesse, this.semanticLabel = 'Logo'});
+  final RosenwegSitzung sitzung;
+  final bool klein;
+  final double? groesse;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<RosenwegGruppe>(
+        valueListenable: sitzung.farbe,
+        builder: (context, farbe, _) {
+          Widget bild(ImageProvider p, {ImageErrorWidgetBuilder? sonst}) => Image(
+                image: p,
+                width: groesse,
+                height: groesse,
+                // beim Farbwechsel das alte Bild bis zum neuen stehen lassen
+                gaplessPlayback: true,
+                filterQuality: FilterQuality.medium,
+                semanticLabel: semanticLabel,
+                errorBuilder: sonst,
+              );
+          final standard = sitzung.app.logoFuer(null, klein: klein);
+          final p = sitzung.app.logoFuer(farbe, klein: klein);
+          // fehlt die Farbfassung (aelteres Logo), das bisherige
+          return p == standard ? bild(p) : bild(p, sonst: (_, _, _) => bild(standard));
+        },
+      );
 }
 
 /// Fehler gross und verstaendlich, mit "Nochmals". Technisches nur unter

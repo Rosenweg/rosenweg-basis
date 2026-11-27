@@ -20,6 +20,9 @@
 #   --gruppe <g>           Farbe des Zeichens: bewohner (rot), verwaltung (blau),
 #                          technik (gruen); Standard aus werkzeug/logo/flutter-apps.txt,
 #                          sonst bewohner
+#   --farben "<g> …"       weitere Gruppenfarben, wo die App fuer diese Gruppe etwas
+#                          freischaltet (docs/gruppenfarbe.md), z. B. "verwaltung technik";
+#                          Standard aus werkzeug/logo/flutter-apps.txt (Spalte 6), sonst keine
 #   --beschreibung "<Satz>"  ein Satz fuer "Ueber", .deb, Startmenue, /apps
 #   --kennung <k>          statt <name ohne Bindestriche> (ch.rosenweg4303.<k>)
 #   --basis-ref <ref>      Stand von rosenweg_basis in pubspec.yaml (Standard: wie vorlage/)
@@ -41,10 +44,10 @@ HIER="$(cd "$(dirname "$0")" && pwd)"
 BASIS="$(cd "$HIER/.." && pwd)"
 VORLAGE="$BASIS/vorlage"
 
-hilfe() { sed -n '4,38p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+hilfe() { sed -n '4,41p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 fehler() { echo "FEHLER: $*" >&2; exit 1; }
 
-ZIEL="" GRUPPE="" BESCHREIBUNG="" KENNUNG="" BASIS_REF="" WORKFLOW_REF=main
+ZIEL="" GRUPPE="" FARBEN="-" BESCHREIBUNG="" KENNUNG="" BASIS_REF="" WORKFLOW_REF=main
 BASIS_LOKAL="" OHNE_PUB=0 OHNE_GIT=0 REPO=0
 set -- "$@" --ende--
 ARGS=""
@@ -53,6 +56,7 @@ while [ "$1" != --ende-- ]; do
     -h|--help) hilfe ;;
     --ziel) ZIEL="$2"; shift 2 ;;
     --gruppe) GRUPPE="$2"; shift 2 ;;
+    --farben) FARBEN="$2"; shift 2 ;;
     --beschreibung) BESCHREIBUNG="$2"; shift 2 ;;
     --kennung) KENNUNG="$2"; shift 2 ;;
     --basis-ref) BASIS_REF="$2"; shift 2 ;;
@@ -80,7 +84,12 @@ ZEILE="$(grep -v '^#' "$HIER/logo/flutter-apps.txt" | grep "^$REPO_NAME|" || tru
 if [ -n "$ZEILE" ]; then
   [ -n "$GRUPPE" ] || GRUPPE="$(echo "$ZEILE" | cut -d'|' -f4)"
   [ -n "$KENNUNG" ] || KENNUNG="$(echo "$ZEILE" | cut -d'|' -f5)"
+  [ "$FARBEN" != - ] || FARBEN="$(echo "$ZEILE" | cut -d'|' -f6 | tr ',' ' ')"
 fi
+[ "$FARBEN" != - ] || FARBEN=""
+for g in $FARBEN; do
+  case "$g" in verwaltung|technik) ;; *) fehler "--farben: verwaltung und/oder technik" ;; esac
+done
 GRUPPE="${GRUPPE:-bewohner}"
 case "$GRUPPE" in bewohner|verwaltung|technik) ;; *) fehler "--gruppe: bewohner, verwaltung oder technik" ;; esac
 KENNUNG="${KENNUNG:-$(printf '%s' "$KURZ" | tr -d -)}"
@@ -105,7 +114,7 @@ if [ -z "$BASIS_REF" ]; then
 fi
 
 echo "== $TITEL: $APP"
-echo "   Repo $REPO_NAME, Dart rosenweg_$(printf '%s' "$KURZ" | tr - _), Kennung ch.rosenweg4303.$KENNUNG, Zeichen $ZNAME ($GRUPPE)"
+echo "   Repo $REPO_NAME, Dart rosenweg_$(printf '%s' "$KURZ" | tr - _), Kennung ch.rosenweg4303.$KENNUNG, Zeichen $ZNAME ($GRUPPE${FARBEN:+; Farben $FARBEN})"
 
 # 1. Vorlage kopieren (ohne Bau- und Werkzeugreste)
 mkdir -p "$APP"
@@ -116,9 +125,10 @@ mkdir -p "$APP"
    --exclude ./ios/Flutter/Generated.xcconfig --exclude ./macos/Flutter/ephemeral .) | (cd "$APP" && tar -xf -)
 
 # 2. Namen, Kennung, Texte ersetzen; Dateien umbenennen
-python3 - "$APP" "$KURZ" "$KENNUNG" "$TITEL" "$BESCHREIBUNG" "$ZNAME" "$GRUPPE" "$BASIS_REF" "$WORKFLOW_REF" <<'PY'
+python3 - "$APP" "$KURZ" "$KENNUNG" "$TITEL" "$BESCHREIBUNG" "$ZNAME" "$GRUPPE" "$BASIS_REF" "$WORKFLOW_REF" "$FARBEN" <<'PY'
 import os, re, sys, uuid
-app, kurz, kennung, titel, beschreibung, zname, gruppe, basis_ref, wf_ref = sys.argv[1:]
+app, kurz, kennung, titel, beschreibung, zname, gruppe, basis_ref, wf_ref, farben = sys.argv[1:]
+farben = [f for f in farben.split() if f != gruppe]
 repo = f"rosenweg-{kurz}"
 dart = "rosenweg_" + kurz.replace("-", "_")
 umlaute = {"ä": "ae", "ö": "oe", "ü": "ue", "Ä": "Ae", "Ö": "Oe", "Ü": "Ue", "ß": "ss", "é": "e", "è": "e"}
@@ -169,8 +179,15 @@ for wurzel, _, dateien in os.walk(app):
         if n == "app.dart" and wurzel == os.path.join(app, "lib"):
             # Farbe des Anmeldeschirms = Gruppe des Logos
             t = t.replace("gruppe: RosenwegGruppe.bewohner", f"gruppe: RosenwegGruppe.{gruppe}")
+            if farben:
+                t = t.replace("farbGruppen: {},", "farbGruppen: {" + ", ".join(f"RosenwegGruppe.{f}" for f in farben) + "},")
         if n == "erzeugen.sh":
             t = t.replace("GRUPPE=bewohner", f"GRUPPE={gruppe}")
+            t = t.replace('FARBEN=""', f'FARBEN="{" ".join(farben)}"')
+        if n == "pubspec.yaml" and farben and wurzel == app:
+            # Logos der weiteren Gruppenfarben (FarbLogo)
+            zeilen = "".join(f"    - assets/logo/{repo}-{f}-512.png\n    - assets/logo/{repo}-{f}-klein.png\n" for f in farben)
+            t = t.replace(f"    - assets/logo/{repo}-klein.png\n", f"    - assets/logo/{repo}-klein.png\n" + zeilen)
         if n == "main.cpp" and not titel.isascii():
             # MSVC liest die Quelle ohne BOM nicht als UTF-8: Umlaute als \u-Folgen
             esc = "".join(c if c.isascii() else f"\\u{ord(c):04x}" for c in titel)
@@ -191,7 +208,9 @@ find "$L" -maxdepth 1 -type f ! -name erzeugen.sh -exec rm -f {} +
 rm -f "$L/zeichen/vorlage.svg"
 mkdir -p "$L/zeichen"
 cp "$ZQ" "$L/zeichen/$ZNAME.svg"
-sh "$HIER/logo/app-symbole.sh" "$APP" "$REPO_NAME" "$TITEL" "$L/zeichen/$ZNAME.svg" "$GRUPPE"
+FARBEN="$FARBEN" sh "$HIER/logo/app-symbole.sh" "$APP" "$REPO_NAME" "$TITEL" "$L/zeichen/$ZNAME.svg" "$GRUPPE"
+# Startsymbol je Gruppenfarbe: activity-alias (Android), alternate icons (iOS)
+python3 "$HIER/logo/farben-einbauen.py" "$APP" --standard "$GRUPPE" --farben $FARBEN >/dev/null
 if grep -q 'Material Symbols' "$L/zeichen/$ZNAME.svg"; then
   printf '%s\n' "Zeichen: Material Symbols (Google), Apache-2.0 – siehe rosenweg-basis werkzeug/logo/zeichen/LIZENZEN.md" > "$L/zeichen/LIZENZ.txt"
 fi

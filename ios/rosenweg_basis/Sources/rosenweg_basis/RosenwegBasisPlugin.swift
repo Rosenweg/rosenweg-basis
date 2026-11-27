@@ -8,6 +8,8 @@
 //  - karteLesen     Rosenweg-Karte (UniFi Access) lesen: nur die UID, als Hex wie Android
 //  - qrDa           VisionKit-Scanner nutzbar? (iOS 16+, Kamera erlaubt)
 //  - qrScannen      Kamera mit QR-Erkennung als eigenes Fenster; Inhalt oder nil
+//  - startsymbolSetzen {gruppe, standard}: alternate icon "AppIcon-<gruppe>" (Standardfarbe =
+//                   Haupt-Symbol); true = gewechselt. iOS zeigt dabei selbst kurz einen Hinweis.
 //
 // Die App braucht dafuer (siehe docs/anmeldeschirm.md):
 //  - Info.plist NFCReaderUsageDescription, NSCameraUsageDescription
@@ -32,6 +34,15 @@ public class RosenwegBasisPlugin: NSObject, FlutterPlugin {
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
+    case "startsymbolSetzen":
+      let a = call.arguments as? [String: Any]
+      let gruppe = a?["gruppe"] as? String ?? ""
+      let name: String? = gruppe == (a?["standard"] as? String) ? nil : "AppIcon-\(gruppe)"
+      DispatchQueue.main.async {
+        let app = UIApplication.shared
+        guard app.supportsAlternateIcons, app.alternateIconName != name else { result(false); return }
+        app.setAlternateIconName(name) { fehler in result(fehler == nil) }
+      }
     case "geraetKennung":
       result(UIDevice.current.identifierForVendor?.uuidString)
     case "geraetName":

@@ -52,12 +52,19 @@ class RosenwegRahmen extends StatelessWidget {
         builder: (context, stand, _) => _app(stand),
       );
 
-  Widget _app(int stand) => MaterialApp(
+  // Thema in der Gruppenfarbe der Person ([GruppenFarbe]); ein Wechsel
+  // blendet weich ueber (AnimatedTheme der MaterialApp), ohne Neuaufbau.
+  Widget _app(int stand) => ValueListenableBuilder<RosenwegGruppe>(
+        valueListenable: sitzung.farbe,
+        builder: (context, farbe, _) => _material(stand, farbe),
+      );
+
+  Widget _material(int stand, RosenwegGruppe farbe) => MaterialApp(
         key: ValueKey(stand),
         title: sitzung.app.name,
         debugShowCheckedModeBanner: false,
-        theme: rosenwegThema(Brightness.light),
-        darkTheme: rosenwegThema(Brightness.dark),
+        theme: rosenwegThema(Brightness.light, farbe),
+        darkTheme: rosenwegThema(Brightness.dark, farbe),
         locale: const Locale('de', 'CH'),
         supportedLocales: const [Locale('de', 'CH'), Locale('de')],
         // Deutsche Texte auch in Flutters eigenen Dialogen (Lizenzen,
@@ -85,7 +92,7 @@ void rosenwegStarten(RosenwegApp app, Widget Function(RosenwegSitzung sitzung) i
   Protokoll.einrichten(app.ordner);
   RosenwegSitzung? s;
   runZonedGuarded(
-    () {
+    () async {
       WidgetsFlutterBinding.ensureInitialized();
       Protokoll.schreiben('Start ${app.name} (${kDebugMode ? 'Debug' : 'Release'})');
       FlutterError.onError = (d) {
@@ -98,6 +105,8 @@ void rosenwegStarten(RosenwegApp app, Widget Function(RosenwegSitzung sitzung) i
         return true;
       };
       s = sitzung ?? RosenwegSitzung(app);
+      // Letzte Gruppenfarbe vor dem ersten Bild: kein Aufblitzen der Standardfarbe
+      await s!.farbe.erinnern();
       s!.starten();
       final a = aktualisierung ?? RosenwegAktualisierung(app);
       a.starten();

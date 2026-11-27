@@ -15,6 +15,7 @@ import 'netz/dateien.dart';
 import 'netz/geraet_person.dart';
 import 'plattform.dart';
 import 'protokoll.dart';
+import 'gruppenfarbe.dart';
 import 'rechte.dart';
 
 enum Phase {
@@ -171,6 +172,10 @@ class RosenwegSitzung extends ChangeNotifier {
   /// der Anmeldung neu. Widgets: [NurMit], `RechteBereich.von(context)`.
   /// Austauschbar fuer Vorfuehrdaten (example/), sonst nie setzen.
   late RosenwegRechte rechte = RosenwegRechte.fuer(this);
+
+  /// Farbe der App fuer die angemeldete Person ([RosenwegApp.farbGruppen]):
+  /// Thema, Anmeldeschirm, Logo ([FarbLogo]) und Startsymbol folgen ihr.
+  late final GruppenFarbe farbe = GruppenFarbe(this);
 
   /// Kurzform: `sitzung.darf('reklamationen', Zugriff.schreiben)`. false,
   /// solange die Rechte noch nicht geladen sind (`rechte.laden()`).

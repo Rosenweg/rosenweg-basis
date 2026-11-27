@@ -159,8 +159,9 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
   bool get ios => RosenwegPlattform.istIos;
   bool get desktop => RosenwegPlattform.istDesktop;
 
-  /// Farben nach der Gruppe der App (wie ihr Logo).
-  AnmeldePalette get f => AnmeldeFarben.fuer(s.app.gruppe);
+  /// Farben nach der Gruppenfarbe ([GruppenFarbe]: nach dem Abmelden die
+  /// Standardfarbe der App, beim Start die zuletzt gemerkte).
+  AnmeldePalette get f => AnmeldeFarben.fuer(s.farbe.value);
 
   Kartenleser? _leser;
   bool _leserDa = false;
@@ -392,7 +393,12 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
   // ── Oberflaeche ──
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<RosenwegGruppe>(
+        valueListenable: s.farbe,
+        builder: (context, _, _) => _bauen(context),
+      );
+
+  Widget _bauen(BuildContext context) {
     return Theme(
       data: Theme.of(context).copyWith(
         textTheme: Theme.of(context).textTheme.apply(bodyColor: Colors.white, displayColor: Colors.white),
