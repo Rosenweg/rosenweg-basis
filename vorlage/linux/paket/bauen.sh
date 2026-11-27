@@ -12,7 +12,7 @@
 #   linux/paket/bauen.sh --nur-paket  nur das Paket aus build/linux/x64/release/bundle
 #   linux/paket/im-container.sh       im Bau-Container CT 141, siehe dort
 #
-# rosenweg_basis: im CI-Lauf ueber git (pubspec.yaml, privat mit Token); im
+# rosenweg_basis: im CI-Lauf ueber git (pubspec.yaml, oeffentlich); im
 # Bau-Container aus ../rosenweg-basis (pubspec_overrides.yaml), das
 # im-container.sh in der Fassung aus pubspec.yaml danebenlegt.
 #

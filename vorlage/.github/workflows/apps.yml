@@ -13,10 +13,12 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   apps:
+    permissions:
+      contents: read
+      id-token: write   # OIDC-Token fuer /apps (kein Geheimnis)
     uses: Rosenweg/rosenweg-basis/.github/workflows/app-apps.yml@main
     with:
       paket: ch.rosenweg4303.vorlage

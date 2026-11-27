@@ -194,7 +194,7 @@ if [ -n "$BASIS_LOKAL" ]; then
   printf 'dependency_overrides:\n  rosenweg_basis:\n    path: %s\n' "$BASIS_LOKAL" > "$APP/pubspec_overrides.yaml"
 fi
 if [ "$OHNE_PUB" = 0 ] && command -v flutter >/dev/null; then
-  (cd "$APP" && flutter pub get >/dev/null) || echo "WARNUNG: flutter pub get ging nicht (Zugang zur privaten Basis?) - spaeter von Hand."
+  (cd "$APP" && flutter pub get >/dev/null) || echo "WARNUNG: flutter pub get ging nicht - spaeter von Hand."
 fi
 
 # 5. git
@@ -212,17 +212,7 @@ if [ "$REPO" = 1 ]; then
   echo "== GitHub: Rosenweg/$REPO_NAME (privat)"
   (cd "$APP" && gh repo create "Rosenweg/$REPO_NAME" --private --source . --push \
      --description "$TITEL – $BESCHREIBUNG")
-  # Linux, Android, Version und Release laufen auf dem eigenen Runner (Gruppe
-  # rosenweg-privat, Sichtbarkeit "selected"): ohne Aufnahme warten sie ewig.
-  # Braucht gh mit admin:org; sonst nur ein Hinweis (siehe "Noch zu tun").
-  GRUPPE_ID="$(gh api orgs/Rosenweg/actions/runner-groups --jq '.runner_groups[] | select(.name=="rosenweg-privat") | .id' 2>/dev/null || true)"
-  REPO_ID="$(gh api "repos/Rosenweg/$REPO_NAME" --jq .id 2>/dev/null || true)"
-  if [ -n "$GRUPPE_ID" ] && [ -n "$REPO_ID" ] \
-     && gh api -X PUT "orgs/Rosenweg/actions/runner-groups/$GRUPPE_ID/repositories/$REPO_ID" >/dev/null 2>&1; then
-    echo "== Runner-Gruppe rosenweg-privat: $REPO_NAME aufgenommen"
-  else
-    echo "WARNUNG: $REPO_NAME nicht in die Runner-Gruppe rosenweg-privat aufgenommen (gh braucht admin:org) - von Hand, sonst laeuft kein Bau."
-  fi
+  # Alle Jobs laufen auf GitHub-Runnern; in keine Runner-Gruppe aufnehmen.
 fi
 
 cat <<EOF
@@ -232,10 +222,10 @@ Fertig: $APP
 Noch zu tun (README.md der Basis, Abschnitt "Neue App anlegen"):
   1. Authentik, Anbieter rosenweg-apps: Ruecksprung  ch.rosenweg4303.$KENNUNG:/anmeldung  (strikt)
   2. GitHub (falls nicht mit --repo): Repo Rosenweg/$REPO_NAME anlegen, main pushen
-  3. Secrets: Repo-Secret BASIS_TOKEN; Org-Secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
-     ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD fuer das Repo freigeben; Runner-Gruppe rosenweg-privat
-     (ohne --repo von Hand: alles ausser Windows/macOS/iOS laeuft auf dem eigenen Runner;
-     Windows/macOS/iOS nur beim Release oder von Hand - GitHub-Minuten)
+  3. Secrets: Org-Secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+     ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD fuer das Repo freigeben (kein BASIS_TOKEN:
+     rosenweg-basis ist oeffentlich). Alles laeuft auf GitHub-Runnern, nie eigene;
+     privat kosten sie Minuten, oeffentlich nicht.
   4. /apps: apps-eintrag.json in Rosenweg/Website pbx/api/app.py APPS_REGISTER,
      assets/logo/$REPO_NAME-192.png als www img/apps/$REPO_NAME.png
   5. Stationen: linux/paket/paket.conf nach os-stationen pakete/$REPO_NAME/ (nach dem ersten Release)

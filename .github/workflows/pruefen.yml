@@ -1,6 +1,5 @@
-# flutter analyze + flutter test auf dem eigenen Runner (CT 140 auf pve2,
-# Gruppe rosenweg-privat), Muster wie rosenweg-vm (.github/workflows/linux.yml):
-# Flutter als feste Version mit Pruefsumme im Cache des Benutzerverzeichnisses.
+# flutter analyze + flutter test auf einem GitHub-Runner (ubuntu-latest).
+# Flutter als feste Version mit Pruefsumme, zwischen Laeufen im actions/cache.
 name: Pruefen
 
 on:
@@ -23,14 +22,19 @@ env:
 
 jobs:
   pruefen:
-    runs-on:
-      group: rosenweg-privat
-      labels: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Flutter (Cache im Benutzerverzeichnis)
+      - name: Flutter-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rosenweg-flutter-ci
+          key: flutter-pruefen-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: flutter-pruefen-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-
+
+      - name: Flutter (feste Version mit Pruefsumme)
         run: |
           set -euo pipefail
           C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"

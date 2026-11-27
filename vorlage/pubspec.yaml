@@ -15,8 +15,8 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   # Gemeinsame Basis der Rosenweg-Apps: Anmeldung (Karte, QR, Konto, still per
-  # Kerberos), API, Gerüst (Handy/Desktop), Updater, Logo-Baukasten. Privates
-  # Repo: in CI mit dem Org-Secret BASIS_TOKEN, lokal mit ../rosenweg-basis
+  # Kerberos), API, Gerüst (Handy/Desktop), Updater, Logo-Baukasten.
+  # Oeffentliches Repo: pub holt es ohne Token; lokal mit ../rosenweg-basis
   # ueber pubspec_overrides.yaml (siehe README, "Entwickeln").
   rosenweg_basis:
     git:
