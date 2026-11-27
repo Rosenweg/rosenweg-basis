@@ -160,7 +160,8 @@ class _RosenwegGeruestState extends State<RosenwegGeruest> {
     final i = _ziel.clamp(0, ziele.isEmpty ? 0 : ziele.length - 1);
     Widget seite = ziele.isEmpty ? (widget.inhalt ?? const SizedBox.shrink()) : Builder(key: ValueKey(i), builder: ziele[i].seite);
     final b = widget.maxBreite;
-    if (b != null) seite = RosenwegInhalt(maxBreite: b, child: seite);
+    // Nur am Desktop begrenzen: unter 840 px bleibt alles wie auf dem Handy.
+    if (b != null && klasse.istBreit) seite = RosenwegInhalt(maxBreite: b, child: seite);
 
     final appBar = AppBar(
       leading: widget.logo == null ? null : Padding(padding: const EdgeInsets.all(8), child: widget.logo),

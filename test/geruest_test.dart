@@ -61,6 +61,8 @@ void main() {
 
     await zeigen(t, const Size(400, 800), const RosenwegGeruest(titel: Text('App'), inhalt: SizedBox.expand(key: k)));
     expect(t.getSize(find.byKey(k)).width, 400);
+    await zeigen(t, const Size(800, 800), const RosenwegGeruest(titel: Text('App'), inhalt: SizedBox.expand(key: k)));
+    expect(t.getSize(find.byKey(k)).width, 800, reason: 'unter 840 px keine Begrenzung');
   });
 
   testWidgets('Spalten nur ab 840 px, sonst das Handy-Layout', (t) async {
