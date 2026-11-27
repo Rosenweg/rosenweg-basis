@@ -107,7 +107,19 @@ class RosenwegSitzung extends ChangeNotifier {
   /// die ganze App (auch geoeffnete Seiten) neu, sobald er sich aendert.
   final personStand = ValueNotifier<int>(0);
 
-  late RosenwegApi api = _apiFuer(_transport ?? HttpTransport(basis: app.konfig.api, zugang: android ?? _Zugang(this)));
+  late RosenwegApi api = _apiFuer(_transport ?? HttpTransport(basis: app.konfig.api, zugang: zugang));
+
+  /// Woher das Token der aktiven Anmeldung kommt (Android: commons-rosenweg;
+  /// sonst Rosenweg-Konto oder Karten-/QR-/Handy-Sitzung). Fuer Apps, die
+  /// ausser der Haupt-API noch einen eigenen Dienst ansprechen und ihm das
+  /// Token mitgeben (rosenweg-vm: vm-gateway). Das Token ist ein
+  /// Authentik-Token (Konto, Kerberos) oder ein `rw_app_…` (Karte, QR, Handy;
+  /// 15 Minuten, wird hier erneuert). Auf geteilten Telefonen gibt es keins.
+  late final Zugangsquelle zugang = android ?? _Zugang(this);
+
+  /// Ein anderer Dienst hat das Token trotz Erneuern abgelehnt (401): wie bei
+  /// der Haupt-API einmal still neu anmelden, sonst zum Anmeldeschirm.
+  void nichtMehrAngemeldet() => _nichtMehrAngemeldet();
 
   /// Name der angemeldeten Person (Anzeige), gleich ob Android oder Desktop.
   String? get name => stand.name;

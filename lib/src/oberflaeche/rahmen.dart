@@ -5,9 +5,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import '../aktualisierung.dart';
 import '../konfig.dart';
 import '../protokoll.dart';
 import '../sitzung.dart';
+import 'aktualisierung_leiste.dart';
 import 'anmeldeschirm.dart';
 import 'bausteine.dart';
 import 'farben.dart';
@@ -31,11 +33,15 @@ class AnmeldeTor extends StatelessWidget {
       );
 }
 
-/// MaterialApp mit Rosenweg-Thema (hell/dunkel nach System) und Anmeldetor.
+/// MaterialApp mit Rosenweg-Thema (hell/dunkel nach System), Anmeldetor und
+/// - wenn [aktualisierung] gesetzt ist - der Leiste "Neue Fassung verfügbar"
+/// ([AktualisierungsLeiste], nur Linux ausserhalb der Stationen, macOS,
+/// Windows; siehe [RosenwegAktualisierung]).
 class RosenwegRahmen extends StatelessWidget {
-  const RosenwegRahmen({super.key, required this.sitzung, required this.inhalt});
+  const RosenwegRahmen({super.key, required this.sitzung, required this.inhalt, this.aktualisierung});
   final RosenwegSitzung sitzung;
   final WidgetBuilder inhalt;
+  final RosenwegAktualisierung? aktualisierung;
 
   // Personenwechsel am geteilten Telefon: neuer Schluessel = neue App (auch
   // geoeffnete Seiten und ihr Zustand sind weg), die Daten kommen neu.
@@ -56,6 +62,9 @@ class RosenwegRahmen extends StatelessWidget {
         // Deutsche Texte auch in Flutters eigenen Dialogen (Lizenzen,
         // Datumswahl, Kopieren/Einfuegen).
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        builder: aktualisierung == null || !aktualisierung!.aktiv
+            ? null
+            : (context, kind) => AktualisierungsLeiste(aktualisierung: aktualisierung!, child: kind ?? const SizedBox()),
         home: AnmeldeTor(sitzung: sitzung, inhalt: inhalt),
       );
 }
@@ -67,9 +76,11 @@ class RosenwegRahmen extends StatelessWidget {
 /// ```
 ///
 /// Richtet die Logdatei ein, faengt alle nicht aufgefangenen Fehler (Logdatei
-/// und sichtbar in der App, nie still beenden), prueft die Anmeldung und
-/// zeigt den Rahmen.
-void rosenwegStarten(RosenwegApp app, Widget Function(RosenwegSitzung sitzung) inhalt, {RosenwegSitzung? sitzung}) {
+/// und sichtbar in der App, nie still beenden), prueft die Anmeldung, startet
+/// den Updater ([RosenwegAktualisierung]; aus auf Stationen, Android, iOS)
+/// und zeigt den Rahmen.
+void rosenwegStarten(RosenwegApp app, Widget Function(RosenwegSitzung sitzung) inhalt,
+    {RosenwegSitzung? sitzung, RosenwegAktualisierung? aktualisierung}) {
   Protokoll.einrichten(app.ordner);
   RosenwegSitzung? s;
   runZonedGuarded(
@@ -87,7 +98,9 @@ void rosenwegStarten(RosenwegApp app, Widget Function(RosenwegSitzung sitzung) i
       };
       s = sitzung ?? RosenwegSitzung(app);
       s!.starten();
-      runApp(RosenwegRahmen(sitzung: s!, inhalt: (_) => inhalt(s!)));
+      final a = aktualisierung ?? RosenwegAktualisierung(app);
+      a.starten();
+      runApp(RosenwegRahmen(sitzung: s!, inhalt: (_) => inhalt(s!), aktualisierung: a));
     },
     (e, st) {
       Protokoll.schreiben('Unerwarteter Fehler', e, st);

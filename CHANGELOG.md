@@ -1,4 +1,27 @@
-## 0.4.0 (unveröffentlicht)
+## 0.5.0 (unveröffentlicht)
+
+- **Updater für alle Flutter-Apps** (Regel Stefan: jede Rosenweg-App
+  aktualisiert sich selbst; aus nur, wo andere aktualisieren).
+  - Computer: `RosenwegAktualisierung` liest den Katalog
+    `pbx.rosenweg4303.ch/api/apps/index.json` (`karten`, `paket` = Kennung),
+    vergleicht mit der installierten Fassung, lädt nach einem Klick, prüft
+    Grösse und SHA-256 und installiert: Windows Installer starten (App endet),
+    macOS Disk-Image öffnen, Linux `pkexec apt-get install` (sonst .deb in
+    „Downloads“ mit Anleitung). `AktualisierungsLeiste` oben in der App
+    („Neue Fassung … verfügbar“ · Später · Aktualisieren); `rosenwegStarten`
+    und `RosenwegRahmen(aktualisierung:)` binden sie ein.
+  - Aus auf Rosenweg-Stationen (os-stationen bringt die Pakete), ohne
+    Hinweis: `RosenwegStation.erkannt` (`/etc/rosenweg-station/station-id`
+    und `station.json`; NICHT „Linux“/„Debian“ – eigene Debian-Rechner
+    bekommen Updates). Aus auf iOS und in Entwicklungsbauten.
+  - Android: `ch.rosenweg4303:updater` 0.1.4 direkt im Android-Teil (kennt
+    VM, Salz, Profil; aus mit Rosenweg Gerät). Braucht commons-rosenweg mit
+    Updater 0.1.4 (veröffentlicht mit dem nächsten Tag).
+- `RosenwegSitzung.zugang` und `.nichtMehrAngemeldet()`: Token der aktiven
+  Anmeldung für eigene Dienste einer App (rosenweg-vm: vm-gateway), mit
+  demselben Verhalten bei 401 wie die Haupt-API.
+
+## 0.4.0
 
 - Gerüst für Handy und Desktop: `RosenwegGeruest` (AppBar; mit zwei oder
   mehr `GeruestZiel` unten eine NavigationBar, ab 840 px eine

@@ -12,6 +12,7 @@
 - [Aufbau (öffentliche API)](#aufbau-öffentliche-api)
 - [Anmeldung und Authentik](#anmeldung-und-authentik)
 - [Geteilte Telefone](#geteilte-telefone)
+- [Updates](#updates)
 - [Logos](#logos)
 - [Neue App anlegen](#neue-app-anlegen)
 - [Prüfen und CI](#prüfen-und-ci)
@@ -82,7 +83,8 @@ Mehr: [docs/bedienung.md](docs/bedienung.md).
 | API | `RosenwegApi` (`get/put/post/delete`, `objekt`, `liste`), `HttpTransport` (Bearer, 401 → einmal erneuern, POST nie wiederholt), `GeraetTransport` (geteiltes Telefon) |
 | Fehler | `ServerNichtErreichbar`, `ZuVieleAnfragen`, `ApiFehler`, `NichtAngemeldet`, `KeineBerechtigung`, `GeraetFehler` |
 | Haus | `HausErkennung().imHaus()` – TXT `location.rosenweg4303.ch`; nur Hinweis, nie Sicherheit |
-| Ablauf | `RosenwegSitzung`, `rosenwegStarten`, `RosenwegRahmen`, `AnmeldeTor` |
+| Ablauf | `RosenwegSitzung` (`zugang` für eigene Dienste), `rosenwegStarten`, `RosenwegRahmen`, `AnmeldeTor` |
+| Updates | `RosenwegAktualisierung`, `AktualisierungsLeiste`, `RosenwegStation.erkannt` |
 | Aussehen | `rosenwegThema`, `RosenwegFarben` (Rot `#D32F2F`, Grundton `#8B1E3F`), deutsche Texte (de-CH) |
 | Gerüst | `RosenwegGeruest` (Handy: Navigation unten; ab 840 px Seitenleiste links, Inhalt mittig begrenzt), `RosenwegSpalten` (zwei Spalten am Desktop), `RosenwegInhalt` (max. Breite), `Fensterklasse` (kompakt/mittel/breit/sehrBreit) |
 | Bausteine | `AnmeldeSchirm`, `FehlerAnzeige`, `LadeAnzeige`, `Abschnitt`, `Hinweis`, `zeigeMeldung`, `frage`, `zeigeUeber`, `RosenwegLogo` |
@@ -128,6 +130,22 @@ Gibt es auf Android den Provider `ch.rosenweg4303.telefon.anlage` (Rosenweg Ger�
 | 403 / 429 | Pfad nicht freigegeben / zu viele Anfragen |
 
 Die APKs müssen deshalb mit dem Rosenweg-Schlüssel signiert sein. Mehr: [docs/geteilte-telefone.md](docs/geteilte-telefone.md).
+
+## Updates
+
+Jede App mit `rosenwegStarten` aktualisiert sich selbst. Aus ist der Updater nur, wo jemand anderes aktualisiert.
+
+| Wo | Wer aktualisiert |
+|---|---|
+| Android | Rosenweg Updater aus commons-rosenweg (`ch.rosenweg4303:updater`, im Android-Teil der Basis): eine Rosenweg-App prüft täglich für alle, Android fragt pro Installation |
+| geteiltes Telefon | Rosenweg Gerät (Katalog), der Updater ist dort aus |
+| Rosenweg-Station | os-stationen (`pakete/<app>/paket.conf`); der Updater ist aus, ohne Hinweis |
+| Linux (eigener Rechner), macOS, Windows | `RosenwegAktualisierung`: Leiste „Neue Fassung … verfügbar“ → Laden, Grösse und SHA-256 prüfen → Windows: Installer starten; macOS: Disk-Image öffnen; Linux: `pkexec apt-get install` (sonst .deb in „Downloads“ mit Anleitung) |
+| iOS | aus (keine Verteilung ausserhalb des App Store) |
+
+Quelle: `https://pbx.rosenweg4303.ch/api/apps/index.json`, Liste `karten`, Eintrag mit `paket` = `RosenwegApp.kennung`. Neue Fassungen kommen dorthin aus der CI der App (Release-Tag, siehe Website `pbx/README.md`). Geprüft wird beim Start (nach 20 s) und alle 12 Stunden; Fehler bleiben im Protokoll.
+
+Station heisst: `/etc/rosenweg-station/station-id` mit einer Station-ID **und** `/etc/rosenweg-station/station.json` – beides legt os-stationen an. „Linux“, „Debian“ oder ein installiertes .deb machen noch keine Station.
 
 ## Logos
 
@@ -190,7 +208,7 @@ werkzeug/neue-app.sh mail-freigabe "Rosenweg Mail-Freigabe" mail-freigabe \
 | `--gruppe` | Farbe des Zeichens: `bewohner` rot, `verwaltung` blau, `technik` grün; Vorgabe aus `flutter-apps.txt` |
 | `--beschreibung` | ein Satz für „Über“, Paketbeschreibung, Startmenü, /apps |
 | `--ziel <ordner>` | Standard: neben der Basis (`../rosenweg-<name>`) |
-| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`) und der Workflows (Standard `main`) |
+| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`, derzeit `v0.5.0`) und der Workflows (Standard `main`) |
 | `--basis-lokal <pfad>` | `pubspec_overrides.yaml` auf eine lokale Basis (dann wird `pubspec.lock` nicht committet) |
 | `--ohne-pub`, `--ohne-git` | kein `flutter pub get` / kein erster Commit |
 | `--repo` | **zusätzlich** `Rosenweg/rosenweg-<name>` auf GitHub anlegen (privat) und `main` pushen – ohne den Schalter geschieht nichts auf GitHub |
