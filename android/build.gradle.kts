@@ -86,4 +86,8 @@ dependencies {
     // Anmeldeschirm (Karte oder Rosenweg-Konto), Rosenweg-Anmeldung und Karten-Sitzung -
     // derselbe Code wie in den Kotlin-Apps und (Aussehen/Kartenleser) in Rosenweg Geraet
     implementation("ch.rosenweg4303:cloud:0.9.0")
+    // Rosenweg Updater direkt (cloud 0.9.0 bringt nur 0.1.2 mit): erst ab 0.1.4 kennt er
+    // ch.rosenweg4303.vm/.salz/.profil, sonst prueft auf einem Handy mit nur Flutter-Apps niemand.
+    // Startet von selbst (ContentProvider UpdaterStart), aus mit Rosenweg Geraet.
+    implementation("ch.rosenweg4303:updater:0.1.4")
 }

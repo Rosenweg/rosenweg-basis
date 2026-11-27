@@ -51,20 +51,28 @@ public class RosenwegBasisPlugin: NSObject, FlutterPlugin {
       }
       leser = l
       l.starten(hinweis)
+    // VisionKit (DataScannerViewController, und damit QrScanner als dessen
+    // Delegate) ist @MainActor. Flutter ruft handle immer auf dem Hauptthread
+    // auf; das sagt assumeIsolated dem Compiler (neueres Xcode bricht sonst
+    // mit "Main actor-isolated ... from a nonisolated context" ab).
     case "qrDa":
       if #available(iOS 16.0, *) {
-        result(DataScannerViewController.isSupported && DataScannerViewController.isAvailable)
+        result(MainActor.assumeIsolated {
+          DataScannerViewController.isSupported && DataScannerViewController.isAvailable
+        })
       } else {
         result(false)
       }
     case "qrScannen":
       if #available(iOS 16.0, *), let oben = RosenwegBasisPlugin.obersterSchirm() {
-        let s = QrScanner { [weak self] inhalt in
-          self?.scanner = nil
-          result(inhalt)
+        MainActor.assumeIsolated {
+          let s = QrScanner { [weak self] inhalt in
+            self?.scanner = nil
+            result(inhalt)
+          }
+          scanner = s
+          s.zeigen(von: oben)
         }
-        scanner = s
-        s.zeigen(von: oben)
       } else {
         result(nil)
       }
@@ -174,7 +182,10 @@ final class QrScanner: NSObject, DataScannerViewControllerDelegate {
         self.schliessen(nil)
       }
     }
-    zeit = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in self?.schliessen(nil) }
+    // Der Timer laeuft auf dem Hauptthread (scheduledTimer im RunLoop des Hauptthreads).
+    zeit = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in
+      MainActor.assumeIsolated { self?.schliessen(nil) }
+    }
   }
 
   func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {

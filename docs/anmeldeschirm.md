@@ -60,7 +60,7 @@ Profil → App-Anmeldungen sichtbar und abmeldbar.
 
 Apps, deren Dienste ein **Authentik-Token** brauchen, setzen
 `RosenwegApp(ohneBrowser: false)`: dann bietet der Schirm nur das
-Rosenweg-Konto an. Rosenweg VM gehört dazu (das vm-gateway prüft `userinfo`).
+Rosenweg-Konto an. Rosenweg VM braucht das seit 1.2.0 nicht mehr: der vm-gateway nimmt auch `rw_app_…` an (prüft sie über `GET /api/auth/me`); Token für eigene Dienste gibt `RosenwegSitzung.zugang`.
 
 ## Was die Apps einrichten müssen
 
