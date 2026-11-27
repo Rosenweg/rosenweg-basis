@@ -105,6 +105,8 @@ Mehr: [docs/entwickeln.md](docs/entwickeln.md).
 
 **Haupt-API:** Die Apps schicken das Access-Token als `Authorization: Bearer …`. Die allgemeine Annahme solcher Tokens ist in der API noch in Arbeit (`requireUserLogin`, Frische-Prüfung für den Passwortwechsel).
 
+**Anmeldeschirm:** wie auf Android blau mit Rosenweg-Siegel und drei Wegen – Rosenweg-Karte (iPhone per NFC, Computer per USB-Leser, nur wenn einer steckt), Rosenweg-Konto, QR-Code (iPhone scannt; der Computer zeigt einen, den das Handy bestätigt). Auf Android der native Schirm aus commons-rosenweg. Mehr: [docs/anmeldeschirm.md](docs/anmeldeschirm.md).
+
 Mehr: [docs/authentik.md](docs/authentik.md).
 
 ## Geteilte Telefone
@@ -166,6 +168,7 @@ Dasselbe läuft bei jedem Push und PR in `.github/workflows/pruefen.yml` auf dem
 |---|---|
 | [docs/entwickeln.md](docs/entwickeln.md) | Beispiel, öffentliche API im Detail mit Herkunft |
 | [docs/bedienung.md](docs/bedienung.md) | Bedienung, gleich in allen Apps |
+| [docs/anmeldeschirm.md](docs/anmeldeschirm.md) | Anmeldeschirm je Plattform (Karte, Konto, QR), Karten-Sitzung, was die Apps einrichten |
 | [docs/authentik.md](docs/authentik.md) | was in Authentik eingetragen sein muss, Kerberos |
 | [docs/geteilte-telefone.md](docs/geteilte-telefone.md) | Schnittstelle zu Rosenweg Gerät, Personenwechsel |
 | [docs/logos.md](docs/logos.md) | Logo-Baukasten |

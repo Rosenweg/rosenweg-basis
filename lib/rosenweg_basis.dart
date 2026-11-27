@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-/// Gemeinsame Basis der Rosenweg-Funktions-Apps (Flutter, Linux + Android).
+/// Gemeinsame Basis der Rosenweg-Funktions-Apps (Flutter: Linux, macOS, Windows, Android, iOS).
 ///
 /// Eine App braucht im Kern zwei Dinge:
 ///
@@ -21,6 +21,9 @@
 library;
 
 export 'src/anmeldung/android_konto.dart';
+export 'src/anmeldung/geraete_schluessel.dart';
+export 'src/anmeldung/karten_sitzung.dart';
+export 'src/anmeldung/kartenleser.dart';
 export 'src/anmeldung/rosenweg_konto.dart' show RosenwegKonto, AnmeldeFehler;
 export 'src/anmeldung/ruecksprung.dart';
 export 'src/anmeldung/kerberos.dart' show KerberosTicket, KeinKerberos;
@@ -31,6 +34,7 @@ export 'src/netz/api.dart';
 export 'src/netz/fehler.dart';
 export 'src/netz/haus_erkennung.dart' show HausErkennung, systemDnsServer, resolvConfLesen, txtAbfragen, dnsFrage, dnsTxtLesen;
 export 'src/netz/json_anfrage.dart';
+export 'src/oberflaeche/anmeldeschirm.dart';
 export 'src/oberflaeche/bausteine.dart';
 export 'src/oberflaeche/farben.dart';
 export 'src/oberflaeche/rahmen.dart';
