@@ -60,6 +60,20 @@ class RosenwegPlattform {
     return m ?? const {};
   }
 
+  // ── Karte lesen auf Android (android/…/NfcKarte.kt) ──
+
+  static const _karteKanal = EventChannel('ch.rosenweg4303.basis/karte');
+
+  /// NFC dieses Android-Geraets: 'fehlt', 'aus' oder 'an'.
+  static Future<String> nfcStand() async => await _rufen<String>('nfcStand') ?? 'fehlt';
+
+  /// NFC-Einstellungen des Systems oeffnen (NFC einschalten).
+  static Future<void> nfcEinstellungen() => _rufen<void>('nfcEinstellungen');
+
+  /// Jede aufgelegte Karte einmal (UID als Hex); solange jemand zuhoert, ist
+  /// der Reader-Modus an.
+  static Stream<String> karten() => _karteKanal.receiveBroadcastStream().where((e) => e is String).cast<String>();
+
   // ── iOS-Teil (ios/Classes/RosenwegBasisPlugin.swift) ──
 
   /// identifierForVendor (gleich fuer alle Rosenweg-Apps auf diesem iPhone).

@@ -14,5 +14,13 @@
 	<!-- Anmeldeschirm: Rosenweg-Karte ueber USB-NFC-Leser (PC/SC, rosenweg_basis) -->
 	<key>com.apple.security.smartcard</key>
 	<true/>
+	<!-- Scannen und Foto (rosenweg_basis: codeScannen, fotoAufnehmen) -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
+	<!-- Dateien waehlen und "Speichern unter" (rosenweg_basis) -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
 </dict>
 </plist>

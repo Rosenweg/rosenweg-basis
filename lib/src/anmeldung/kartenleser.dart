@@ -35,14 +35,88 @@ abstract class Kartenleser {
   @visibleForTesting
   static Kartenleser? Function()? ersatz;
 
-  /// Der passende Leser fuer diese Plattform, null = keiner moeglich (Android
-  /// liest im commons-Schirm selbst).
+  /// Der passende Leser fuer den Anmeldeschirm, null = keiner moeglich
+  /// (Android liest im commons-Schirm selbst).
   static Kartenleser? fuerPlattform() {
     if (ersatz != null) return ersatz!();
     if (RosenwegPlattform.istIos) return IosKartenleser();
     if (RosenwegPlattform.istDesktop) return PcscKartenleser();
     return null;
   }
+
+  /// Der passende Leser, um IN der App Karten zu lesen (Karten anlernen,
+  /// nachschlagen; [karteLesen], [KartenleserBereich]): Android ueber NFC
+  /// ([AndroidKartenleser]), iOS Core NFC, Desktop PC/SC. null = Web.
+  static Kartenleser? fuerApp() {
+    if (ersatz != null) return ersatz!();
+    if (RosenwegPlattform.istAndroid) return AndroidKartenleser();
+    return fuerPlattform();
+  }
+}
+
+/// Warum gerade keine Karte gelesen werden kann – als Satz fuer die Person,
+/// null = bereit. Fuer [KartenleserBereich]; eigene Leser (Tests) liefern den
+/// allgemeinen Satz.
+Future<KartenleserHindernis?> kartenleserHindernis(Kartenleser? l) async {
+  if (l == null) return KartenleserHindernis.plattform;
+  if (l is AndroidKartenleser) {
+    return switch (await RosenwegPlattform.nfcStand()) {
+      'an' => null,
+      'aus' => KartenleserHindernis.nfcAus,
+      _ => KartenleserHindernis.keinNfc,
+    };
+  }
+  if (await l.verfuegbar()) return null;
+  if (l is IosKartenleser) return KartenleserHindernis.keinNfc;
+  if (l is PcscKartenleser) return l.dienstDa ? KartenleserHindernis.keinLeser : KartenleserHindernis.keinPcsc;
+  return KartenleserHindernis.keinLeser;
+}
+
+/// Gruende, weshalb [kartenleserHindernis] nicht bereit meldet.
+enum KartenleserHindernis {
+  /// Web oder unbekannte Plattform.
+  plattform('Auf diesem Gerät lassen sich keine Rosenweg-Karten lesen.'),
+
+  /// Android/iOS ohne NFC (oder iOS-App ohne NFC-Berechtigung).
+  keinNfc('Dieses Gerät hat kein NFC und kann keine Karten lesen.'),
+
+  /// Android: NFC ist ausgeschaltet.
+  nfcAus('NFC ist ausgeschaltet. Bitte in den Einstellungen einschalten.'),
+
+  /// Desktop: kein PC/SC-Dienst (Linux: pcscd fehlt oder laeuft nicht).
+  keinPcsc('Der Dienst für Kartenleser fehlt (PC/SC). Unter Linux das Paket pcscd installieren.'),
+
+  /// Desktop: PC/SC da, aber kein Leser eingesteckt.
+  keinLeser('Kein Kartenleser angeschlossen. Bitte einen USB-NFC-Leser (z. B. ACR122U) einstecken.');
+
+  const KartenleserHindernis(this.text);
+  final String text;
+}
+
+/// UID einer Karte vereinheitlichen: Grossbuchstaben, ohne Leer- und
+/// Trennzeichen (wie UniFi Access `nfc_id`). null = keine gueltige UID
+/// (4, 7 oder 10 Byte, also 8, 14 oder 20 Hex-Zeichen).
+String? karteUidNormal(String roh) {
+  final u = roh.replaceAll(RegExp(r'[\s:\-]'), '').toUpperCase();
+  if (!RegExp(r'^[0-9A-F]+$').hasMatch(u)) return null;
+  if (u.length != 8 && u.length != 14 && u.length != 20) return null;
+  return u;
+}
+
+/// Android: NFC des Handys (Reader-Modus, android/…/NfcKarte.kt) – derselbe
+/// Leser wie im Anmeldeschirm von commons-rosenweg, aber in der App.
+class AndroidKartenleser implements Kartenleser {
+  @override
+  bool get aufKnopfdruck => false;
+
+  @override
+  Future<bool> verfuegbar() async => await RosenwegPlattform.nfcStand() == 'an';
+
+  @override
+  Stream<String> lauschen() => RosenwegPlattform.karten();
+
+  @override
+  Future<String?> einmalLesen() => lauschen().first;
 }
 
 class PcscKartenleser implements Kartenleser {
@@ -64,6 +138,9 @@ class PcscKartenleser implements Kartenleser {
     _zuletzt = neu;
     Protokoll.schreiben(neu);
   }
+
+  /// Gibt es den PC/SC-Dienst (nach dem ersten [verfuegbar])?
+  bool get dienstDa => _pcsc != null;
 
   Pcsc? get _dienst {
     if (_pcsc == null && !_versucht) {

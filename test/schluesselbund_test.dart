@@ -72,4 +72,33 @@ void main() {
     expect(await s.lesen('refresh_token'), isNull);
     expect(await s.lesen('geraet'), 'g');
   });
+
+  group('Secret Service (Linux)', () {
+    test('kein Schluesselbund ohne Rueckfrage: nur im Speicher, libsecret unberuehrt', () async {
+      var gefragt = 0;
+      // _OhneDienst wuerde bei jedem Zugriff scheitern; er darf gar nicht gefragt werden
+      final s = Schluesselbund('rosenweg-test', speicher: const _OhneDienst(), systemBereit: () async {
+        gefragt++;
+        return false;
+      });
+      expect(await s.lesen('refresh_token'), isNull);
+      await s.setzen({'refresh_token': 'rt'});
+      expect(await s.lesen('refresh_token'), 'rt');
+      expect(s.nurImSpeicher, isTrue);
+      expect(gefragt, 1);
+    });
+
+    test('bereit: normal speichern', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final s = Schluesselbund('rosenweg-test', speicher: roh, systemBereit: () async => true);
+      await s.setzen({'a': '1'});
+      expect(s.nurImSpeicher, isFalse);
+      expect(await Schluesselbund('rosenweg-test', speicher: roh).lesen('a'), '1');
+    });
+
+    test('Antwort von busctl lesen', () {
+      expect(Schluesselbund.secretServiceAntwortBereit('o "/"\n'), isFalse);
+      expect(Schluesselbund.secretServiceAntwortBereit('o "/org/freedesktop/secrets/collection/login"'), isTrue);
+    });
+  });
 }

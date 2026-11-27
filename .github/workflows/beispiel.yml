@@ -1,0 +1,183 @@
+# Beispiel-App (example/) auf allen fuenf Plattformen bauen. Die Bausteine
+# bringen native Plugins mit (pdfrx/PDFium, mobile_scanner, file_selector,
+# share_plus, desktop_drop, image_picker) – so faellt auf, wenn eines davon
+# auf einer Plattform nicht mehr baut, bevor es eine App trifft.
+#
+# Alles auf GitHub-Runnern (oeffentliches Repo, wie pruefen.yml und app.yml):
+# Linux im Container debian:13 wie die Stationen, Android auf ubuntu-latest,
+# macOS/iOS und Windows bei GitHub. Keine Signatur, keine Secrets.
+name: Beispiel
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'ios/**'
+      - 'example/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/beispiel.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: beispiel-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.47.5"
+  FLUTTER_SHA256: 2132e990f236f8d22e7c6314b29a191a95b10d7cbcfec9b4e2e303d996652cbb
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    container: debian:13
+    timeout-minutes: 45
+    steps:
+      - name: Systempakete
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+            ca-certificates clang cmake ninja-build pkg-config xz-utils curl unzip git zstd \
+            libgtk-3-dev liblzma-dev libstdc++-14-dev libsecret-1-dev libjsoncpp-dev >/dev/null
+
+      - uses: actions/checkout@v4
+
+      - name: Flutter-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rosenweg-flutter-ci
+          key: flutter-beispiel-linux-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-${{ hashFiles('pubspec.yaml', 'example/pubspec.lock') }}
+          restore-keys: flutter-beispiel-linux-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-
+
+      - name: Flutter (feste Version mit Pruefsumme)
+        run: |
+          set -euo pipefail
+          C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
+          if [ ! -x "$C/flutter-$FLUTTER_VERSION/bin/flutter" ]; then
+            curl -fsSL -o "$C/flutter.txz" "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz"
+            echo "$FLUTTER_SHA256  $C/flutter.txz" | sha256sum -c -
+            mkdir -p "$C/flutter-$FLUTTER_VERSION" && tar -xJf "$C/flutter.txz" -C "$C/flutter-$FLUTTER_VERSION" --strip-components=1 && rm "$C/flutter.txz"
+          fi
+          git config --global --add safe.directory "$C/flutter-$FLUTTER_VERSION"
+          echo "$C/flutter-$FLUTTER_VERSION/bin" >> "$GITHUB_PATH"
+          echo "PUB_CACHE=$C/pub-cache" >> "$GITHUB_ENV"
+
+      - name: Bauen
+        working-directory: example
+        run: |
+          flutter config --no-analytics --enable-linux-desktop >/dev/null
+          flutter pub get
+          flutter build linux --release
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read   # commons-rosenweg (ch.rosenweg4303:cloud, :updater) aus GitHub Packages
+    env:
+      JDK_VERSION: "21.0.13.1+2"
+      JDK_SHA256: bb8a93f9ae6e7a693b2b721e85dbeff26ae1a77447985a8d7afcdd9c7cf6222e
+      ANDROID_CMDLINE_TOOLS: "13114758"
+      ANDROID_CMDLINE_TOOLS_SHA256: 7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Werkzeug-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rosenweg-flutter-ci
+          key: android-beispiel-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-${{ env.JDK_SHA256 }}-${{ env.ANDROID_CMDLINE_TOOLS_SHA256 }}-${{ hashFiles('example/pubspec.lock', 'android/*.kts', 'example/android/**/*.kts') }}
+          restore-keys: android-beispiel-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-${{ env.JDK_SHA256 }}-${{ env.ANDROID_CMDLINE_TOOLS_SHA256 }}-
+
+      - name: Flutter, JDK, Android-SDK (feste Versionen mit Pruefsumme)
+        run: |
+          set -euo pipefail
+          C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
+          if [ ! -x "$C/flutter-$FLUTTER_VERSION/bin/flutter" ]; then
+            curl -fsSL -o "$C/flutter.txz" "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz"
+            echo "$FLUTTER_SHA256  $C/flutter.txz" | sha256sum -c -
+            mkdir -p "$C/flutter-$FLUTTER_VERSION" && tar -xJf "$C/flutter.txz" -C "$C/flutter-$FLUTTER_VERSION" --strip-components=1 && rm "$C/flutter.txz"
+          fi
+          J="$C/jdk-${JDK_VERSION//+/_}"
+          if [ ! -x "$J/bin/java" ]; then
+            curl -fsSL -o "$C/jdk.tgz" "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-${JDK_VERSION//+/%2B}/OpenJDK21U-jdk_x64_linux_hotspot_${JDK_VERSION//+/_}.tar.gz"
+            echo "$JDK_SHA256  $C/jdk.tgz" | sha256sum -c -
+            mkdir -p "$J" && tar -xzf "$C/jdk.tgz" -C "$J" --strip-components=1 && rm "$C/jdk.tgz"
+          fi
+          A="$C/android-sdk"
+          if [ ! -x "$A/cmdline-tools/$ANDROID_CMDLINE_TOOLS/bin/sdkmanager" ]; then
+            curl -fsSL -o "$C/ct.zip" "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_CMDLINE_TOOLS}_latest.zip"
+            echo "$ANDROID_CMDLINE_TOOLS_SHA256  $C/ct.zip" | sha256sum -c -
+            rm -rf "$C/ct" && unzip -q "$C/ct.zip" -d "$C/ct" && rm "$C/ct.zip"
+            mkdir -p "$A/cmdline-tools"
+            rm -rf "$A/cmdline-tools/$ANDROID_CMDLINE_TOOLS" && mv "$C/ct/cmdline-tools" "$A/cmdline-tools/$ANDROID_CMDLINE_TOOLS" && rm -rf "$C/ct"
+          fi
+          ln -sfn "$ANDROID_CMDLINE_TOOLS" "$A/cmdline-tools/latest"
+          (yes || true) | JAVA_HOME="$J" "$A/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$A" --licenses >/dev/null
+          if [ ! -d "$A/platform-tools" ]; then
+            JAVA_HOME="$J" "$A/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$A" "platform-tools" >/dev/null
+          fi
+          echo "$C/flutter-$FLUTTER_VERSION/bin" >> "$GITHUB_PATH"
+          echo "$J/bin" >> "$GITHUB_PATH"
+          {
+            echo "JAVA_HOME=$J"
+            echo "ANDROID_HOME=$A"
+            echo "ANDROID_SDK_ROOT=$A"
+            echo "GRADLE_USER_HOME=$C/gradle"
+            echo "GRADLE_OPTS=-Dorg.gradle.daemon=false"
+            echo "PUB_CACHE=$C/pub-cache"
+          } >> "$GITHUB_ENV"
+
+      - name: Bauen
+        working-directory: example
+        env:
+          # android/build.gradle.kts holt commons-rosenweg aus GitHub Packages
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          flutter config --no-analytics >/dev/null
+          flutter pub get
+          flutter build apk --debug
+
+  macos-ios:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: macOS bauen
+        working-directory: example
+        run: |
+          flutter config --no-analytics >/dev/null
+          flutter pub get
+          flutter build macos --debug
+      - name: iOS bauen (ohne Signatur)
+        working-directory: example
+        run: flutter build ios --debug --no-codesign
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+      - name: Bauen
+        working-directory: example
+        run: |
+          flutter config --no-analytics --enable-windows-desktop >/dev/null
+          flutter pub get
+          flutter build windows --release

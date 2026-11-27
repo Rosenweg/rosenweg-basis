@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Eintrag fuer das App-Register von /apps (Rosenweg/Website pbx/api/app.py APPS_REGISTER, Schluessel = 'app'). Erst damit nimmt die Anlage Releases dieses Repos an. Logo: assets/logo/rosenweg-vorlage-192.png nach www img/apps/rosenweg-vorlage.png.",
+  "_hinweis": "Eintrag fuer das App-Register (Rosenweg/Website apps-register.json, Abschnitt 'apps', Schluessel = 'app'). Erst damit nimmt die Anlage Releases dieses Repos an. Logo: assets/logo/rosenweg-vorlage-192.png nach www img/apps/rosenweg-vorlage.png.",
   "app": "vorlage",
   "name": "Rosenweg Vorlage",
   "repo": "Rosenweg/rosenweg-vorlage",

@@ -1,3 +1,76 @@
+## 0.6.0 (unveröffentlicht)
+
+Welle 0 des Flutter-Plans: Bausteine, die fast jede Portal-App braucht
+(Prio A), mit Beispiel-App `example/` für alle fünf Plattformen.
+
+- **Rechte** (`rechte.dart`, `rechte_bausteine.dart`): `sitzung.rechte`
+  lädt `GET /api/auth/me` (`permissions`, `groups`), Technik/Präsident
+  dürfen alles wie `requirePermission`; `sitzung.darf(seite, zugriff)`,
+  Widget `NurMit` (recht / eines / stufe, unsichtbar oder einheitlicher
+  Hinweis „Keine Berechtigung“), `RechteBereich` legt `RosenwegRahmen` selbst
+  an. Neu geladen nach Abmelden, Personenwechsel, Bestätigen.
+  - **Stufe der Anmeldung** `karte` < `konto` < `konto-frisch` aus
+    `user.anmeldung.stufe` (+ `frisch_bis`) – Feld liefert die API künftig
+    (Plan 4.2.1); bis dahin Schätzung aus der eigenen Anmeldung.
+    `StufeNoetigAnzeige` mit „Mit Rosenweg-Konto anmelden“.
+  - `mitBestaetigung`: 403 mit `reauth` oder `stufe` → fragen, frisch
+    anmelden, einmal nochmals. `KeineBerechtigung.stufeNoetig`.
+  - `RosenwegSitzung.bestaetigtUm`.
+- **Listen** (`liste.dart`, `liste_ansicht.dart`): `ListenSteuerung`
+  (Cursor `nach`/`naechster` nach Plan 4.2.4, `Blaettern.offset`, oder
+  `.lokal`), `apiListe`, `RosenwegListe`: Suche, Filter-Chips, Sortierung,
+  Ziehen zum Neuladen, automatisch weiterladen, Mehrfachauswahl;
+  Handy-Kacheln, ab 840 px Tabelle mit Kopfzeile; F5/Strg+R.
+- **Formulare** (`formular.dart`): `RosenwegFormular` (Prüfen,
+  Speichern-Zustand, Fehler der API am Feld über `feld`/`felder`, sonst oben;
+  „Änderungen verwerfen?“, Strg/Cmd+S), Felder `TextFeld`, `BetragFeld`
+  (Rappen), `DatumFeld`, `ZeitFeld`, `AuswahlFeld`, `SchalterFeld`,
+  `SuchAuswahlFeld`; `Pruefen`, `loeschenBestaetigen`.
+  `ApiFehler.feldFehler`.
+- **Scannen** (`scanner.dart`): `codeScannen` – Kamera auf Android, iOS,
+  macOS (`mobile_scanner`), sonst Feld für Hand-Scanner/Tastatur; überall
+  „QR-Code aus Bild lesen“ (`qrAusBild`, zxing2, reines Dart). Muster aus
+  rosenweg-salz.
+- **Dateien** (`netz/dateien.dart`, `dateien_bausteine.dart`):
+  `sitzung.dateien` (`RosenwegDateien`) lädt roh oder multipart hoch und
+  herunter, Bearer-Token, 401 → einmal erneuern, Fortschritt; geteilte
+  Telefone: verständlicher Fehler. `dateienWaehlen` (file_selector, Linux
+  ohne zenity), `fotoAufnehmen` + `bildVerkleinern`, `dateiSpeichern`
+  („Speichern unter“ bzw. Teilen), `dateiTeilen`, `DateiAblage` (Drag & Drop
+  am Computer), `mitFortschritt`, `TransferAnzeige`.
+- **PDF** (`pdf_ansicht.dart`): `PdfAnsicht`, `PdfSeite`, `pdfOeffnen`
+  (pdfrx 3, alle fünf Plattformen; Seiten, Zoom, Tastatur, Speichern/Teilen).
+- **Schlüsselbund unter Linux:** fragt vor dem ersten Zugriff den Secret
+  Service (`busctl … ReadAlias default`); ohne Standard-Sammlung gleich
+  „nur im Speicher“, statt dass libsecret „Neuen Schlüsselbund anlegen“
+  öffnet. Aus rosenweg-vm (`PruefenderSpeicher`), jetzt für alle Apps.
+- `apiAntwortPruefen` (gemeinsam für API und Dateien).
+- **Karte lesen in der App** (`karte_lesen.dart`, Android `NfcKarte.kt`):
+  `karteLesen`, `KartenleserBereich` (liest laufend, solange sichtbar),
+  `Kartenleser.fuerApp()` – Android NFC im Reader-Modus mit dem `Kartenleser`
+  aus commons-rosenweg `anmeldeschirm` (neu `AndroidKartenleser`), iOS Core
+  NFC, Desktop PC/SC (USB-Leser wie ACR122U). Klare Sätze, wenn es nicht geht
+  (`kartenleserHindernis`: kein NFC, NFC aus mit Knopf zu den Einstellungen,
+  kein PC/SC, kein Leser, Web). `karteUidNormal`, `uidEintippen`.
+  Android-Manifest der Basis: `NFC`, `uses-feature nfc required=false`.
+- **Karte wie Schlüssel:** antwortet die API mit 202 `{bestaetigung: 'email'}`
+  (heikle Admin-Aktion mit Karte, QR oder Handy; api/lib/kartenadmin.js),
+  wirft `apiAntwortPruefen` jetzt `BestaetigungPerEmail` (Hinweis, Ablauf,
+  maskierte Adresse) statt still „Erfolg“ zu melden; `zeigeEmailBestaetigung`
+  zeigt es, `RosenwegFormular` tut das selbst.
+- Formular: `gespeichert: () => Navigator.pop(…)` fragte „Änderungen
+  verwerfen?“, weil `canPop` erst nach dem nächsten Bau stimmte – jetzt geht
+  die Seite ohne Frage zu.
+- **Vorlage** (`vorlage/`): Bereich „Einträge“ aus Liste, Formular und Rechte
+  (`lib/seiten/eintraege.dart`, Attrappe dazu, Test); Berechtigungen für
+  Kamera und Dateien (Android, iOS, macOS); `rosenweg_basis` `ref: v0.6.0`.
+- CI: `example/` wird mitgeprüft; `beispiel.yml` baut die Beispiel-App auf
+  Linux (Container debian:13), Android, macOS, iOS und Windows – alles auf
+  GitHub-Runnern (öffentliches Repo), Android ohne `continue-on-error`.
+- Neue Abhängigkeiten: mobile_scanner, file_selector, image_picker,
+  share_plus, pdfrx, desktop_drop, zxing2, image,
+  http_parser. Apps brauchen Kamera-/Datei-Berechtigungen (README).
+
 ## 0.5.2
 
 - Android: `ch.rosenweg4303:cloud` 0.9.0 → **0.13.4** (commons-rosenweg). Der
