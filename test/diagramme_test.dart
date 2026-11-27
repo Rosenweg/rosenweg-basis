@@ -40,6 +40,9 @@ void main() {
     expect(schoenerSchritt(0.3, 4), closeTo(0.1, 1e-9));
     expect(schoenerSchritt(0.2, 4), closeTo(0.05, 1e-9));
     expect(zeitachseText(DateTime(2026, 11, 28, 14, 5), const Duration(hours: 24)), '14:05');
+    expect(zeitSchritt(const Duration(hours: 24)), const Duration(hours: 6));
+    expect(zeitSchritt(const Duration(days: 7)), const Duration(days: 1));
+    expect(zeitSchritt(const Duration(hours: 1)), const Duration(minutes: 15));
     expect(zeitachseText(DateTime(2026, 11, 28, 14, 5), const Duration(days: 7)), '28.11.');
     expect(zeitpunktText(DateTime(2026, 11, 27, 8, 0), jetzt: DateTime(2026, 11, 28)), '27.11. 08:00');
     expect(zeitpunktText(DateTime(2026, 11, 28, 8, 0), jetzt: DateTime(2026, 11, 28, 9)), '08:00');

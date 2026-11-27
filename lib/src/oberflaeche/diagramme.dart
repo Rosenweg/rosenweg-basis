@@ -148,6 +148,19 @@ String zeitpunktText(DateTime t, {DateTime? jetzt}) {
   return '${zz(t.day)}.${zz(t.month)}.${t.year == j.year ? '' : t.year} $uhr';
 }
 
+/// Abstand der Teilstriche auf der Zeitachse (etwa 4–7 Beschriftungen).
+Duration zeitSchritt(Duration spanne) {
+  const h = Duration(hours: 1), t = Duration(days: 1);
+  if (spanne <= h) return const Duration(minutes: 15);
+  if (spanne <= h * 3) return const Duration(minutes: 30);
+  if (spanne <= h * 6) return h;
+  if (spanne <= h * 12) return h * 3;
+  if (spanne <= h * 36) return h * 6;
+  if (spanne <= t * 10) return t;
+  if (spanne <= t * 60) return t * 7;
+  return t * 30;
+}
+
 /// Schoene Schrittweite fuer die Wertachse (1, 2, 5, 10 …).
 double schoenerSchritt(double spanne, int anzahl) {
   final roh = (spanne <= 0 ? 1 : spanne) / math.max(1, anzahl);
@@ -216,7 +229,10 @@ class Verlaufsdiagramm extends StatelessWidget {
     }
     final schritt = schoenerSchritt(hi - lo, 4);
     final ylo = (lo / schritt).floor() * schritt, yhi = (hi / schritt).ceil() * schritt;
-    final xSchritt = (x1 - x0) / 4;
+    final xSchritt = zeitSchritt(spanne).inMilliseconds.toDouble();
+    // Teilstriche auf runde Ortszeit (00:00, 06:00 …) statt auf UTC-Vielfache
+    final t0 = DateTime.fromMillisecondsSinceEpoch(x0.round());
+    final mitternacht = DateTime(t0.year, t0.month, t0.day).millisecondsSinceEpoch.toDouble();
     final achse = t.labelSmall?.copyWith(color: f.onSurfaceVariant);
     final raster = FlGridData(
       drawVerticalLine: true,
@@ -230,9 +246,6 @@ class Verlaufsdiagramm extends StatelessWidget {
           child: Text(_zahl(v, schritt), style: achse),
         );
     Widget zeitTitel(double v, TitleMeta m) {
-      // nur die vier Teilstriche, nicht Anfang/Ende doppelt (fl_chart setzt min/max dazu)
-      final rel = (v - x0) / xSchritt;
-      if ((rel - rel.round()).abs() > 0.01) return const SizedBox.shrink();
       return SideTitleWidget(
         meta: m,
         fitInside: SideTitleFitInsideData.fromTitleMeta(m),
@@ -247,7 +260,14 @@ class Verlaufsdiagramm extends StatelessWidget {
         sideTitles: SideTitles(showTitles: true, reservedSize: 44, interval: schritt, getTitlesWidget: wertTitel),
       ),
       bottomTitles: AxisTitles(
-        sideTitles: SideTitles(showTitles: true, reservedSize: 28, interval: xSchritt, getTitlesWidget: zeitTitel),
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 28,
+          interval: xSchritt,
+          minIncluded: false,
+          maxIncluded: false,
+          getTitlesWidget: zeitTitel,
+        ),
       ),
     );
     final rahmen = FlBorderData(
@@ -306,6 +326,7 @@ class Verlaufsdiagramm extends StatelessWidget {
       ));
     } else {
       diagramm = LineChart(LineChartData(
+        baselineX: mitternacht,
         minX: x0,
         maxX: x1,
         minY: ylo,
