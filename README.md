@@ -86,6 +86,7 @@ Mehr: [docs/bedienung.md](docs/bedienung.md).
 | Ablauf | `RosenwegSitzung` (`zugang` für eigene Dienste), `rosenwegStarten`, `RosenwegRahmen`, `AnmeldeTor` |
 | Updates | `RosenwegAktualisierung`, `AktualisierungsLeiste`, `RosenwegStation.erkannt` |
 | Aussehen | `rosenwegThema`, `RosenwegFarben` (Rot `#D32F2F`, Grundton `#8B1E3F`), deutsche Texte (de-CH) |
+| Gerüst | `RosenwegGeruest` (Handy: Navigation unten; ab 840 px Seitenleiste links, Inhalt mittig begrenzt), `RosenwegSpalten` (zwei Spalten am Desktop), `RosenwegInhalt` (max. Breite), `Fensterklasse` (kompakt/mittel/breit/sehrBreit) |
 | Bausteine | `AnmeldeSchirm`, `FehlerAnzeige`, `LadeAnzeige`, `Abschnitt`, `Hinweis`, `zeigeMeldung`, `frage`, `zeigeUeber`, `RosenwegLogo` |
 | Protokoll | `Protokoll.schreiben` – `~/.local/state/<ordner>/app.log`, nie Tokens |
 | Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte oder Rosenweg-Konto, Token aus Kotlin), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) |
@@ -167,10 +168,11 @@ Für die Android-Apps (Fossify-Forks, Rosenweg Karten, Rosenweg Gerät, Rosenweg
 
 1. `flutter create --platforms=android,linux --org ch.rosenweg4303 --project-name rosenweg_<name> rosenweg-<name>`
 2. applicationId/APPLICATION_ID auf `ch.rosenweg4303.<name>` setzen.
-3. `rosenweg_basis` als git-Abhängigkeit mit festem Tag (z. B. `ref: v0.4.0`), lokal `pubspec_overrides.yaml` mit `path: ../rosenweg-basis`.
+3. `rosenweg_basis` als git-Abhängigkeit mit festem Tag (z. B. `ref: v0.5.0`), lokal `pubspec_overrides.yaml` mit `path: ../rosenweg-basis`.
 4. Zeichen zeichnen (`werkzeug/logo/zeichen/<name>.svg`, 400×400), `erzeugen.sh`.
 5. Authentik: Rücksprung `ch.rosenweg4303.<name>:/anmeldung` eintragen.
 6. `linux/paket/` aus rosenweg-profil kopieren und Namen ersetzen.
+7. Desktop: Seiten mit `RosenwegGeruest` bauen und die kleinste Fenstergrösse 400×560 setzen (macOS `contentMinSize`, Linux `gtk_widget_set_size_request`, Windows `WM_GETMINMAXINFO`; Muster in rosenweg-salz).
 
 ## Prüfen und CI
 

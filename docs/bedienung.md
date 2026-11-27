@@ -19,3 +19,9 @@ So verhalten sich alle Apps, die auf rosenweg-basis aufbauen.
   das macht Rosenweg Gerät (Karte). Die Anfragen gehen über Rosenweg Gerät
   (`portal_anfrage`, ab v236) und die Telefonanlage; die App sieht kein Token.
   Wechselt die Person am Telefon, baut `RosenwegRahmen` die ganze App neu.
+- Handy und Desktop: dieselbe App passt sich der Fensterbreite an
+  (`RosenwegGeruest`). Unter 840 px bleibt alles wie auf dem Handy; breiter
+  kommt die Navigation an den linken Rand, der Inhalt steht mit lesbarer
+  Breite in der Mitte (oder in zwei Spalten), Dialoge sind höchstens 560 px
+  breit. Am Desktop geht das Wichtigste auch mit der Tastatur (Enter,
+  Ziffern, F5), Fenster lassen sich nicht kleiner als 400×560 ziehen.
