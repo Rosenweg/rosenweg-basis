@@ -2,8 +2,11 @@
 # eigenen Stand der Basis:
 #   neue-app   neue-app.sh legt eine Probe-App an (Ersetzungen, Logos),
 #              danach flutter analyze + test darin
-#   vorlage    die Vorlage selbst mit dem wiederverwendbaren app.yml auf allen
-#              fuenf Plattformen (ohne Release); rosenweg_basis aus diesem Stand
+#   vorlage    die Vorlage selbst mit dem wiederverwendbaren app.yml (ohne
+#              Release); rosenweg_basis aus diesem Stand. Bei PR und Push nur
+#              Linux und Android (eigener Runner); Windows, macOS und iOS
+#              (GitHub-Runner, bezahlte Minuten) nur von Hand:
+#                gh workflow run vorlage.yml -R Rosenweg/rosenweg-basis --ref <zweig>
 name: Vorlage
 
 on:
@@ -97,5 +100,4 @@ jobs:
       titel: Rosenweg Vorlage
       ordner: vorlage
       basis_lokal: true
-      alle_plattformen: true
     secrets: inherit

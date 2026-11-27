@@ -221,7 +221,7 @@ Das Skript kopiert die Vorlage, ersetzt alle Namen (es bricht ab, wenn ein Platz
 2. **GitHub**: Repo anlegen (oder `--repo`), dann
    - Repo-Secret `BASIS_TOKEN` (fein granuliert, nur rosenweg-basis, Contents read-only) oder `BASIS_DEPLOY_KEY`,
    - Org-Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` für das Repo freigeben (ohne: Debug-Signatur, kein Release),
-   - Repo in die Runner-Gruppe `rosenweg-privat` aufnehmen (Linux und Android laufen auf dem eigenen Runner).
+   - Repo in die Runner-Gruppe `rosenweg-privat` aufnehmen (mit `--repo` erledigt das `neue-app.sh`): alles ausser Windows, macOS und iOS läuft auf dem eigenen Runner `[self-hosted, rosenweg]`; ohne Gruppe warten diese Jobs ewig.
 3. **/apps**: `apps-eintrag.json` in `APPS_REGISTER` (Rosenweg/Website `pbx/api/app.py`) übernehmen, `assets/logo/<app>-192.png` als `img/apps/<app>.png` ins Website-Repo. Ohne Register-Eintrag nimmt die Anlage keine Releases an.
 4. **Android-Updater**: der Rosenweg Updater (commons-rosenweg `updater`) kennt die Pakete der Flutter-Apps; neue Kennung dort ergänzen, sonst prüft auf Handys mit nur Flutter-Apps niemand.
 5. **Stationen**: nach dem ersten Release `linux/paket/paket.conf` als `pakete/<app>/paket.conf` (mit `hochladen.sh`) in os-stationen, Version und Prüfsumme eintragen.
@@ -231,9 +231,9 @@ Das Skript kopiert die Vorlage, ersetzt alle Namen (es bricht ab, wenn ein Platz
 
 | Workflow (hier) | Aufgabe |
 |---|---|
-| `.github/workflows/app.yml` | `workflow_call`: Version lesen → Linux (analyze, test, `.deb`) und Android (APK, Signatur und Paketname geprüft) immer; Windows (Installer + Rauchtest), macOS (DMG), iOS (unsigniert) nur für ein Release, von Hand oder mit `alle_plattformen`; bei `veroeffentlichen` und **neuem** Tag `v<version>`: GitHub-Release mit allen Dateien und `SHA256SUMS`, dann `apps.yml` der App für den Tag starten |
+| `.github/workflows/app.yml` | `workflow_call`: Version lesen → Linux (analyze, test, `.deb`) und Android (APK, Signatur und Paketname geprüft) immer; Windows (Installer + Rauchtest), macOS (DMG), iOS (unsigniert) nur für ein Release, von Hand oder mit `alle_plattformen` (GitHub-Runner, bezahlte Minuten – nie bei gewöhnlichem Push/PR); alles andere auf dem eigenen Runner; bei `veroeffentlichen` und **neuem** Tag `v<version>`: GitHub-Release mit allen Dateien und `SHA256SUMS`, dann `apps.yml` der App für den Tag starten |
 | `.github/workflows/app-apps.yml` | `workflow_call`: Dateien des Release-Tags an /apps (Action `Rosenweg/Website/.github/actions/apps-release`, GitHub-OIDC) |
-| `.github/workflows/vorlage.yml` | prüft hier selbst: `neue-app.sh` (Probe mit Bindestrich und Umlaut, analyze + test) und die Vorlage auf allen fünf Plattformen gegen diesen Stand der Basis |
+| `.github/workflows/vorlage.yml` | prüft hier selbst: `neue-app.sh` (Probe mit Bindestrich und Umlaut, analyze + test) und die Vorlage gegen diesen Stand der Basis: bei PR/Push Linux und Android, alle fünf Plattformen nur von Hand (`gh workflow run vorlage.yml --ref <zweig>`) |
 
 In der App: PR → CI; Merge auf `main` mit erhöhter `version:` → Release und /apps; ohne neue Version nur CI. Kein Tag von Hand nötig.
 
