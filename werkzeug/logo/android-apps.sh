@@ -21,6 +21,8 @@ TITEL="$(echo "$ZEILE" | cut -d'|' -f3)"
 ZEICHEN="$HIER/zeichen/$(echo "$ZEILE" | cut -d'|' -f4).svg"
 ART="$(echo "$ZEILE" | cut -d'|' -f5)"
 GRUPPE="$(echo "$ZEILE" | cut -d'|' -f6)"; GRUPPE="${GRUPPE:-bewohner}"; export GRUPPE
+# weitere Gruppenfarben (Spalte 7): ic_launcher_<farbe> (erzeugen.sh FARBEN, docs/gruppenfarbe.md)
+FARBEN="$(echo "$ZEILE" | cut -d'|' -f7 | tr ',' ' ')"; export FARBEN
 case "$ART" in
   fossify) ANDROID_RES=app/src/main/res FOSSIFY_FARBEN=1 sh "$HIER/erzeugen.sh" "$APP" "$NAME" "$TITEL" "$ZEICHEN" ;;
   kotlin)  ANDROID_RES=app/src/main/res sh "$HIER/erzeugen.sh" "$APP" "$NAME" "$TITEL" "$ZEICHEN" ;;
