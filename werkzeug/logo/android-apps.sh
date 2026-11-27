@@ -6,7 +6,7 @@
 #   werkzeug/logo/android-apps.sh <app-wurzel> <repo>
 #   werkzeug/logo/android-apps.sh ../calculator-rosenweg calculator-rosenweg
 #
-# Liest Name, Titel, Zeichen und Art aus android-apps.txt und ruft erzeugen.sh
+# Liest Name, Titel, Zeichen, Art und Gruppe aus android-apps.txt und ruft erzeugen.sh
 # mit dem passenden res-Ordner auf. Jede App hat dafuer assets/logo/erzeugen.sh,
 # das nur dieses Skript aufruft; Zeichen und Zeichnung bleiben hier in der Basis.
 # Fastlane-Symbol (fastlane/metadata/android/*/images/icon.png) wird mit ersetzt.
@@ -20,6 +20,7 @@ NAME="$(echo "$ZEILE" | cut -d'|' -f2)"
 TITEL="$(echo "$ZEILE" | cut -d'|' -f3)"
 ZEICHEN="$HIER/zeichen/$(echo "$ZEILE" | cut -d'|' -f4).svg"
 ART="$(echo "$ZEILE" | cut -d'|' -f5)"
+GRUPPE="$(echo "$ZEILE" | cut -d'|' -f6)"; GRUPPE="${GRUPPE:-bewohner}"; export GRUPPE
 case "$ART" in
   fossify) ANDROID_RES=app/src/main/res FOSSIFY_FARBEN=1 sh "$HIER/erzeugen.sh" "$APP" "$NAME" "$TITEL" "$ZEICHEN" ;;
   kotlin)  ANDROID_RES=app/src/main/res sh "$HIER/erzeugen.sh" "$APP" "$NAME" "$TITEL" "$ZEICHEN" ;;
