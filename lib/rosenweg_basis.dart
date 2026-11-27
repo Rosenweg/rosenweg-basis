@@ -37,6 +37,7 @@ export 'src/netz/json_anfrage.dart';
 export 'src/oberflaeche/anmeldeschirm.dart';
 export 'src/oberflaeche/bausteine.dart';
 export 'src/oberflaeche/farben.dart';
+export 'src/oberflaeche/geruest.dart';
 export 'src/oberflaeche/rahmen.dart';
 export 'src/plattform.dart' show RosenwegPlattform;
 export 'src/protokoll.dart';
