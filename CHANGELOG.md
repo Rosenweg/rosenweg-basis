@@ -1,4 +1,4 @@
-## 0.3.0 (unveröffentlicht)
+## 0.4.0 (unveröffentlicht)
 
 - Gerüst für Handy und Desktop: `RosenwegGeruest` (AppBar; mit zwei oder
   mehr `GeruestZiel` unten eine NavigationBar, ab 840 px eine
@@ -7,6 +7,29 @@
   unverändert das Handy-Layout), `RosenwegInhalt` und `Fensterklasse`
   (600/840/1200 px nach Material 3). Unter 840 px ändert sich nichts.
 - `rosenwegThema`: Dialoge höchstens 560 px breit.
+
+## 0.3.0
+
+- **Anmeldeschirm wie auf Android** (`RosenwegAnmeldeSchirm`, ersetzt den
+  alten `AnmeldeSchirm`; der Name bleibt als Alias): blau, Rosenweg-Siegel,
+  „<App> · zum Benutzen anmelden“, „Die Anmeldung gilt nur für <App>.“
+  - iOS: Rosenweg-Karte per Core NFC (Knopf), QR-Code per VisionKit,
+    Rosenweg-Konto im Browserfenster der App. Neuer iOS-Teil des Plugins
+    (CocoaPods und Swift Package Manager).
+  - Desktop: Karte über USB-NFC-Leser (PC/SC per FFI; ohne Leser
+    ausgeblendet), Rosenweg-Konto, „Mit dem Handy anmelden“ (Computer zeigt
+    QR, Handy bestätigt im Portal; Website `/app-anmelden`).
+  - Android unverändert: nativer Schirm aus commons-rosenweg.
+- `KartenSitzung`: Karten-, QR- und Handy-Sitzung für Desktop und iOS
+  (Gerätschlüssel EC P-256, Erneuern mit Unterschrift), gleicher Server wie
+  commons-rosenweg. `RosenwegSitzung.karte`, `.stand` (`Anmeldestand`,
+  `AnmeldeArt`), `.ohneBrowserAngemeldet()`.
+- `AnmeldungKarte` / `zeigeAnmeldung`: Anmeldung in den Einstellungen mit
+  echtem Stand (angemeldet als, womit, gilt nur für diese App, Abmelden).
+- `RosenwegApp(ohneBrowser: false)` für Apps, die ein Authentik-Token
+  brauchen (Rosenweg VM): nur Rosenweg-Konto.
+- Konto und Karte teilen sich EINEN Schlüsselbund-Eintrag.
+- Neue Abhängigkeiten: `pointycastle`, `qr_flutter`.
 
 ## 0.2.0 (unveröffentlicht)
 

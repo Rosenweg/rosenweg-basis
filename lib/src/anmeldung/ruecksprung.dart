@@ -8,7 +8,7 @@ import '../plattform.dart';
 
 /// Wie die Anmeldeseite von Authentik zur App zurueckfindet.
 ///
-/// - Desktop (Linux, Windows, macOS): ein kurzlebiger Port auf localhost
+/// - Desktop (Linux, Windows, macOS) und iOS: ein kurzlebiger Port auf localhost
 ///   (Authentik: Regex `^http://localhost:[0-9]+/anmeldung$`). Der Port kommt
 ///   vom Betriebssystem, sonst liesse sich die App kein zweites Mal oeffnen.
 /// - Android: eigenes Schema `<applicationId>:/anmeldung` (Authentik: strikt,
@@ -43,7 +43,11 @@ class AnmeldungAbgebrochen implements Exception {
 /// Oeffnet eine Adresse im Browser; fuer Tests ersetzbar.
 typedef BrowserOeffnen = Future<bool> Function(Uri url);
 
-Future<bool> _browser(Uri url) => launchUrl(url, mode: LaunchMode.externalApplication);
+/// iOS: Browserfenster IN der App (SFSafariViewController) - in Safari
+/// draussen schickte iOS die App in den Hintergrund und ihr localhost-Port
+/// verstummte (wie rosenweg-vm, iOS).
+Future<bool> _browser(Uri url) =>
+    launchUrl(url, mode: RosenwegPlattform.istIos ? LaunchMode.inAppBrowserView : LaunchMode.externalApplication);
 
 // ── Desktop ────────────────────────────────────────────────────────────────
 
@@ -106,6 +110,7 @@ class LocalhostRuecksprung implements Ruecksprung {
       if (!await _oeffnen(url)) throw StateError('Browser liess sich nicht oeffnen');
       return await _ergebnis.future.timeout(zeit, onTimeout: () => throw AnmeldungAbgebrochen());
     } finally {
+      if (RosenwegPlattform.istIos) unawaited(closeInAppWebView().catchError((_) {}));
       await _v4.close(force: true);
       await _v6?.close(force: true);
     }

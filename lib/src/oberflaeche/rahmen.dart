@@ -8,6 +8,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import '../konfig.dart';
 import '../protokoll.dart';
 import '../sitzung.dart';
+import 'anmeldeschirm.dart';
 import 'bausteine.dart';
 import 'farben.dart';
 
@@ -23,7 +24,7 @@ class AnmeldeTor extends StatelessWidget {
         listenable: sitzung,
         builder: (context, _) => switch (sitzung.phase) {
           Phase.pruefen => const Scaffold(body: LadeAnzeige()),
-          Phase.abgemeldet || Phase.anmelden => Scaffold(body: AnmeldeSchirm(sitzung: sitzung)),
+          Phase.abgemeldet || Phase.anmelden => Scaffold(body: RosenwegAnmeldeSchirm(sitzung: sitzung)),
           Phase.fehler => Scaffold(body: FehlerAnzeige(text: sitzung.fehler ?? '', nochmals: sitzung.starten)),
           Phase.bereit => inhalt(context),
         },

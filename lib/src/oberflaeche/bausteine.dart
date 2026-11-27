@@ -5,7 +5,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../konfig.dart';
 import '../netz/fehler.dart';
 import '../protokoll.dart';
-import '../sitzung.dart';
 import 'farben.dart';
 
 /// Logo der App in runder Ecke, wie auf dem Startbildschirm.
@@ -17,53 +16,6 @@ class RosenwegLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Image(image: app.logoOderTurm, width: groesse, height: groesse, filterQuality: FilterQuality.medium, semanticLabel: app.name);
-}
-
-/// Anmeldeschirm: Logo, Name, ein Satz, ein Knopf. Waehrend die Seite im
-/// Browser offen ist: Hinweis und "Abbrechen".
-///
-/// Auf Android-Handys ohne Rosenweg Geraet zeigt die Sitzung stattdessen den
-/// Anmeldeschirm von commons-rosenweg (Karte oder Rosenweg-Konto, wie der
-/// Sperrbildschirm); hier steht dann nur, was dahinter liegt, und "Anmelden",
-/// um ihn wieder zu oeffnen.
-class AnmeldeSchirm extends StatelessWidget {
-  const AnmeldeSchirm({super.key, required this.sitzung});
-  final RosenwegSitzung sitzung;
-
-  @override
-  Widget build(BuildContext context) {
-    final app = sitzung.app;
-    final offen = sitzung.phase == Phase.anmelden;
-    final android = sitzung.android != null;
-    final t = Theme.of(context).textTheme;
-    return _Mitte(
-      children: [
-        RosenwegLogo(app, groesse: 112),
-        const SizedBox(height: 24),
-        Text(app.name, style: t.headlineMedium, textAlign: TextAlign.center),
-        const SizedBox(height: 8),
-        Text(app.beschreibung, style: t.bodyLarge, textAlign: TextAlign.center),
-        const SizedBox(height: 32),
-        if (!offen)
-          FilledButton.icon(
-            onPressed: sitzung.anmelden,
-            icon: const Icon(Icons.login),
-            label: Text(android ? 'Anmelden' : 'Mit Rosenweg-Konto anmelden'),
-            style: FilledButton.styleFrom(minimumSize: const Size(280, 52)),
-          )
-        else if (android)
-          const CircularProgressIndicator()
-        else ...[
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text('Die Anmeldeseite ist im Browser offen.\nNach der Anmeldung geht es hier weiter.',
-              style: t.bodyMedium, textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          TextButton(onPressed: sitzung.abbrechen, child: const Text('Abbrechen')),
-        ],
-      ],
-    );
-  }
 }
 
 /// Fehler gross und verstaendlich, mit "Nochmals".
