@@ -30,15 +30,19 @@ void main() {
   tearDownAll(() => RosenwegPlattform.plattformFuerTests = null);
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
 
-  testWidgets('ohne Anmeldung: Anmeldeschirm mit einem Knopf', (t) async {
+  testWidgets('ohne Anmeldung: Rosenweg-Anmeldeschirm (Konto, Handy; ohne Leser keine Karte)', (t) async {
+    Kartenleser.ersatz = () => null;
+    addTearDown(() => Kartenleser.ersatz = null);
     final s = RosenwegSitzung(app, geraetDa: () async => false);
     await t.pumpWidget(RosenwegRahmen(sitzung: s, inhalt: (_) => const Text('INHALT')));
     await t.runAsync(s.starten);
     await t.pump();
     expect(s.phase, Phase.abgemeldet);
-    expect(find.text('Rosenweg Test'), findsOneWidget);
-    expect(find.text('Eine Test-App.'), findsOneWidget);
+    expect(find.text('Rosenweg Test · zum Benutzen anmelden'), findsOneWidget);
+    expect(find.text('Die Anmeldung gilt nur für Rosenweg Test.'), findsOneWidget);
     expect(find.text('Mit Rosenweg-Konto anmelden'), findsOneWidget);
+    expect(find.text('Mit dem Handy anmelden'), findsOneWidget);
+    expect(find.textContaining('Kartenleser'), findsNothing);
     expect(find.text('INHALT'), findsNothing);
   });
 

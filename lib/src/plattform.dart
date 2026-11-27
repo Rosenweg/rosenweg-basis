@@ -7,6 +7,9 @@ import 'package:flutter/services.dart';
 /// Der Android-Teil der Basis (android/…/RosenwegBasisPlugin.kt) hinter einer
 /// kleinen Schnittstelle, damit Tests ihn ersetzen koennen.
 ///
+/// Auf iOS gibt es einen kleinen Teil (ios/Classes): Karte per Core NFC, QR
+/// per VisionKit, Geraetekennung.
+///
 /// Auf Linux/Desktop gibt es ihn nicht; dort liefern die Methoden "nichts"
 /// (leere Liste, false, null), ohne zu werfen.
 class RosenwegPlattform {
@@ -57,6 +60,34 @@ class RosenwegPlattform {
     return m ?? const {};
   }
 
+  // ── iOS-Teil (ios/Classes/RosenwegBasisPlugin.swift) ──
+
+  /// identifierForVendor (gleich fuer alle Rosenweg-Apps auf diesem iPhone).
+  static Future<String?> iosGeraetKennung() => _rufen<String>('geraetKennung');
+
+  /// Name des Geraets ("iPhone", seit iOS 16 ohne den Namen der Person).
+  static Future<String?> iosGeraetName() => _rufen<String>('geraetName');
+
+  /// Kann dieses iPhone Karten lesen (Core NFC, App mit NFC-Berechtigung)?
+  static Future<bool> iosNfcDa() async => await _rufen<bool>('nfcDa') ?? false;
+
+  /// Karte lesen: iOS zeigt seinen eigenen Hinweis ("Halte dein iPhone an die
+  /// Karte"). UID als Hex, null = abgebrochen oder keine Karte.
+  static Future<String?> iosKarteLesen(String hinweis) async {
+    try {
+      return await kanal.invokeMethod<String>('karteLesen', {'hinweis': hinweis});
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  /// Kann dieses iPhone QR-Codes scannen (VisionKit, iOS 16+)?
+  static Future<bool> iosQrDa() async => await _rufen<bool>('qrDa') ?? false;
+
+  /// Kamera mit QR-Erkennung (VisionKit) als eigenes Fenster; Inhalt des
+  /// ersten QR-Codes, null = abgebrochen.
+  static Future<String?> iosQrScannen() => _rufen<String>('qrScannen');
+
   static Future<T?> _rufen<T>(String methode) async {
     try {
       return await kanal.invokeMethod<T>(methode);
@@ -71,4 +102,9 @@ class RosenwegPlattform {
 
   static bool get istAndroid =>
       (plattformFuerTests ?? defaultTargetPlatform) == TargetPlatform.android && !kIsWeb;
+
+  static bool get istIos => (plattformFuerTests ?? defaultTargetPlatform) == TargetPlatform.iOS && !kIsWeb;
+
+  /// Linux, macOS, Windows.
+  static bool get istDesktop => !kIsWeb && !istAndroid && !istIos;
 }

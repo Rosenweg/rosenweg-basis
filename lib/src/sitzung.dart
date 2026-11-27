@@ -4,8 +4,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'anmeldung/android_konto.dart';
+import 'anmeldung/karten_sitzung.dart';
 import 'anmeldung/rosenweg_konto.dart';
 import 'anmeldung/ruecksprung.dart';
+import 'anmeldung/schluesselbund.dart';
 import 'konfig.dart';
 import 'netz/api.dart';
 import 'netz/geraet_person.dart';
@@ -34,21 +36,45 @@ enum Phase {
 ///   Telefon mit Rosenweg Geraet (geteilt) → Anfragen ueber Geraet, keine eigene Anmeldung
 ///   anderes Android-Handy → Anmeldeschirm von commons-rosenweg ([AndroidKonto]:
 ///         Rosenweg-Karte oder Rosenweg-Konto, wie der Sperrbildschirm) → bereit
-///   sonst (Desktop) → Rosenweg-Konto (still, wenn <= 30 Tage) → bereit
+///   sonst (Desktop, iOS) → Rosenweg-Konto (still, wenn <= 30 Tage) → bereit
+///         → sonst Karten-/QR-Sitzung dieser App ([KartenSitzung]) → bereit
 ///         → sonst Kerberos-Ticket der Sitzung (Station, Windows-Domaene) → bereit
-///         → sonst Knopf "Anmelden" (Browser)
+///         → sonst Anmeldeschirm ([RosenwegAnmeldeSchirm]): Rosenweg-Karte
+///           (USB-Leser bzw. iPhone-NFC), Rosenweg-Konto (Browser), QR
+///           (iPhone scannt; Desktop zeigt einen, den das Handy bestaetigt)
 ///
 /// Die App liest [api] und baut ihre Seiten; [AnmeldeTor] zeigt davor
 /// Anmeldeschirm, Warten und Fehler.
 class RosenwegSitzung extends ChangeNotifier {
-  RosenwegSitzung(this.app,
+  RosenwegSitzung(RosenwegApp app,
       {RosenwegKonto? konto,
       AndroidKonto? android,
+      KartenSitzung? karte,
+      Schluesselbund? speicher,
       Transport? transport,
       Future<bool> Function()? geraetDa,
       Stream<String>? personWechsel})
-      : konto = konto ?? RosenwegKonto(app),
+      : this._(app, speicher ?? Schluesselbund(app.ordner),
+            konto: konto,
+            android: android,
+            karte: karte,
+            transport: transport,
+            geraetDa: geraetDa,
+            personWechsel: personWechsel);
+
+  RosenwegSitzung._(this.app, Schluesselbund speicher,
+      {RosenwegKonto? konto,
+      AndroidKonto? android,
+      KartenSitzung? karte,
+      Transport? transport,
+      Future<bool> Function()? geraetDa,
+      Stream<String>? personWechsel})
+      // Ein Schluesselbund-Eintrag fuer Konto und Karte (macOS fragt bei
+      // unsignierten Apps je Eintrag)
+      : konto = konto ?? RosenwegKonto(app, speicher: speicher),
         android = android ?? (konto == null && RosenwegPlattform.istAndroid ? AndroidKontoKanal() : null),
+        karte = karte ??
+            (konto == null && app.ohneBrowser && !RosenwegPlattform.istAndroid ? KartenSitzung(app, speicher: speicher) : null),
         _transport = transport, // ignore: prefer_initializing_formals
         _geraetDa = geraetDa ?? _standardGeraetDa,
         _personWechsel = personWechsel; // ignore: prefer_initializing_formals
@@ -59,6 +85,11 @@ class RosenwegSitzung extends ChangeNotifier {
   /// Android ohne Rosenweg Geraet: Anmeldung ueber commons-rosenweg (Kotlin).
   /// null auf dem Desktop.
   final AndroidKonto? android;
+
+  /// Desktop und iOS: Anmeldung mit Karte, QR oder Handy (eigene Sitzung je
+  /// App, Website api/routes/app-karte.js). null auf Android (dort macht das
+  /// commons-rosenweg) und bei Apps mit `ohneBrowser: false`.
+  final KartenSitzung? karte;
   final Transport? _transport;
   final Future<bool> Function() _geraetDa;
   final Stream<String>? _personWechsel;
@@ -76,10 +107,39 @@ class RosenwegSitzung extends ChangeNotifier {
   /// die ganze App (auch geoeffnete Seiten) neu, sobald er sich aendert.
   final personStand = ValueNotifier<int>(0);
 
-  late RosenwegApi api = _apiFuer(_transport ?? HttpTransport(basis: app.konfig.api, zugang: android ?? konto));
+  late RosenwegApi api = _apiFuer(_transport ?? HttpTransport(basis: app.konfig.api, zugang: android ?? _Zugang(this)));
 
   /// Name der angemeldeten Person (Anzeige), gleich ob Android oder Desktop.
-  String? get name => android != null ? android!.name : konto.name;
+  String? get name => stand.name;
+
+  /// Wie die App gerade angemeldet ist - fuer Einstellungen/Menue
+  /// ([AnmeldungSeite]). Immer der echte Stand, nie eine Vermutung.
+  Anmeldestand get stand {
+    if (geteiltesTelefon) return const Anmeldestand(art: AnmeldeArt.geteiltesTelefon);
+    if (phase != Phase.bereit) return const Anmeldestand(art: AnmeldeArt.keine);
+    final a = android;
+    if (a != null) {
+      return Anmeldestand(art: a.mitKarte ? AnmeldeArt.karte : AnmeldeArt.konto, name: a.name, email: a.email);
+    }
+    if (_kontoAktiv) {
+      return Anmeldestand(
+          art: _mitKerberos ? AnmeldeArt.kerberos : AnmeldeArt.konto, name: konto.name, email: konto.email);
+    }
+    final k = karte;
+    if (k != null && k.art != null) {
+      return Anmeldestand(
+        art: switch (k.art!) { SitzungsArt.karte => AnmeldeArt.karte, SitzungsArt.qr => AnmeldeArt.qr, SitzungsArt.handy => AnmeldeArt.handy },
+        name: k.name,
+        email: k.email,
+      );
+    }
+    return const Anmeldestand(art: AnmeldeArt.keine);
+  }
+
+  /// Desktop/iOS: ist das Rosenweg-Konto (Browser/Kerberos) die aktive
+  /// Anmeldung? Sonst die Karten-Sitzung.
+  bool _kontoAktiv = false;
+  bool _mitKerberos = false;
 
   RosenwegApi _apiFuer(Transport t) => RosenwegApi(t, nichtAngemeldet: _nichtMehrAngemeldet);
 
@@ -115,7 +175,15 @@ class RosenwegSitzung extends ChangeNotifier {
         }
         return;
       }
-      if (await konto.ausstehendeAbschliessen() || await konto.angemeldet || await konto.stillAnmelden()) {
+      if (await konto.ausstehendeAbschliessen() || await konto.angemeldet) {
+        _kontoAktiv = true;
+        _setzen(Phase.bereit);
+      } else if (await karte?.angemeldet ?? false) {
+        _kontoAktiv = false;
+        _setzen(Phase.bereit);
+      } else if (await konto.stillAnmelden()) {
+        // Station/Domaene: sofort angemeldet, der Schirm erscheint gar nicht
+        _kontoAktiv = _mitKerberos = true;
         _setzen(Phase.bereit);
       } else {
         _setzen(Phase.abgemeldet);
@@ -142,11 +210,14 @@ class RosenwegSitzung extends ChangeNotifier {
     try {
       _setzen(Phase.pruefen);
       if (await konto.stillAnmelden()) {
+        _kontoAktiv = _mitKerberos = true;
         _setzen(Phase.bereit);
         return;
       }
       _setzen(Phase.anmelden);
       await konto.anmelden();
+      _kontoAktiv = true;
+      _mitKerberos = false;
       _setzen(Phase.bereit);
     } on AnmeldungAbgebrochen {
       _setzen(Phase.abgemeldet);
@@ -158,6 +229,12 @@ class RosenwegSitzung extends ChangeNotifier {
   /// Knopf "Abbrechen" waehrend die Anmeldeseite offen ist.
   void abbrechen() => konto.abbrechen();
 
+  /// Der Anmeldeschirm hat [karte] angemeldet (Karte, QR, Handy).
+  void ohneBrowserAngemeldet() {
+    _kontoAktiv = _mitKerberos = false;
+    _setzen(Phase.bereit);
+  }
+
   /// Frische Anmeldung fuer heikle Aktionen (API: 403 mit `reauth`). Die
   /// App bleibt dabei sichtbar; true = bestaetigt.
   Future<bool> bestaetigen() async {
@@ -165,6 +242,10 @@ class RosenwegSitzung extends ChangeNotifier {
     if (android != null) return android!.bestaetigen();
     try {
       await konto.anmelden(bestaetigen: true);
+      // Ab jetzt laeuft die App mit dem Rosenweg-Konto (die Karten-Sitzung bleibt bestehen)
+      _kontoAktiv = true;
+      _mitKerberos = false;
+      notifyListeners();
       return true;
     } on AnmeldungAbgebrochen {
       return false;
@@ -179,6 +260,8 @@ class RosenwegSitzung extends ChangeNotifier {
       return;
     }
     await konto.abmelden();
+    await karte?.abmelden();
+    _kontoAktiv = _mitKerberos = false;
     _setzen(Phase.abgemeldet);
   }
 
@@ -206,8 +289,20 @@ class RosenwegSitzung extends ChangeNotifier {
       return;
     }
     _setzen(Phase.pruefen);
-    await konto.abmelden();
-    _setzen(await konto.stillAnmelden() ? Phase.bereit : Phase.abgemeldet);
+    if (_kontoAktiv) {
+      await konto.abmelden();
+      // Noch eine Karten-Sitzung? Dann mit ihr weiter.
+      if (await karte?.angemeldet ?? false) {
+        _kontoAktiv = _mitKerberos = false;
+        _setzen(Phase.bereit);
+        return;
+      }
+    } else {
+      await karte?.abmelden();
+    }
+    final still = await konto.stillAnmelden();
+    _kontoAktiv = _mitKerberos = still;
+    _setzen(still ? Phase.bereit : Phase.abgemeldet);
   }
 
   /// Nicht aufgefangener Fehler (rosenwegStarten): sichtbar machen statt
@@ -216,4 +311,45 @@ class RosenwegSitzung extends ChangeNotifier {
     final p = Protokoll.pfad;
     _setzen(Phase.fehler, '$e${p != null ? '\n\nEinzelheiten: $p' : ''}');
   }
+}
+
+/// Zugang fuer die API auf Desktop und iOS: das Rosenweg-Konto, wenn es die
+/// aktive Anmeldung ist, sonst die Karten-Sitzung.
+class _Zugang implements Zugangsquelle {
+  _Zugang(this._s);
+  final RosenwegSitzung _s;
+
+  Zugangsquelle get _quelle {
+    final k = _s.karte;
+    return _s._kontoAktiv || k == null ? _s.konto : k;
+  }
+
+  @override
+  Future<String?> zugangsToken() => _quelle.zugangsToken();
+
+  @override
+  void zugangUngueltig() => _quelle.zugangUngueltig();
+}
+
+/// Womit die App angemeldet ist.
+enum AnmeldeArt {
+  keine('Nicht angemeldet'),
+  konto('Rosenweg-Konto'),
+  kerberos('Rosenweg-Konto (automatisch an diesem Computer)'),
+  karte('Rosenweg-Karte'),
+  qr('Anmelde-QR aus dem Portal'),
+  handy('Mit dem Handy bestätigt'),
+  geteiltesTelefon('Geteiltes Rosenweg-Telefon');
+
+  const AnmeldeArt(this.text);
+  final String text;
+}
+
+/// Echter Stand der Anmeldung (fuer Einstellungen und Menue).
+class Anmeldestand {
+  const Anmeldestand({required this.art, this.name, this.email});
+  final AnmeldeArt art;
+  final String? name;
+  final String? email;
+  bool get angemeldet => art != AnmeldeArt.keine;
 }

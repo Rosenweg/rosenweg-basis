@@ -69,6 +69,7 @@ class RosenwegApp {
     this.quelle,
     this.logo,
     this.konfig = RosenwegKonfig.standard,
+    this.ohneBrowser = true,
   });
 
   /// applicationId (Android) = APPLICATION_ID (GTK) = Schema des Ruecksprungs
@@ -93,6 +94,13 @@ class RosenwegApp {
   final ImageProvider? logo;
 
   final RosenwegKonfig konfig;
+
+  /// Anmeldung auch ohne Browser anbieten: Rosenweg-Karte, Anmelde-QR,
+  /// "Mit dem Handy anmelden" (eigene Sitzung je App, `rw_app_...`-Zugang
+  /// der Haupt-API). false fuer Apps, deren Dienste ein Authentik-Token
+  /// verlangen (Rosenweg VM: das vm-gateway prueft `userinfo`) - dann zeigt
+  /// der Anmeldeschirm nur das Rosenweg-Konto.
+  final bool ohneBrowser;
 
   /// Ruecksprung auf Telefonen; in Authentik bei rosenweg-apps als "strikt"
   /// eingetragen (docs/authentik.md).
