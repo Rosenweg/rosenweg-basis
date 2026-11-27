@@ -53,11 +53,23 @@ class PcscKartenleser implements Kartenleser {
   Pcsc? _pcsc;
   bool _versucht = false;
 
+  /// Zuletzt protokollierter Zustand. Der Anmeldeschirm fragt alle paar
+  /// Sekunden; ins Protokoll kommt nur ein WECHSEL (vorher stand dort alle
+  /// 3 s "Kartenleser: kein PC/SC", Test win11-1).
+  String? _zuletzt;
+
+  void _melden(String zustand, [Object? fehler]) {
+    final neu = fehler == null ? zustand : '$zustand: $fehler';
+    if (neu == _zuletzt) return;
+    _zuletzt = neu;
+    Protokoll.schreiben(neu);
+  }
+
   Pcsc? get _dienst {
     if (_pcsc == null && !_versucht) {
       _versucht = true;
       _pcsc = _oeffnen();
-      if (_pcsc == null) Protokoll.schreiben('Kartenleser: kein PC/SC');
+      if (_pcsc == null) _melden('Kartenleser: kein PC/SC');
     }
     return _pcsc;
   }
@@ -71,9 +83,13 @@ class PcscKartenleser implements Kartenleser {
       // pcscd kann nach dem Einstecken des ersten Lesers erst starten: ohne
       // Dienst spaeter nochmals versuchen
       if (_pcsc == null) _versucht = false;
-      return _dienst?.leser().isNotEmpty ?? false;
+      final p = _dienst;
+      if (p == null) return false;
+      final n = p.leser().length;
+      _melden(n == 0 ? 'Kartenleser: PC/SC da, kein Leser' : 'Kartenleser: $n Leser');
+      return n > 0;
     } catch (e) {
-      Protokoll.schreiben('Kartenleser', e);
+      _melden('Kartenleser', e);
       return false;
     }
   }
@@ -93,7 +109,7 @@ class PcscKartenleser implements Kartenleser {
           if (jetzt != null) break;
         }
       } catch (e) {
-        Protokoll.schreiben('Kartenleser', e);
+        _melden('Kartenleser', e);
       }
       if (jetzt != null && jetzt != liegt) c.add(jetzt);
       liegt = jetzt;

@@ -140,12 +140,15 @@ Jede App mit `rosenwegStarten` aktualisiert sich selbst. Aus ist der Updater nur
 | Android | Rosenweg Updater aus commons-rosenweg (`ch.rosenweg4303:updater`, im Android-Teil der Basis): eine Rosenweg-App prüft täglich für alle, Android fragt pro Installation |
 | geteiltes Telefon | Rosenweg Gerät (Katalog), der Updater ist dort aus |
 | Rosenweg-Station | os-stationen (`pakete/<app>/paket.conf`); der Updater ist aus, ohne Hinweis |
+| Windows-PC der Domäne (verwaltet) | GPO mit Installer `/VERYSILENT /ALLUSERS`; der Updater ist aus, ohne Hinweis (`RosenwegVerwaltet`) |
 | Linux (eigener Rechner), macOS, Windows | `RosenwegAktualisierung`: Leiste „Neue Fassung … verfügbar“ → Laden, Grösse und SHA-256 prüfen → Windows: Installer starten; macOS: Disk-Image öffnen; Linux: `pkexec apt-get install` (sonst .deb in „Downloads“ mit Anleitung) |
 | iOS | aus (keine Verteilung ausserhalb des App Store) |
 
 Quelle: `https://pbx.rosenweg4303.ch/api/apps/index.json`, Liste `karten`, Eintrag mit `paket` = `RosenwegApp.kennung`. Neue Fassungen kommen dorthin aus der CI der App (Release-Tag, siehe Website `pbx/README.md`). Geprüft wird beim Start (nach 20 s) und alle 12 Stunden; Fehler bleiben im Protokoll.
 
 Station heisst: `/etc/rosenweg-station/station-id` mit einer Station-ID **und** `/etc/rosenweg-station/station.json` – beides legt os-stationen an. „Linux“, „Debian“ oder ein installiertes .deb machen noch keine Station.
+
+Verwaltet (Windows) heisst: die App läuft aus `%ProgramFiles%`/`%WINDIR%` (Installation für alle mit `/ALLUSERS`) **oder** die GPO setzt `Verwaltet` = 1 (DWORD oder Text) unter `HKLM\Software\Policies\Rosenweg` bzw. `HKLM\Software\Rosenweg`. Grund: AppLocker auf den Domänen-PCs lässt normale Benutzer nur Programme aus `%PROGRAMFILES%` und `%WINDIR%` starten – eine Installation pro Person und der Installer, den der Updater aus dem Profil startet, werden dort geblockt. **Auf Domänen-PCs darum nur per GPO mit `/ALLUSERS` verteilen**, auch die Updates.
 
 ## Logos
 

@@ -27,7 +27,7 @@ class AnmeldeTor extends StatelessWidget {
         builder: (context, _) => switch (sitzung.phase) {
           Phase.pruefen => const Scaffold(body: LadeAnzeige()),
           Phase.abgemeldet || Phase.anmelden => Scaffold(body: RosenwegAnmeldeSchirm(sitzung: sitzung)),
-          Phase.fehler => Scaffold(body: FehlerAnzeige(text: sitzung.fehler ?? '', nochmals: sitzung.starten)),
+          Phase.fehler => Scaffold(body: FehlerAnzeige(text: sitzung.fehler ?? '', details: sitzung.fehlerDetails, nochmals: sitzung.starten)),
           Phase.bereit => inhalt(context),
         },
       );
