@@ -79,8 +79,43 @@ void main() {
     expect(find.text('Nach Updates suchen'), findsOneWidget);
     await t.tap(find.byKey(const Key('nach-updates-suchen')));
     await t.pumpAndSettle();
-    expect(find.textContaining('Neue Fassung 1.3.0'), findsOneWidget);
+    expect(find.textContaining('1.2.0  →  1.3.0'), findsOneWidget);
+    expect(find.text('Neue Fassung bereit'), findsOneWidget);
     expect(find.text('Installieren (1.3.0)'), findsOneWidget);
+  });
+
+  test('macOS: neue Fassung im Browser laden, nicht in der Sandbox', () async {
+    Uri? geoeffnet;
+    var geladen = false;
+    final i = {
+      'karten': [
+        {
+          'paket': 'ch.rosenweg4303.salz',
+          'downloads': [
+            {'plattform': 'macos', 'version': '1.3.0', 'sha256': 'a' * 64, 'groesse': 3, 'url': '/api/apps/datei/salz/macos'},
+          ],
+        },
+      ],
+    };
+    final a = RosenwegAktualisierung(_app,
+        client: MockClient((r) async {
+          if (r.url.path.endsWith('/macos')) geladen = true;
+          return http.Response(jsonEncode(i), 200);
+        }),
+        aktiv: true,
+        plattform: 'macos',
+        installiert: () async => '1.2.0',
+        geraetKennung: () async => null,
+        imBrowserOeffnen: (u) async {
+          geoeffnet = u;
+          return true;
+        });
+    expect((await a.jetztPruefen()).art, PruefArt.neu);
+    await a.aktualisieren();
+    expect(geoeffnet.toString(), 'https://pbx.rosenweg4303.ch/api/apps/datei/salz/macos');
+    expect(geladen, isFalse);
+    expect(a.stand, AktualisierungsStand.installiert);
+    expect(a.meldung, contains('Browser'));
   });
 
   testWidgets('aus: kein Knopf, nur wer aktualisiert', (t) async {

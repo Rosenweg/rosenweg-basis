@@ -1,3 +1,24 @@
+## 0.7.1
+
+- **macOS-Update über den Browser** (Test 27.11.2026 auf dem Mac): Ein
+  Disk-Image, das die App in ihrer Sandbox lädt, bekommt die Quarantäne
+  „created by an AppSandbox“; die daraus nach „Programme“ kopierte App liess
+  sich danach nicht mehr öffnen (`exec/open not allowed`, Fehler -10810).
+  Jetzt öffnet „Aktualisieren“ bzw. „Installieren“ auf dem Mac den Download
+  im Browser (wie /apps); macOS prüft und fragt wie bei der ersten
+  Installation.
+- Geräte-Kennung fürs NOC: Rückfall auf eine zufällige Kennung im Ordner
+  der App, wenn es keine Maschinen-ID gibt (z. B. macOS-Sandbox ohne
+  `ioreg`).
+- Abschnitt „Updates“ im Stil der neuen Update-Seite des Android-Updaters:
+  Karte mit Logo, Fassung „alt → neu“, Statuszeile mit Ladebalken, grosser
+  Knopf in der Gruppenfarbe.
+- Android: updater 0.1.8 / cloud 0.13.8 – neue Update-Seite (Gruppenfarbe,
+  je App eine Karte, hell/dunkel, Ränder), Recht „Unbekannte Apps
+  installieren“ vorher prüfen (auch nach Prozess-Ende zurück zur Seite),
+  Play-Protect-Ablehnung mit Anleitung und „Nochmals versuchen“,
+  Benachrichtigung „wartet auf Bestätigung“, Installationen über die
+  Session-ID (Befunde A37).
 ## 0.7.0
 
 - **Wochenraster** (Kalender-Raster für Belegungen; zuerst für Rosenweg

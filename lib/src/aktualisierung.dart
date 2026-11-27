@@ -2,11 +2,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'konfig.dart';
 import 'plattform.dart';
@@ -39,7 +41,8 @@ import 'verwaltet.dart';
 ///
 /// - Windows: Installer starten, die App beendet sich (damit ihre Dateien
 ///   frei sind).
-/// - macOS: Disk-Image oeffnen; die Person zieht die App in "Programme".
+/// - macOS: der Browser laedt das Disk-Image (in der Sandbox geladene Dateien
+///   duerfen nicht ausgefuehrt werden); die Person zieht die App in "Programme".
 /// - Linux: `pkexec apt-get install` (fragt nach dem Passwort); geht das
 ///   nicht, liegt das .deb in "Downloads" mit einer klaren Anleitung.
 class RosenwegAktualisierung extends ChangeNotifier {
@@ -54,7 +57,9 @@ class RosenwegAktualisierung extends ChangeNotifier {
     this.abstand = const Duration(hours: 12),
     this.standAdresse = standardStand,
     Future<String?> Function()? geraetKennung,
+    Future<bool> Function(Uri)? imBrowserOeffnen,
   })  : _client = client ?? http.Client(),
+        _imBrowser = imBrowserOeffnen ?? ((u) => launchUrl(u, mode: LaunchMode.externalApplication)),
         _installiert = installiert ?? _standardInstalliert,
         plattform = plattform ?? plattformSchluessel(),
         _aktivFest = aktiv,
@@ -73,6 +78,7 @@ class RosenwegAktualisierung extends ChangeNotifier {
 
   final String standAdresse;
   final Future<String?> Function() _geraetKennung;
+  final Future<bool> Function(Uri) _imBrowser;
 
   final RosenwegApp app;
   final String katalog;
@@ -261,6 +267,17 @@ class RosenwegAktualisierung extends ChangeNotifier {
     }
   }
 
+  static Future<String?> _eigeneKennung() async {
+    final heim = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    if (heim == null) return null;
+    final f = File('$heim${Platform.pathSeparator}.rosenweg-geraet-id');
+    if (await f.exists()) return (await f.readAsString()).trim();
+    final r = Random.secure();
+    final neu = List.generate(16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+    await f.writeAsString(neu);
+    return neu;
+  }
+
   /// Inhalt der Meldung (testbar).
   static Map<String, Object?> standJson(
           {required String geraet,
@@ -300,6 +317,10 @@ class RosenwegAktualisierung extends ChangeNotifier {
         final r = await Process.run('reg', ['query', r'HKLM\SOFTWARE\Microsoft\Cryptography', '/v', 'MachineGuid']);
         id = RegExp(r'MachineGuid\s+REG_SZ\s+(\S+)').firstMatch('${r.stdout}')?.group(1);
       }
+      // Rueckfall (z. B. macOS-Sandbox ohne ioreg): eine zufaellige Kennung im Ordner der
+      // App, einmal erzeugt. Dann zaehlt das NOC das Geraet je App, das genuegt fuer
+      // "Anteil veralteter Geraete je App".
+      if (id == null || id.isEmpty) id = await _eigeneKennung();
       if (id == null || id.isEmpty) return null;
       return sha256.convert(utf8.encode('rosenweg-geraet:$id')).toString();
     } catch (_) {
@@ -324,6 +345,10 @@ class RosenwegAktualisierung extends ChangeNotifier {
     final f = neu;
     if (f == null) return;
     try {
+      if (plattform == 'macos') {
+        await _macosImBrowser(f);
+        return;
+      }
       final d = datei ?? await _laden(f);
       datei = d;
       await _installieren(d, f);
@@ -331,6 +356,21 @@ class RosenwegAktualisierung extends ChangeNotifier {
       Protokoll.schreiben('Aktualisierung', e);
       _setzen(AktualisierungsStand.fehler, text: e is AktualisierungsFehler ? e.text : 'Die neue Fassung konnte nicht geladen werden. Bitte später nochmals versuchen.');
     }
+  }
+
+  /// macOS (0.6.3, Test 27.11.2026): Ein Disk-Image, das die App selbst laedt, bekommt
+  /// in der App-Sandbox die Quarantaene "created by an AppSandbox" - die daraus kopierte
+  /// App laesst sich danach NICHT mehr oeffnen ("exec/open not allowed", Fehler -10810).
+  /// Darum laedt auf dem Mac der Browser die neue Fassung (wie von /apps); macOS prueft
+  /// und fragt dann wie bei der ersten Installation.
+  Future<void> _macosImBrowser(NeueFassung f) async {
+    if (!await _imBrowser(f.url)) {
+      throw AktualisierungsFehler('Der Browser liess sich nicht öffnen. Die neue Fassung gibt es auf rosenweg4303.ch/apps.');
+    }
+    Protokoll.schreiben('macOS: neue Fassung ${f.version} im Browser geladen (${f.url})');
+    _setzen(AktualisierungsStand.installiert,
+        text: 'Die neue Fassung ${f.version} wird im Browser geladen. Das Disk-Image öffnen, „${app.name}“ in „Programme“ '
+            'ziehen und ersetzen, dann ${app.name} neu öffnen.');
   }
 
   Future<File> _laden(NeueFassung f) async {
@@ -380,11 +420,6 @@ class RosenwegAktualisierung extends ChangeNotifier {
         Protokoll.schreiben('Installer gestartet, App endet');
         await Future<void>.delayed(const Duration(seconds: 2));
         exit(0);
-      case 'macos':
-        final r = await Process.run('open', [d.path]);
-        if (r.exitCode != 0) throw AktualisierungsFehler('Das Disk-Image liess sich nicht öffnen: ${d.path}');
-        _setzen(AktualisierungsStand.installiert,
-            text: 'Im geöffneten Fenster „${app.name}“ in „Programme“ ziehen und ersetzen, dann ${app.name} neu öffnen.');
       case 'linux-deb':
         if (await _mitPkexec(d)) {
           _setzen(AktualisierungsStand.installiert, text: 'Fassung ${f.version} ist installiert. Bitte ${app.name} schliessen und neu öffnen.');
