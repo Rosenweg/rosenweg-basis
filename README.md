@@ -437,7 +437,7 @@ werkzeug/neue-app.sh mail-freigabe "Rosenweg Mail-Freigabe" mail-freigabe \
 | `--gruppe` | Farbe des Zeichens: `bewohner` rot, `verwaltung` blau, `technik` grün; Vorgabe aus `flutter-apps.txt` |
 | `--beschreibung` | ein Satz für „Über“, Paketbeschreibung, Startmenü, /apps |
 | `--ziel <ordner>` | Standard: neben der Basis (`../rosenweg-<name>`) |
-| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`, derzeit `v0.6.2`) und der Workflows (Standard `main`) |
+| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`, derzeit `v0.7.0`) und der Workflows (Standard `main`) |
 | `--basis-lokal <pfad>` | `pubspec_overrides.yaml` auf eine lokale Basis (dann wird `pubspec.lock` nicht committet) |
 | `--ohne-pub`, `--ohne-git` | kein `flutter pub get` / kein erster Commit |
 | `--repo` | **zusätzlich** `Rosenweg/rosenweg-<name>` auf GitHub anlegen (privat) und `main` pushen – ohne den Schalter geschieht nichts auf GitHub |
