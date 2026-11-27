@@ -95,8 +95,9 @@ class GruppenFarbe extends ValueNotifier<RosenwegGruppe> {
           // Die App laedt die Rechte vielleicht erst spaeter (oder nie): die
           // Farbe braucht sie jetzt. Bis sie da sind, bleibt die bisherige.
           scheduleMicrotask(() {
-            if (sitzung.phase == Phase.bereit && !r.geladen && !r.laedt)
+            if (sitzung.phase == Phase.bereit && !r.geladen && !r.laedt) {
               unawaited(r.laden().then((_) {}, onError: (_) {}));
+            }
           });
         }
       case Phase.pruefen || Phase.fehler:
