@@ -26,10 +26,15 @@ mit --alle zusaetzlich (wie rosenweg-vm assets/logo):
 
 Ohne --zeichen: nur das Wappen, ohne Plakette (Logo der Basis selbst).
 
---gruppe faerbt das Zeichen nach Zielgruppe (zweites Unterscheidungsmerkmal neben
-dem Zeichen, Plan "Alle Apps mit eigenem Logo"): bewohner rot wie der Grund
-(Standard, so sehen Profil, Salz und Virtuelle Computer schon aus), verwaltung
-blau, technik gruen. Die monochrome Fassung kennt keine Farben.
+--gruppe waehlt die Farbe des Grundes (des "inneren Kreises" im Original-Wappen)
+nach Zielgruppe, Entscheid Stefan 27.11.2026: NUR diese Farbe wechselt (dazu der
+etwas dunklere Huegel, das Zeichen und der Spalt um die Plakette, die alle aus ihr
+abgeleitet sind). Turm, Rose, Weg, Plakette und Konturen bleiben immer gleich.
+    bewohner     Rosenweg-Rot  #D62828  (Standard; alle Bewohner)
+    verwaltung   Rosenweg-Blau #1E3A8A  (Ausschuss, Hausverwaltung)
+    technik      Dunkelgruen   #2E6B4F  (Technik, Admin)
+Die monochrome Fassung kennt keine Farben.
+    werkzeug/logo/baukasten.py --grundfarbe technik    # gibt nur #2E6B4F aus (fuer Skripte)
 
 Das Zeichen ist ein SVG mit viewBox="0 0 400 400" und Formen OHNE eigene Farbe
 (fill setzt der Baukasten; fill-rule bleibt). Kraeftige Formen, keine Haarlinien.
@@ -46,8 +51,8 @@ import sys
 HIER = os.path.dirname(os.path.abspath(__file__))
 
 FARBEN = dict(
-    grund="#D32F2F",      # Hintergrund (Logo-Rot)
-    huegel="#9E1B1B",     # dunklerer Huegel unter Turm und Weg
+    grund="#D62828",      # Hintergrund (Rosenweg-Rot; je Gruppe, siehe GRUPPEN)
+    huegel="#9E1E1E",     # dunklerer Huegel unter Turm und Weg (aus grund abgeleitet)
     rand="#3E0B0B",       # Umrisse (Weg, Rose, Blaetter)
     turm="#FFFFFF",
     weg="#FFFFFF",
@@ -55,15 +60,26 @@ FARBEN = dict(
     stiel="#2E7D32",
     blatt="#43A047",
     plakette="#FFFFFF",
-    zeichen="#D32F2F",
+    zeichen="#D62828",
 )
 
-# Farbe des Zeichens je Zielgruppe (--gruppe)
+# Farbe des Grundes je Zielgruppe (--gruppe); Huegel und Zeichen folgen ihr.
 GRUPPEN = dict(
-    bewohner="#D32F2F",    # wie der Grund: warm
-    verwaltung="#1565C0",  # blau
-    technik="#2E7D32",     # gruen
+    bewohner="#D62828",    # Rosenweg-Rot: alle Bewohner
+    verwaltung="#1E3A8A",  # Rosenweg-Blau: Ausschuss, Hausverwaltung
+    technik="#2E6B4F",     # Dunkelgruen: Technik, Admin
 )
+
+
+def dunkler(farbe, k=0.74):
+    """Huegel: dieselbe Farbe, dunkler (Rot: #D62828 -> #9E1D1D)."""
+    r, g, b = (int(farbe[i:i + 2], 16) for i in (1, 3, 5))
+    return "#%02X%02X%02X" % (round(r * k), round(g * k), round(b * k))
+
+
+def gruppenfarben(gruppe):
+    g = GRUPPEN[gruppe]
+    return dict(FARBEN, grund=g, huegel=dunkler(g), zeichen=g)
 
 # Monochrom: alles, was sichtbar sein soll, weiss; Umrisse und Grund schwarz.
 # Das Ganze wird als Maske benutzt (Luminanz = Deckkraft).
@@ -210,6 +226,11 @@ MACOS = "translate(512 512) scale(0.805) translate(-512 -512)"
 
 
 def main():
+    if len(sys.argv) == 3 and sys.argv[1] == "--grundfarbe":
+        if sys.argv[2] not in GRUPPEN:
+            sys.exit(f"--grundfarbe: {', '.join(sorted(GRUPPEN))}")
+        print(GRUPPEN[sys.argv[2]])
+        return
     a = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     a.add_argument("--name", required=True)
     a.add_argument("--titel", required=True)
@@ -217,9 +238,9 @@ def main():
     a.add_argument("--ziel", required=True)
     a.add_argument("--alle", action="store_true", help="auch -macos und -vollflaeche")
     a.add_argument("--gruppe", choices=sorted(GRUPPEN), default="bewohner",
-                   help="Farbe des Zeichens nach Zielgruppe (Standard bewohner = rot)")
+                   help="Farbe des Grundes nach Zielgruppe (Standard bewohner = rot)")
     o = a.parse_args()
-    farben = dict(FARBEN, zeichen=GRUPPEN[o.gruppe])
+    farben = gruppenfarben(o.gruppe)
 
     z = zeichen_lesen(o.zeichen) if o.zeichen else None
     os.makedirs(o.ziel, exist_ok=True)
