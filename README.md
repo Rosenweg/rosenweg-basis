@@ -89,7 +89,7 @@ Mehr: [docs/bedienung.md](docs/bedienung.md).
 | Gerüst | `RosenwegGeruest` (Handy: Navigation unten; ab 840 px Seitenleiste links, Inhalt mittig begrenzt), `RosenwegSpalten` (zwei Spalten am Desktop), `RosenwegInhalt` (max. Breite), `Fensterklasse` (kompakt/mittel/breit/sehrBreit) |
 | Bausteine | `AnmeldeSchirm`, `FehlerAnzeige`, `LadeAnzeige`, `Abschnitt`, `Hinweis`, `zeigeMeldung`, `frage`, `zeigeUeber`, `RosenwegLogo` |
 | Protokoll | `Protokoll.schreiben` – `~/.local/state/<ordner>/app.log`, nie Tokens |
-| Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte oder Rosenweg-Konto, Token aus Kotlin), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) |
+| Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte, Rosenweg-Konto oder QR-Code, Token aus Kotlin), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) |
 
 Mehr: [docs/entwickeln.md](docs/entwickeln.md).
 
