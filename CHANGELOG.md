@@ -1,3 +1,16 @@
+## 0.5.2
+
+- Android: `ch.rosenweg4303:cloud` 0.9.0 → **0.13.4** (commons-rosenweg). Der
+  native Anmeldeschirm hat jetzt wie in den Kotlin-Apps „QR-Code scannen“
+  (Karte – Konto – QR, wie der Sperrbildschirm von Rosenweg Gerät; QR von
+  `rosenweg4303.ch/smartphones` → „App auf eigenem Handy“). Das Modul bringt
+  `android.permission.CAMERA` und `uses-feature camera` (`required=false`) ins
+  Manifest der App; gefragt wird erst beim Tippen, der Knopf erscheint nur mit
+  Kamera. Schnittstelle für das Plugin unverändert (`RosenwegAnmeldung`,
+  `RosenwegAnmeldeSchirm` mit `startActivityForResult`, `RESULT_OK` =
+  angemeldet). Dart-Seite unverändert.
+- `ch.rosenweg4303:updater` bleibt 0.1.4 (kommt jetzt auch über cloud mit).
+
 ## 0.5.1
 
 Mängel aus dem Test auf win11-1 (Windows 11, Domänen-PC):

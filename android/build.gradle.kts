@@ -83,11 +83,12 @@ kotlin {
 }
 
 dependencies {
-    // Anmeldeschirm (Karte oder Rosenweg-Konto), Rosenweg-Anmeldung und Karten-Sitzung -
-    // derselbe Code wie in den Kotlin-Apps und (Aussehen/Kartenleser) in Rosenweg Geraet
-    implementation("ch.rosenweg4303:cloud:0.9.0")
-    // Rosenweg Updater direkt (cloud 0.9.0 bringt nur 0.1.2 mit): erst ab 0.1.4 kennt er
-    // ch.rosenweg4303.vm/.salz/.profil, sonst prueft auf einem Handy mit nur Flutter-Apps niemand.
-    // Startet von selbst (ContentProvider UpdaterStart), aus mit Rosenweg Geraet.
+    // Anmeldeschirm (Karte, Rosenweg-Konto oder QR-Code), Rosenweg-Anmeldung und Karten-Sitzung -
+    // derselbe Code wie in den Kotlin-Apps und (Aussehen/Kartenleser) in Rosenweg Geraet.
+    // Ab 0.12.0 "QR-Code scannen": bringt CAMERA (gefragt erst beim Tippen, Kamera nicht Pflicht).
+    implementation("ch.rosenweg4303:cloud:0.13.4")
+    // Rosenweg Updater ausdruecklich (cloud 0.13.4 bringt dieselbe Fassung mit): erst ab 0.1.4
+    // kennt er ch.rosenweg4303.vm/.salz/.profil, sonst prueft auf einem Handy mit nur Flutter-Apps
+    // niemand. Startet von selbst (ContentProvider UpdaterStart), aus mit Rosenweg Geraet.
     implementation("ch.rosenweg4303:updater:0.1.4")
 }
