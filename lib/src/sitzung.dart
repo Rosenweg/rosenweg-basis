@@ -245,6 +245,31 @@ class RosenwegSitzung extends ChangeNotifier {
     }
   }
 
+  /// Ohne Oberflaeche anmelden (Abfrage im Hintergrund, [HintergrundAbfrage]):
+  /// nur eine schon bestehende Anmeldung, nie ein Anmeldeschirm oder Browser.
+  /// true = [api] ist benutzbar.
+  ///
+  /// Geteilte Telefone: immer false – die Person am Telefon wechselt, eine
+  /// Benachrichtigung fuer die vorige Person waere ein Datenleck.
+  Future<bool> hintergrundStarten() async {
+    try {
+      if (_transport != null) {
+        _setzen(Phase.bereit);
+        return true;
+      }
+      if (await _geraetDa()) return false;
+      final a = android;
+      final ok = a != null
+          ? await a.angemeldet
+          : (await konto.angemeldet) ? (_kontoAktiv = true) : (await karte?.angemeldet ?? false);
+      if (ok) _setzen(Phase.bereit);
+      return ok;
+    } catch (e) {
+      Protokoll.schreiben('Hintergrund: keine Anmeldung', e);
+      return false;
+    }
+  }
+
   /// Knopf "Mit Rosenweg-Konto anmelden". Erst still (Kerberos; z. B. nach
   /// "Abmelden" in der App), sonst im Browser.
   Future<void> anmelden() async {
