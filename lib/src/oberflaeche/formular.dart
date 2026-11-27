@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 
 import '../netz/fehler.dart';
 import 'bausteine.dart';
+import 'rechte_bausteine.dart';
 
 /// Zustand eines [RosenwegFormular]: geaendert, speichert, Fehler.
 class FormularSteuerung extends ChangeNotifier {
@@ -154,6 +155,12 @@ class _RosenwegFormularState extends State<RosenwegFormular> {
       widget.gespeichert?.call();
     } catch (e) {
       if (!mounted) return;
+      if (e is BestaetigungPerEmail) {
+        // nichts gespeichert: wartet auf die Bestaetigung per Mail
+        _s._setzen(speichert: false, fehler: e.text);
+        await zeigeEmailBestaetigung(context, e);
+        return;
+      }
       final felder = e is ApiFehler ? e.feldFehler : const <String, String>{};
       _s._setzen(
         speichert: false,
@@ -166,8 +173,18 @@ class _RosenwegFormularState extends State<RosenwegFormular> {
     }
   }
 
-  Future<void> _verlassen(bool weg, Object? _) async {
+  Future<void> _verlassen(bool weg, Object? ergebnis) async {
     if (weg) return;
+    // Gerade gespeichert (z. B. `gespeichert: () => Navigator.pop(...)`):
+    // canPop ist erst nach dem naechsten Bau wieder true – dann ohne Frage zu.
+    // (Sofort nochmals pop wuerde hier wieder landen.)
+    if (!(widget.fragenBeimVerlassen && _s.geaendert)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).pop(ergebnis);
+      });
+      WidgetsBinding.instance.scheduleFrame();
+      return;
+    }
     final ja = await frage(context, 'Änderungen verwerfen?', 'Du hast Änderungen, die noch nicht gespeichert sind.',
         ja: 'Verwerfen', gefaehrlich: true);
     if (ja && mounted) {

@@ -220,4 +220,25 @@ void main() {
       expect(() => geraetAntwortLesen({'status': 502, 'json': '<html>'}), throwsA(isA<ServerNichtErreichbar>()));
     });
   });
+
+  test('202 bestaetigung email: BestaetigungPerEmail mit Hinweis, Ablauf und Adresse', () {
+    final j = {
+      'bestaetigung': 'email',
+      'id': 'kb_1',
+      'ablauf': '2026-11-27T18:15:00.000Z',
+      'email': 'e…@example.org',
+      'hinweis': 'Bitte bestätige in der E-Mail, die wir dir an e…@example.org geschickt haben.',
+    };
+    try {
+      apiAntwortPruefen((status: 202, json: j));
+      fail('keine Ausnahme');
+    } on BestaetigungPerEmail catch (e) {
+      expect(e.text, contains('e…@example.org'));
+      expect(e.id, 'kb_1');
+      expect(e.ablauf, isNotNull);
+      expect(fehlerFuerPerson(e).details, isNull);
+    }
+    // gewoehnliches 202 bleibt Erfolg
+    expect(apiAntwortPruefen((status: 202, json: {'ok': true})), {'ok': true});
+  });
 }

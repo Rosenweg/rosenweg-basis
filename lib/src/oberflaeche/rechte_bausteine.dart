@@ -226,3 +226,25 @@ Future<T?> mitBestaetigung<T>(BuildContext context, Future<T> Function() aktion,
     return aktion();
   }
 }
+
+
+/// Hinweis „Bestätigung per E-Mail nötig“ (202 der API, siehe
+/// [BestaetigungPerEmail]): Die heikle Aktion wartet, bis die Person den Link
+/// in der Mail bestaetigt. Mit dem Rosenweg-Konto angemeldet laeuft sie sofort.
+Future<void> zeigeEmailBestaetigung(BuildContext context, BestaetigungPerEmail e) {
+  final bis = e.ablauf;
+  final zeit = bis == null ? null : '${bis.hour.toString().padLeft(2, '0')}:${bis.minute.toString().padLeft(2, '0')}';
+  return showDialog<void>(
+    context: context,
+    builder: (c) => AlertDialog(
+      icon: const Icon(Icons.mark_email_unread_outlined, size: 40),
+      title: const Text('Bestätigung per E-Mail nötig'),
+      content: Text([
+        e.text,
+        if (zeit != null) 'Der Link gilt bis $zeit Uhr.',
+        'Mit der Karte angemeldet braucht diese Aktion deine Bestätigung. Mit dem Rosenweg-Konto angemeldet geht sie sofort.',
+      ].join('\n\n')),
+      actions: [FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Verstanden'))],
+    ),
+  );
+}

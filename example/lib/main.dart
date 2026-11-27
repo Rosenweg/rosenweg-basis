@@ -314,6 +314,7 @@ class ScannerBeispiel extends StatefulWidget {
 
 class _ScannerBeispielState extends State<ScannerBeispiel> {
   String? _wert;
+  String? _karte;
 
   @override
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(16), children: [
@@ -344,6 +345,25 @@ class _ScannerBeispielState extends State<ScannerBeispiel> {
             if (_wert != null) ...[
               const SizedBox(height: 16),
               Hinweis('Gelesen: $_wert', art: HinweisArt.gut),
+            ],
+          ]),
+        ),
+        Abschnitt(
+          titel: 'Rosenweg-Karte (NFC)',
+          symbol: Icons.contactless,
+          erklaerung: 'Handy: NFC; iPhone: auf Knopfdruck; Computer: USB-NFC-Leser (PC/SC, z. B. ACR122U).',
+          kind: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            FilledButton.icon(
+              onPressed: () async {
+                final u = await karteLesen(context, titel: 'Karte lesen', eintippen: true);
+                if (u != null) setState(() => _karte = u);
+              },
+              icon: const Icon(Icons.contactless),
+              label: const Text('Karte lesen'),
+            ),
+            if (_karte != null) ...[
+              const SizedBox(height: 16),
+              Hinweis('Karte: $_karte', art: HinweisArt.gut),
             ],
           ]),
         ),

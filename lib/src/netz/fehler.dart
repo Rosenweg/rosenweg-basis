@@ -83,6 +83,34 @@ class KeineBerechtigung extends ApiFehler {
   }
 }
 
+/// 202 `{bestaetigung: 'email', id, ablauf, email, hinweis}`: Die Aktion war
+/// mit einer Karten-, QR- oder Handy-Sitzung heikel (api/lib/kartenadmin.js,
+/// „Karte wie Schlüssel“) und laeuft erst, wenn die Person den Link in der
+/// E-Mail bestaetigt. Nichts ist passiert – die App zeigt das
+/// ([zeigeEmailBestaetigung]) statt „Gespeichert.“.
+class BestaetigungPerEmail extends ApiFehler {
+  BestaetigungPerEmail(Object? json)
+      : super(202, _hinweis(json), json);
+
+  static String _hinweis(Object? j) {
+    final h = j is Map ? j['hinweis'] : null;
+    if (h is String && h.isNotEmpty) return h;
+    return 'Bitte bestätige die Aktion in der E-Mail, die wir dir geschickt haben.';
+  }
+
+  /// Kennung der wartenden Aktion (`kb_…`).
+  String? get id => feld('id');
+
+  /// Maskierte Adresse, an die die Mail ging (`e…@example.org`).
+  String? get email => feld('email');
+
+  /// Bis wann der Link gilt.
+  DateTime? get ablauf => DateTime.tryParse(feld('ablauf') ?? '')?.toLocal();
+
+  /// Antwort der API ist eine solche Rueckfrage?
+  static bool ist(int status, Object? json) => status == 202 && json is Map && json['bestaetigung'] == 'email';
+}
+
 /// Rosenweg Geraet (geteiltes Telefon) kann die Anfrage nicht weiterreichen.
 class GeraetFehler implements Exception {
   GeraetFehler(this.text);

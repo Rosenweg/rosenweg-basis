@@ -3,7 +3,8 @@
 # share_plus, desktop_drop, image_picker) – so faellt auf, wenn eines davon
 # auf einer Plattform nicht mehr baut, bevor es eine App trifft.
 #
-# Linux und Android auf dem eigenen Runner (CT 140, Muster rosenweg-salz),
+# Alles auf GitHub-Runnern (oeffentliches Repo, wie pruefen.yml und app.yml):
+# Linux im Container debian:13 wie die Stationen, Android auf ubuntu-latest,
 # macOS/iOS und Windows bei GitHub. Keine Signatur, keine Secrets.
 name: Beispiel
 
@@ -30,30 +31,30 @@ permissions:
 env:
   FLUTTER_VERSION: "3.47.5"
   FLUTTER_SHA256: 2132e990f236f8d22e7c6314b29a191a95b10d7cbcfec9b4e2e303d996652cbb
-  JDK_VERSION: "21.0.13.1+2"
-  JDK_SHA256: bb8a93f9ae6e7a693b2b721e85dbeff26ae1a77447985a8d7afcdd9c7cf6222e
-  ANDROID_CMDLINE_TOOLS: "13114758"
-  ANDROID_CMDLINE_TOOLS_SHA256: 7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee
 
 jobs:
   linux:
-    runs-on:
-      group: rosenweg-privat
-      labels: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
+    container: debian:13
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
       - name: Systempakete
         run: |
-          noetig="clang cmake ninja-build pkg-config xz-utils curl unzip git libgtk-3-dev liblzma-dev libstdc++-14-dev libsecret-1-dev libjsoncpp-dev"
-          fehlt=""
-          for p in $noetig; do dpkg -s "$p" >/dev/null 2>&1 || fehlt="$fehlt $p"; done
-          if [ -n "$fehlt" ]; then
-            echo "Fehlende Pakete:$fehlt"
-            sudo -n apt-get update -qq
-            sudo -n apt-get install -y -qq --no-install-recommends $fehlt
-          fi
-      - name: Flutter (Cache im Benutzerverzeichnis)
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+            ca-certificates clang cmake ninja-build pkg-config xz-utils curl unzip git zstd \
+            libgtk-3-dev liblzma-dev libstdc++-14-dev libsecret-1-dev libjsoncpp-dev >/dev/null
+
+      - uses: actions/checkout@v4
+
+      - name: Flutter-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rosenweg-flutter-ci
+          key: flutter-beispiel-linux-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-${{ hashFiles('pubspec.yaml', 'example/pubspec.lock') }}
+          restore-keys: flutter-beispiel-linux-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-
+
+      - name: Flutter (feste Version mit Pruefsumme)
         run: |
           set -euo pipefail
           C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
@@ -62,8 +63,10 @@ jobs:
             echo "$FLUTTER_SHA256  $C/flutter.txz" | sha256sum -c -
             mkdir -p "$C/flutter-$FLUTTER_VERSION" && tar -xJf "$C/flutter.txz" -C "$C/flutter-$FLUTTER_VERSION" --strip-components=1 && rm "$C/flutter.txz"
           fi
+          git config --global --add safe.directory "$C/flutter-$FLUTTER_VERSION"
           echo "$C/flutter-$FLUTTER_VERSION/bin" >> "$GITHUB_PATH"
           echo "PUB_CACHE=$C/pub-cache" >> "$GITHUB_ENV"
+
       - name: Bauen
         working-directory: example
         run: |
@@ -72,21 +75,27 @@ jobs:
           flutter build linux --release
 
   android:
-    runs-on:
-      group: rosenweg-privat
-      labels: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     timeout-minutes: 60
-    # Der Android-Teil der Basis braucht commons-rosenweg (ch.rosenweg4303:cloud,
-    # :updater) aus GitHub Packages. Solange diese Pakete fuer dieses Repo nicht
-    # lesbar/veroeffentlicht sind, scheitert der Bau ausserhalb der Bausteine –
-    # darum hier nur Hinweis statt rot. Siehe README, "Prüfen und CI".
-    continue-on-error: true
     permissions:
       contents: read
-      packages: read
+      packages: read   # commons-rosenweg (ch.rosenweg4303:cloud, :updater) aus GitHub Packages
+    env:
+      JDK_VERSION: "21.0.13.1+2"
+      JDK_SHA256: bb8a93f9ae6e7a693b2b721e85dbeff26ae1a77447985a8d7afcdd9c7cf6222e
+      ANDROID_CMDLINE_TOOLS: "13114758"
+      ANDROID_CMDLINE_TOOLS_SHA256: 7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee
     steps:
       - uses: actions/checkout@v4
-      - name: Flutter, JDK, Android-SDK (Cache im Benutzerverzeichnis)
+
+      - name: Werkzeug-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rosenweg-flutter-ci
+          key: android-beispiel-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-${{ env.JDK_SHA256 }}-${{ env.ANDROID_CMDLINE_TOOLS_SHA256 }}-${{ hashFiles('example/pubspec.lock', 'android/*.kts', 'example/android/**/*.kts') }}
+          restore-keys: android-beispiel-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-${{ env.JDK_SHA256 }}-${{ env.ANDROID_CMDLINE_TOOLS_SHA256 }}-
+
+      - name: Flutter, JDK, Android-SDK (feste Versionen mit Pruefsumme)
         run: |
           set -euo pipefail
           C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
@@ -124,9 +133,11 @@ jobs:
             echo "GRADLE_OPTS=-Dorg.gradle.daemon=false"
             echo "PUB_CACHE=$C/pub-cache"
           } >> "$GITHUB_ENV"
+
       - name: Bauen
         working-directory: example
         env:
+          # android/build.gradle.kts holt commons-rosenweg aus GitHub Packages
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           flutter config --no-analytics >/dev/null

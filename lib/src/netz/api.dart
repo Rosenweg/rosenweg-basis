@@ -186,10 +186,13 @@ class RosenwegApi {
 }
 
 /// Antwort der Haupt-API → JSON bei 2xx, sonst die passende Ausnahme
-/// (401 [NichtAngemeldet] nach [nichtAngemeldet], 403 [KeineBerechtigung],
+/// (202 mit `bestaetigung: 'email'` [BestaetigungPerEmail],
+/// 401 [NichtAngemeldet] nach [nichtAngemeldet], 403 [KeineBerechtigung],
 /// sonst [ApiFehler] mit dem Feld `error`). Gemeinsam fuer [RosenwegApi] und
 /// den Datei-Transfer ([RosenwegDateien]).
 Object? apiAntwortPruefen(ApiAntwort a, {void Function()? nichtAngemeldet}) {
+  // Heikle Admin-Aktion mit der Karte: erst nach Bestaetigung per E-Mail
+  if (BestaetigungPerEmail.ist(a.status, a.json)) throw BestaetigungPerEmail(a.json);
   if (a.status >= 200 && a.status < 300) return a.json;
   final j = a.json;
   final text = j is Map && j['error'] is String && (j['error'] as String).isNotEmpty

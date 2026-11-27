@@ -9,7 +9,7 @@
 - [Läuft auf](#läuft-auf)
 - [Eine App in wenigen Zeilen](#eine-app-in-wenigen-zeilen)
 - [Bedienung – gleich in allen Apps](#bedienung--gleich-in-allen-apps)
-- [Bausteine für Apps (Rechte, Listen, Formulare, Scannen, Dateien, PDF)](#bausteine-für-apps)
+- [Bausteine für Apps (Rechte, Listen, Formulare, Scannen, Karte lesen, Dateien, PDF)](#bausteine-für-apps)
 - [Beispiel-App](#beispiel-app)
 - [Was jede App einrichten muss](#was-jede-app-einrichten-muss)
 - [Grenzen je Plattform](#grenzen-je-plattform)
@@ -33,7 +33,7 @@ Was drin ist:
 - **API-Client** mit verständlichen Fehlern (Server weg, zu viele Anfragen, keine Berechtigung, neu anmelden).
 - **Geteilte Telefone:** Anfragen über Rosenweg Gerät, ohne eigenes Token.
 - **Aussehen und Bausteine:** Thema, Farben, Anmeldeschirm, Fehler- und Ladeanzeige, „Über“ mit GPL.
-- **Bausteine für Apps (0.6.0):** Rechte aus `auth/me` mit „nur sichtbar mit Recht X“ und Stufe der Anmeldung, Listen mit Suche/Filter/Cursor und Desktop-Tabelle, Formulare mit Fehlern der API am Feld, QR-/Strichcode-Scannen auf allen Plattformen, Dateien hoch- und herunterladen mit Fortschritt, PDF-Ansicht.
+- **Bausteine für Apps (0.6.0):** Rechte aus `auth/me` mit „nur sichtbar mit Recht X“ und Stufe der Anmeldung, Listen mit Suche/Filter/Cursor und Desktop-Tabelle, Formulare mit Fehlern der API am Feld, QR-/Strichcode-Scannen auf allen Plattformen, Rosenweg-Karte in der App lesen (NFC am Handy, USB-Leser über PC/SC am Computer), Dateien hoch- und herunterladen mit Fortschritt, PDF-Ansicht.
 - **Logo-Baukasten** für alle App-Logos (Turm, Weg und Rose mit App-Zeichen).
 
 Veröffentlicht bis v0.4.0; 0.5.0 (Updater) und 0.6.0 (Bausteine) sind unveröffentlicht – siehe [CHANGELOG.md](CHANGELOG.md).
@@ -95,14 +95,15 @@ Mehr: [docs/bedienung.md](docs/bedienung.md).
 | Aussehen | `rosenwegThema`, `RosenwegFarben` (Rot `#D32F2F`, Grundton `#8B1E3F`), deutsche Texte (de-CH) |
 | Gerüst | `RosenwegGeruest` (Handy: Navigation unten; ab 840 px Seitenleiste links, Inhalt mittig begrenzt), `RosenwegSpalten` (zwei Spalten am Desktop), `RosenwegInhalt` (max. Breite), `Fensterklasse` (kompakt/mittel/breit/sehrBreit) |
 | Bausteine | `AnmeldeSchirm`, `FehlerAnzeige`, `LadeAnzeige`, `Abschnitt`, `Hinweis`, `zeigeMeldung`, `frage`, `zeigeUeber`, `RosenwegLogo` |
-| Rechte | `RosenwegRechte` (`sitzung.rechte`), `Rechte`, `Zugriff`, `Anmeldestufe`, `sitzung.darf(...)`, `NurMit`, `RechteBereich`, `KeineBerechtigungAnzeige`, `StufeNoetigAnzeige`, `mitBestaetigung` |
+| Rechte | `RosenwegRechte` (`sitzung.rechte`), `Rechte`, `Zugriff`, `Anmeldestufe`, `sitzung.darf(...)`, `NurMit`, `RechteBereich`, `KeineBerechtigungAnzeige`, `StufeNoetigAnzeige`, `mitBestaetigung`, `BestaetigungPerEmail` + `zeigeEmailBestaetigung` (202 „Bestätigung per E-Mail“ bei heiklen Aktionen mit der Karte) |
 | Listen | `ListenSteuerung` (Server oder `.lokal`), `apiListe`, `seiteLesen`, `ListenFilter`, `ListenSortierung`, `RosenwegListe`, `ListenSpalte` |
 | Formulare | `RosenwegFormular`, `FormularSteuerung`, `TextFeld`, `BetragFeld` (Rappen), `DatumFeld`, `ZeitFeld`, `AuswahlFeld`, `SchalterFeld`, `SuchAuswahlFeld`, `auswahlSuchen`, `Pruefen`, `loeschenBestaetigen`, `betragLesen/betragText`, `datumText`, `zeitText` |
 | Scannen | `codeScannen`, `KameraScanner`, `CodeEingabe`, `qrAusBild`, `codeAusBildWaehlen`, `scannerMitKamera` |
+| Karte lesen | `karteLesen`, `KarteLesenSeite`, `KartenleserBereich`, `Kartenleser.fuerApp`, `AndroidKartenleser`, `kartenleserHindernis`, `karteUidNormal`, `uidEintippen` |
 | Dateien | `RosenwegDateien` (`sitzung.dateien`: `hochladen` roh/multipart, `herunterladen`), `DateiDaten`, `dateienWaehlen`, `fotoAufnehmen`, `bildVerkleinern`, `dateiSpeichern`, `dateiTeilen`, `DateiAblage`, `mitFortschritt`, `TransferAnzeige` |
 | PDF | `PdfAnsicht`, `PdfSeite`, `pdfOeffnen` |
 | Protokoll | `Protokoll.schreiben` – `~/.local/state/<ordner>/app.log`, nie Tokens |
-| Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte, Rosenweg-Konto oder QR-Code, Token aus Kotlin), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) |
+| Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte, Rosenweg-Konto oder QR-Code, Token aus Kotlin), DNS-Server, Rosenweg Gerät (`ContentResolver.call`), Karte lesen in der App (`NfcKarte`: Reader-Modus mit dem `Kartenleser` aus commons-rosenweg `anmeldeschirm`) |
 
 Mehr: [docs/entwickeln.md](docs/entwickeln.md).
 
@@ -203,6 +204,27 @@ final code = await codeScannen(context, titel: 'Raum-QR', hinweis: 'Den QR-Code 
 
 `CodeArt.alle` liest mit der Kamera auch EAN, Code 128/39, ITF, DataMatrix (Salz-Säcke). Fotos für Meldungen: `fotoAufnehmen` (siehe Dateien). Die Anmeldung per QR (VisionKit auf iOS) bleibt im Anmeldeschirm.
 
+### Rosenweg-Karte lesen (in der App)
+
+Für Apps, die Karten anlernen oder nachschlagen (Rosenweg Karten, Zutritt). Gelesen wird nur die UID, wie `nfc_id` in UniFi Access (`04D4C227C22A81`). Anmelden mit der Karte macht weiterhin der Anmeldeschirm.
+
+```dart
+// eine Karte, dann zurück (null = abgebrochen)
+final uid = await karteLesen(context, titel: 'Karte anlernen', eintippen: true);
+
+// laufend lesen, solange sichtbar (z. B. Station: Karte auflegen → nachschlagen)
+KartenleserBereich(beiKarte: (uid) => nachschlagen(uid), aktiv: !laedt);
+```
+
+| Plattform | Leser | Meldung, wenn es nicht geht |
+|---|---|---|
+| Android | NFC des Handys (Reader-Modus solange sichtbar) | „Dieses Gerät hat kein NFC …“ bzw. „NFC ist ausgeschaltet …“ mit Knopf zu den Einstellungen |
+| iOS | Core NFC auf Knopfdruck „Karte lesen“ | „kein NFC“ (auch ohne Developer-Programm/NFC-Berechtigung) |
+| Linux, macOS, Windows | USB-NFC-Leser über PC/SC (z. B. ACR122U) | „Kein Kartenleser angeschlossen …“ bzw. „Der Dienst für Kartenleser fehlt (PC/SC) …“; steckt jemand einen ein, liest er von selbst |
+| Web | – | „Auf diesem Gerät lassen sich keine Rosenweg-Karten lesen.“ |
+
+`eintippen: true` bietet „Nummer eintippen“ (8, 14 oder 20 Hex-Zeichen, Doppelpunkte erlaubt; `karteUidNormal`). Dieselbe Karte meldet der Leser erst wieder, nachdem sie weg war.
+
 ### Dateien hoch- und herunterladen
 
 ```dart
@@ -254,7 +276,9 @@ Die Basis bringt die Plugins mit; Berechtigungen stehen aber im Projekt der App 
 
 | Plattform | Eintrag | wofür |
 |---|---|---|
-| Android `AndroidManifest.xml` | `android.permission.CAMERA`, `<uses-feature android:name="android.hardware.camera" android:required="false"/>` | Scannen, Foto |
+| Android `AndroidManifest.xml` | `android.permission.CAMERA`, `<uses-feature android:name="android.hardware.camera" android:required="false"/>` (bringt seit 0.5.2 auch commons-rosenweg mit); NFC bringt die Basis mit | Scannen, Foto, Karte |
+| iOS `Info.plist` | `NFCReaderUsageDescription` (+ Entitlement „NFC Tag Reading“, braucht das Apple Developer Program) | Karte lesen |
+| macOS `*.entitlements` (beide) | `com.apple.security.smartcard` | USB-Kartenleser (PC/SC) |
 | iOS `Info.plist` | `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription` | Scannen, Foto, Bild wählen |
 | macOS `Info.plist` | `NSCameraUsageDescription` | Scannen |
 | macOS `*.entitlements` (beide) | `com.apple.security.network.client`, `com.apple.security.device.camera`, `com.apple.security.files.user-selected.read-write`, `com.apple.security.files.downloads.read-write` | API, Kamera, Dateiauswahl, „Speichern unter“ |
@@ -390,7 +414,7 @@ werkzeug/neue-app.sh mail-freigabe "Rosenweg Mail-Freigabe" mail-freigabe \
 | `--gruppe` | Farbe des Zeichens: `bewohner` rot, `verwaltung` blau, `technik` grün; Vorgabe aus `flutter-apps.txt` |
 | `--beschreibung` | ein Satz für „Über“, Paketbeschreibung, Startmenü, /apps |
 | `--ziel <ordner>` | Standard: neben der Basis (`../rosenweg-<name>`) |
-| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`, derzeit `v0.5.0`) und der Workflows (Standard `main`) |
+| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`, derzeit `v0.6.0`) und der Workflows (Standard `main`) |
 | `--basis-lokal <pfad>` | `pubspec_overrides.yaml` auf eine lokale Basis (dann wird `pubspec.lock` nicht committet) |
 | `--ohne-pub`, `--ohne-git` | kein `flutter pub get` / kein erster Commit |
 | `--repo` | **zusätzlich** `Rosenweg/rosenweg-<name>` auf GitHub anlegen (privat) und `main` pushen – ohne den Schalter geschieht nichts auf GitHub |

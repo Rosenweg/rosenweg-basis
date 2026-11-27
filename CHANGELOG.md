@@ -45,8 +45,28 @@ Welle 0 des Flutter-Plans: Bausteine, die fast jede Portal-App braucht
   „nur im Speicher“, statt dass libsecret „Neuen Schlüsselbund anlegen“
   öffnet. Aus rosenweg-vm (`PruefenderSpeicher`), jetzt für alle Apps.
 - `apiAntwortPruefen` (gemeinsam für API und Dateien).
-- CI: `example/` wird mitgeprüft; neuer Workflow `beispiel.yml` baut die
-  Beispiel-App auf Linux, Android, macOS, iOS und Windows.
+- **Karte lesen in der App** (`karte_lesen.dart`, Android `NfcKarte.kt`):
+  `karteLesen`, `KartenleserBereich` (liest laufend, solange sichtbar),
+  `Kartenleser.fuerApp()` – Android NFC im Reader-Modus mit dem `Kartenleser`
+  aus commons-rosenweg `anmeldeschirm` (neu `AndroidKartenleser`), iOS Core
+  NFC, Desktop PC/SC (USB-Leser wie ACR122U). Klare Sätze, wenn es nicht geht
+  (`kartenleserHindernis`: kein NFC, NFC aus mit Knopf zu den Einstellungen,
+  kein PC/SC, kein Leser, Web). `karteUidNormal`, `uidEintippen`.
+  Android-Manifest der Basis: `NFC`, `uses-feature nfc required=false`.
+- **Karte wie Schlüssel:** antwortet die API mit 202 `{bestaetigung: 'email'}`
+  (heikle Admin-Aktion mit Karte, QR oder Handy; api/lib/kartenadmin.js),
+  wirft `apiAntwortPruefen` jetzt `BestaetigungPerEmail` (Hinweis, Ablauf,
+  maskierte Adresse) statt still „Erfolg“ zu melden; `zeigeEmailBestaetigung`
+  zeigt es, `RosenwegFormular` tut das selbst.
+- Formular: `gespeichert: () => Navigator.pop(…)` fragte „Änderungen
+  verwerfen?“, weil `canPop` erst nach dem nächsten Bau stimmte – jetzt geht
+  die Seite ohne Frage zu.
+- **Vorlage** (`vorlage/`): Bereich „Einträge“ aus Liste, Formular und Rechte
+  (`lib/seiten/eintraege.dart`, Attrappe dazu, Test); Berechtigungen für
+  Kamera und Dateien (Android, iOS, macOS); `rosenweg_basis` `ref: v0.6.0`.
+- CI: `example/` wird mitgeprüft; `beispiel.yml` baut die Beispiel-App auf
+  Linux (Container debian:13), Android, macOS, iOS und Windows – alles auf
+  GitHub-Runnern (öffentliches Repo), Android ohne `continue-on-error`.
 - Neue Abhängigkeiten: mobile_scanner, file_selector, image_picker,
   share_plus, pdfrx, desktop_drop, zxing2, image,
   http_parser. Apps brauchen Kamera-/Datei-Berechtigungen (README).

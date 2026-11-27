@@ -12,5 +12,8 @@
 	<true/>
 	<key>com.apple.security.files.downloads.read-write</key>
 	<true/>
+	<!-- Rosenweg-Karte ueber USB-NFC-Leser (PC/SC) -->
+	<key>com.apple.security.smartcard</key>
+	<true/>
 </dict>
 </plist>

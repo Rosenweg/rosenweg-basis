@@ -45,6 +45,7 @@ export 'src/oberflaeche/dateien_bausteine.dart';
 export 'src/oberflaeche/farben.dart';
 export 'src/oberflaeche/formular.dart';
 export 'src/oberflaeche/geruest.dart';
+export 'src/oberflaeche/karte_lesen.dart';
 export 'src/oberflaeche/liste_ansicht.dart';
 export 'src/oberflaeche/pdf_ansicht.dart';
 export 'src/oberflaeche/rahmen.dart';

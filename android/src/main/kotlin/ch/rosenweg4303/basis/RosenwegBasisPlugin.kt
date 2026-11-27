@@ -28,6 +28,8 @@ import java.util.concurrent.Executors
  *  - ruecksprungAusstehend   Ruecksprung der Anmeldung, der kam, bevor Dart lauschte
  *                            (App war im Hintergrund beendet); einmalig
  *  - geraetDa                Rosenweg Geraet installiert (geteiltes Telefon)?
+ *  - nfcStand                "fehlt" | "aus" | "an"; nfcEinstellungen (NFC-Einstellungen oeffnen)
+ *                            Karte lesen: EventChannel "ch.rosenweg4303.basis/karte" (NfcKarte.kt)
  *  - geraetRufen             ContentResolver.call auf content://ch.rosenweg4303.telefon.anlage
  *                            {methode, arg, extras} -> Bundle als Map (nur Strings, Zahlen, bool)
  *
@@ -49,6 +51,8 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Acti
     private var kanal: MethodChannel? = null
     private var person: EventChannel? = null
     private var personQuelle: GeraetPerson? = null
+    private var karte: EventChannel? = null
+    private var karteQuelle: NfcKarte? = null
     private var kontext: Context? = null
     private val netz = Executors.newSingleThreadExecutor()
     private val haupt = Handler(Looper.getMainLooper())
@@ -58,6 +62,7 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Acti
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         aktivitaet = binding
         binding.addActivityResultListener(this)
+        karteQuelle?.aktivitaet(binding.activity)
     }
 
     override fun onDetachedFromActivityForConfigChanges() = onDetachedFromActivity()
@@ -66,6 +71,7 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Acti
     override fun onDetachedFromActivity() {
         aktivitaet?.removeActivityResultListener(this)
         aktivitaet = null
+        karteQuelle?.aktivitaet(null)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
@@ -84,6 +90,10 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Acti
         val quelle = GeraetPerson(binding.applicationContext)
         personQuelle = quelle
         person = EventChannel(binding.binaryMessenger, GeraetPerson.KANAL).also { it.setStreamHandler(quelle) }
+        // Rosenweg-Karte in der App lesen (NfcKarte.kt)
+        val k = NfcKarte(binding.applicationContext)
+        karteQuelle = k
+        karte = EventChannel(binding.binaryMessenger, NfcKarte.KANAL).also { it.setStreamHandler(k) }
         aktiv = this
     }
 
@@ -94,6 +104,11 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Acti
         person = null
         personQuelle?.onCancel(null)   // Empfaenger abmelden
         personQuelle = null
+        karte?.setStreamHandler(null)
+        karte = null
+        karteQuelle?.onCancel(null)
+        karteQuelle?.aktivitaet(null)
+        karteQuelle = null
         if (aktiv === this) aktiv = null
     }
 
@@ -188,6 +203,11 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Acti
             "bestaetigen" -> {
                 val a = aktivitaet?.activity ?: return result.error("keine_aktivitaet", "App nicht im Vordergrund", null)
                 RosenwegAnmeldung.starten(a, true)
+                result.success(null)
+            }
+            "nfcStand" -> result.success(karteQuelle?.stand() ?: "fehlt")
+            "nfcEinstellungen" -> {
+                karteQuelle?.einstellungen(aktivitaet?.activity)
                 result.success(null)
             }
             else -> result.notImplemented()

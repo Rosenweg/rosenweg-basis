@@ -2,14 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:rosenweg_basis/rosenweg_basis.dart';
 
+import 'eintraege.dart';
+
 /// Die App nach der Anmeldung. Das Geruest aus rosenweg_basis legt die
 /// Bereiche ([GeruestZiel]) auf dem Handy unten und am Desktop (ab 840 px,
 /// Stationen, Laptops) links als Leiste ab; der Inhalt bleibt am Desktop
 /// mittig begrenzt.
 ///
-/// Hier die eigenen Bereiche eintragen. Die Vorlage zeigt zwei: eine
-/// Uebersicht und "Mein Konto" (GET /api/auth/me, als Beispiel fuer einen
-/// API-Aufruf mit Laden, Fehler und Nochmals).
+/// Hier die eigenen Bereiche eintragen. Die Vorlage zeigt drei: eine
+/// Uebersicht, "Einträge" (Bausteine Liste, Formular, Rechte – siehe
+/// eintraege.dart) und "Mein Konto" (GET /api/auth/me, als Beispiel fuer
+/// einen API-Aufruf mit Laden, Fehler und Nochmals).
 class Haupt extends StatelessWidget {
   const Haupt({super.key, required this.sitzung});
   final RosenwegSitzung sitzung;
@@ -30,6 +33,12 @@ class Haupt extends StatelessWidget {
           symbol: Icons.home_outlined,
           gewaehltSymbol: Icons.home,
           seite: (_) => UebersichtSeite(sitzung: sitzung),
+        ),
+        GeruestZiel(
+          titel: 'Einträge',
+          symbol: Icons.list_alt_outlined,
+          gewaehltSymbol: Icons.list_alt,
+          seite: (_) => EintraegeSeite(sitzung: sitzung),
         ),
         GeruestZiel(
           titel: 'Mein Konto',

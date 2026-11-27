@@ -19,8 +19,14 @@ class Attrappe implements Transport {
     'email': 'erika.muster@example.org',
     'role': 'user',
     'groups': ['stweg3-eigentuemer', 'waschkueche'],
-    'permissions': {'dashboard': 'read'},
+    'permissions': {'dashboard': 'read', 'beispiel': 'write'},
   };
+
+  final _eintraege = <Map<String, dynamic>>[
+    {'id': 1, 'titel': 'Velokeller aufräumen', 'erledigt': false},
+    {'id': 2, 'titel': 'Lampe im Treppenhaus ersetzen', 'erledigt': true},
+    {'id': 3, 'titel': 'Briefkasten-Schild Haus 9', 'erledigt': false},
+  ];
 
   @override
   Future<ApiAntwort> senden(String methode, String pfad, {Object? koerper}) async {
@@ -30,6 +36,16 @@ class Attrappe implements Transport {
     switch ('$methode $pfad') {
       case 'GET /api/auth/me':
         return (status: 200, json: {'user': _ich});
+      case 'GET /api/beispiel/eintraege':
+        return (status: 200, json: _eintraege);
+      case 'POST /api/beispiel/eintraege':
+        final titel = koerper is Map ? '${koerper['titel'] ?? ''}' : '';
+        // wie die Haupt-API: Fehler am Feld ({error, feld})
+        if (_eintraege.any((e) => e['titel'] == titel)) {
+          return (status: 400, json: {'error': 'Diesen Eintrag gibt es schon.', 'feld': 'titel'});
+        }
+        _eintraege.add({'id': _eintraege.length + 1, 'titel': titel, 'erledigt': false});
+        return (status: 201, json: {'ok': true});
     }
     return (status: 404, json: {'error': 'Nicht gefunden: $methode $pfad'});
   }
