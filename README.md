@@ -259,6 +259,8 @@ flutter analyze && flutter test
 
 Dasselbe läuft bei jedem Push und PR in `.github/workflows/pruefen.yml` auf einem GitHub-Runner. Keine Secrets nötig. Änderungen stehen in [CHANGELOG.md](CHANGELOG.md).
 
+**Neue Fassung an die Apps:** Ein Tag `v*` startet `.github/workflows/abhaengige.yml`: jedes Repo der Organisation, das `rosenweg_basis` als Git-Abhängigkeit nutzt, bekommt einen PR „rosenweg_basis vX.Y.Z“ (`ref`, `pubspec.lock`, Patch-Version der App); hier die Vorlage. Die Apps werden gefunden, nicht aufgezählt. Ablauf und Zugang (GitHub-App bzw. Token): commons-rosenweg `.github/abhaengige/README.md`.
+
 ## Weitere Dokumente
 
 | Datei | Inhalt |

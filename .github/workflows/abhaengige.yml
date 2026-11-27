@@ -1,0 +1,34 @@
+# Neuer Tag v* von rosenweg_basis -> PR in jedes Repo, das die Basis als Git-Abhaengigkeit nutzt
+# (rosenweg-vm, rosenweg-salz, rosenweg-profil und kuenftige Flutter-Apps; gefunden, nicht
+# aufgezaehlt): ref in pubspec.yaml auf den Tag, pubspec.lock nachgefuehrt, Patch-Version der App
+# hoch. Hier im Repo nur die App-Vorlage (vorlage/pubspec.yaml), ohne Versionsnummer.
+# Ablauf und Zugang: commons-rosenweg .github/abhaengige/README.md.
+#
+# Von Hand: gh workflow run abhaengige.yml -f tag=v0.5.2 [-f trocken=true]
+name: Abhängige anheben
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag der Basis, z.B. v0.5.2"
+        required: true
+      trocken:
+        description: "nur anzeigen, keine PRs"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  anheben:
+    uses: Rosenweg/commons-rosenweg/.github/workflows/abhaengige.yml@main
+    with:
+      art: pub
+      argumente: rosenweg_basis https://github.com/Rosenweg/rosenweg-basis.git ${{ inputs.tag || github.ref_name }}
+      quelle: rosenweg-basis
+      trocken: ${{ github.event_name == 'workflow_dispatch' && inputs.trocken }}
+    secrets: inherit
