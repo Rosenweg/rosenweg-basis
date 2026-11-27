@@ -66,6 +66,10 @@ class _FormularBereich extends InheritedNotifier<FormularSteuerung> {
 FormularSteuerung? _steuerungVon(BuildContext context) =>
     context.dependOnInheritedWidgetOfExactType<_FormularBereich>()?.notifier;
 
+/// Die [FormularSteuerung] des umgebenden [RosenwegFormular] (null = keins);
+/// fuer eigene Felder ausserhalb dieser Datei (z. B. [FotoFeld]).
+FormularSteuerung? formularSteuerungVon(BuildContext context) => _steuerungVon(context);
+
 /// Formular mit Knopf "Speichern".
 ///
 /// ```dart
