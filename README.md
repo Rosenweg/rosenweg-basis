@@ -370,7 +370,7 @@ sh werkzeug/logo/app-symbole.sh ../rosenweg-telefonbuch rosenweg-telefonbuch "Ro
 sh werkzeug/logo/kontaktbogen.sh ~/Downloads/rosenweg-app-logos.png
 ```
 
-Flutter-Apps: `werkzeug/logo/flutter-apps.txt` legt für alle 41 Apps Zeichen und Zielgruppe fest (Farbe des Zeichens: Bewohner rot, Verwaltung blau, Technik grün; Rosenweg Stationen trägt unverändert das Logo von os-stationen). `app-symbole.sh` schreibt alle Plattform-Symbole einer App, `kontaktbogen.sh` setzt alle Logos nebeneinander zum Vergleichen. Neue Zeichen aus Material Symbols (Apache-2.0): `werkzeug/logo/zeichen-zusammensetzen.py`; Herkunft: `werkzeug/logo/zeichen/LIZENZEN.md`.
+Flutter-Apps: `werkzeug/logo/flutter-apps.txt` legt für alle 39 Apps (Karten ist in Zutritt aufgegangen) Zeichen und Zielgruppe fest (Farbe des Zeichens: Bewohner rot, Verwaltung blau, Technik grün; Rosenweg Stationen trägt unverändert das Logo von os-stationen). `app-symbole.sh` schreibt alle Plattform-Symbole einer App, `kontaktbogen.sh` setzt alle Logos nebeneinander zum Vergleichen. Neue Zeichen aus Material Symbols (Apache-2.0): `werkzeug/logo/zeichen-zusammensetzen.py`; Herkunft: `werkzeug/logo/zeichen/LIZENZEN.md`.
 
 Für die Android-Apps (Fossify-Forks, Rosenweg Karten, Rosenweg Gerät, Rosenweg Kiosk) steht in `werkzeug/logo/android-apps.txt`, welche App welches Zeichen trägt; `android-apps.sh` schreibt Mipmaps, adaptive Icon und monochromes Designsymbol. Mehr: [docs/logos.md](docs/logos.md).
 
