@@ -241,7 +241,8 @@ class _WochenrasterState<T> extends State<Wochenraster<T>> {
         final jetzt = _jetzt;
         return Column(children: [
           if (schmal) _TagWahl(montag: widget.montag, gewaehlt: _tag, jetzt: jetzt, waehlen: _tagWaehlen),
-          _Kopf(tage: [for (final i in tage) _tagNr(i)], jetzt: jetzt),
+          // schmal steht der Tag schon in der Tageswahl
+          if (!schmal) _Kopf(tage: [for (final i in tage) _tagNr(i)], jetzt: jetzt),
           const Divider(height: 1),
           Expanded(
             child: SingleChildScrollView(
