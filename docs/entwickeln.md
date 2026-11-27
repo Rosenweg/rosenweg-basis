@@ -42,6 +42,7 @@ und zeigt bis dahin Warten, Anmeldeschirm oder Fehler. Die App sieht erst
 | Haus | `HausErkennung().imHaus()` — TXT `location.rosenweg4303.ch` = „Rosenweg GBT“ beim Resolver des Geräts; nur Hinweis, nie Sicherheit | rosenweg-vm `haus_erkennung.dart` |
 | Ablauf | `RosenwegSitzung` (Phasen `pruefen/abgemeldet/anmelden/bereit/fehler`, `geteiltesTelefon`, `personStand`, `bestaetigen()` für heikle Aktionen), `rosenwegStarten`, `RosenwegRahmen`, `AnmeldeTor` | rosenweg-vm `app_zustand.dart` |
 | Aussehen | `rosenwegThema`, `RosenwegFarben` (Rot `#D32F2F`, Dunkelrot, Grundton `#8B1E3F`), deutsche Flutter-Texte (de-CH) | |
+| Gerüst | `RosenwegGeruest` (AppBar; mit ≥ 2 `GeruestZiel`: Handy NavigationBar unten, ab 840 px NavigationRail links, ab 1200 px beschriftet; Inhalt mit `maxBreite` mittig), `RosenwegSpalten` (ab 840 px zwei Spalten, sonst das Handy-Layout), `RosenwegInhalt`, `Fensterklasse` (Breiten 600/840/1200 nach Material 3) | neu in 0.3.0 |
 | Bausteine | `AnmeldeSchirm`, `FehlerAnzeige`, `LadeAnzeige`, `Abschnitt` (Karte mit Titel), `Hinweis`, `zeigeMeldung`, `frage`, `fehlerText`, `zeigeUeber` (GPL, Quelltext, Lizenzen), `RosenwegLogo` | |
 | Protokoll | `Protokoll.schreiben` — `~/.local/state/<ordner>/app.log`, nie Tokens | rosenweg-vm `protokoll.dart` |
 | Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte oder Rosenweg-Konto, Token aus Kotlin; braucht `ch.rosenweg4303:cloud` aus GitHub Packages oder mavenLocal, minSdk 26), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) | commons-rosenweg `cloud` |
@@ -54,6 +55,7 @@ und zeigt bis dahin Warten, Anmeldeschirm oder Fehler. Die App sieht erst
 4. Zeichen zeichnen (`werkzeug/logo/zeichen/<name>.svg`, 400×400), `erzeugen.sh`.
 5. Authentik: Rücksprung `ch.rosenweg4303.<name>:/anmeldung` eintragen (docs/authentik.md).
 6. `linux/paket/` aus rosenweg-profil kopieren und Namen ersetzen.
+7. Desktop: Seiten mit `RosenwegGeruest` bauen und die kleinste Fenstergrösse 400×560 setzen (macOS `contentMinSize` in `MainFlutterWindow.swift`, Linux `gtk_widget_set_size_request` in `my_application.cc`, Windows `WM_GETMINMAXINFO` in `win32_window.cpp`; Muster in rosenweg-salz).
 
 ## Prüfen
 

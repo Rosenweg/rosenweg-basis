@@ -1,3 +1,13 @@
+## 0.3.0 (unveröffentlicht)
+
+- Gerüst für Handy und Desktop: `RosenwegGeruest` (AppBar; mit zwei oder
+  mehr `GeruestZiel` unten eine NavigationBar, ab 840 px eine
+  NavigationRail links, ab 1200 px beschriftet; Inhalt am Desktop mittig
+  mit begrenzter Breite), `RosenwegSpalten` (ab 840 px zwei Spalten, sonst
+  unverändert das Handy-Layout), `RosenwegInhalt` und `Fensterklasse`
+  (600/840/1200 px nach Material 3). Unter 840 px ändert sich nichts.
+- `rosenwegThema`: Dialoge höchstens 560 px breit.
+
 ## 0.2.0 (unveröffentlicht)
 
 - Android ohne Rosenweg Gerät: Anmeldung über commons-rosenweg (`cloud`
