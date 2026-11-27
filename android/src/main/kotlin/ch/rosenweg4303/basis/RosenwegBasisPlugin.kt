@@ -32,6 +32,7 @@ import java.util.concurrent.Executors
  *                            "Aktuell" / "Neue Fassung X - Installieren" / Fehler) -> true
  *  - nfcStand                "fehlt" | "aus" | "an"; nfcEinstellungen (NFC-Einstellungen oeffnen)
  *                            Karte lesen: EventChannel "ch.rosenweg4303.basis/karte" (NfcKarte.kt)
+ *  - startsymbolSetzen       {gruppe} -> Startsymbol in der Gruppenfarbe (Startsymbol.kt), true = gewechselt
  *  - geraetRufen             ContentResolver.call auf content://ch.rosenweg4303.telefon.anlage
  *                            {methode, arg, extras} -> Bundle als Map (nur Strings, Zahlen, bool)
  *
@@ -118,6 +119,11 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Acti
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         val c = kontext ?: return result.error("kein_kontext", "Plugin nicht verbunden", null)
         when (call.method) {
+            "startsymbolSetzen" -> {
+                val c = kontext
+                val g = call.argument<String>("gruppe")
+                result.success(c != null && g != null && Startsymbol.setzen(c, g))
+            }
             "dnsServer" -> {
                 // Android hat keine resolv.conf; die Server stehen in den
                 // LinkProperties des aktiven Netzes (wie rosenweg-vm MainActivity.kt).

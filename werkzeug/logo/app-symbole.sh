@@ -22,6 +22,10 @@
 #   macos/Runner/Assets.xcassets/AppIcon.appiconset  macOS (Apple-Raster mit Schatten)
 #   windows/runner/resources/app_icon.ico        Windows (16…256 px)
 #   macos/installer/hintergrund.svg/.png/@2x.png DMG-Fenster mit Logo und Titel
+# Mit FARBEN="<gruppe> …" (weitere Gruppenfarben, docs/gruppenfarbe.md) zusaetzlich je Farbe:
+#   assets/logo/<name>-<farbe>-512.png, -klein.png; Android ic_launcher_<farbe> (erzeugen.sh)
+#   ios/Runner/Assets.xcassets/AppIcon-<farbe>.appiconset  iOS alternate icon (1024, eine Groesse)
+# Einbau in Manifest und Xcode-Projekt: werkzeug/logo/farben-einbauen.py.
 # Linux: die hicolor-Symbole (16…512 px) und das SVG rechnet das .deb beim
 # Bau aus denselben SVGs (linux/paket/bauen.sh, gleiche Stufenregel).
 #
@@ -36,7 +40,7 @@ for w in python3 rsvg-convert magick; do
   command -v "$w" >/dev/null || { echo "FEHLER: $w fehlt" >&2; exit 1; }
 done
 
-ALLE=1 GRUPPE="$GRUPPE" sh "$HIER/erzeugen.sh" "$APP" "$NAME" "$TITEL" "$ZEICHEN" >/dev/null
+ALLE=1 GRUPPE="$GRUPPE" FARBEN="${FARBEN:-}" sh "$HIER/erzeugen.sh" "$APP" "$NAME" "$TITEL" "$ZEICHEN" >/dev/null
 L="$APP/assets/logo"
 GRUND="$(python3 "$HIER/baukasten.py" --grundfarbe "$GRUPPE")"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
@@ -59,6 +63,28 @@ if [ -d "$I" ]; then
   ios Icon-App-60x60@2x.png 120; ios Icon-App-60x60@3x.png 180
   ios Icon-App-76x76@1x.png 76;  ios Icon-App-76x76@2x.png 152
   ios Icon-App-83.5x83.5@2x.png 167; ios Icon-App-1024x1024@1x.png 1024
+fi
+
+# iOS: alternate icons je weiterer Gruppenfarbe (setAlternateIconName, eine Groesse 1024)
+if [ -d "$I" ] && [ -n "${FARBEN:-}" ]; then
+  for g in $FARBEN; do
+    [ "$g" = "$GRUPPE" ] && continue
+    GG="$(python3 "$HIER/baukasten.py" --grundfarbe "$g")"
+    mkdir -p "$T/$g"
+    python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --zeichen "$ZEICHEN" --ziel "$T/$g" --alle --gruppe "$g" >/dev/null
+    AI="$APP/ios/Runner/Assets.xcassets/AppIcon-$g.appiconset"
+    mkdir -p "$AI"
+    rsvg-convert -w 1024 -h 1024 "$T/$g/$NAME-vollflaeche.svg" -o "$T/$g/i.png"
+    magick "$T/$g/i.png" -background "$GG" -alpha remove -alpha off "$AI/Icon-1024.png"
+    cat > "$AI/Contents.json" <<'EOF'
+{
+  "images" : [
+    { "filename" : "Icon-1024.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" }
+  ],
+  "info" : { "author" : "rosenweg-basis werkzeug/logo/app-symbole.sh", "version" : 1 }
+}
+EOF
+  done
 fi
 
 # macOS: Form nach Apple-Raster (824er Feld auf 1024, -macos.svg) plus Schlagschatten

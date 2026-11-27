@@ -56,3 +56,9 @@ python3 werkzeug/logo/zeichen-zusammensetzen.py --titel "Tür mit Schlüssel (Ro
 
 Ein Zusatzsymbol sitzt rechts unten mit weissem Rand (`style="fill:#fff"`, weil der
 Baukasten `fill`-Attribute entfernt; die Plakette ist in allen Fassungen weiss).
+
+## Farben je Person
+
+Apps, die für Ausschuss, Verwaltung oder Technik mehr freischalten, haben
+zusätzlich Logos und Startsymbole in diesen Farben (`FARBEN=…`,
+`farben-einbauen.py`). Siehe [gruppenfarbe.md](gruppenfarbe.md).
