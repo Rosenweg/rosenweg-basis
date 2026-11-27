@@ -160,19 +160,94 @@ Station heisst: `/etc/rosenweg-station/station-id` mit einer Station-ID **und** 
 ```sh
 sh werkzeug/logo/erzeugen.sh ../rosenweg-profil rosenweg-profil "Rosenweg Profil" werkzeug/logo/zeichen/person.svg
 sh werkzeug/logo/android-apps.sh ../fossify-rosenweg/calculator-rosenweg calculator-rosenweg
+sh werkzeug/logo/app-symbole.sh ../rosenweg-telefonbuch rosenweg-telefonbuch "Rosenweg Telefonbuch" werkzeug/logo/zeichen/telefonbuch.svg bewohner
+sh werkzeug/logo/kontaktbogen.sh ~/Downloads/rosenweg-app-logos.png
 ```
+
+Flutter-Apps: `werkzeug/logo/flutter-apps.txt` legt für alle 41 Apps Zeichen und Zielgruppe fest (Farbe des Zeichens: Bewohner rot, Verwaltung blau, Technik grün; Rosenweg Stationen trägt unverändert das Logo von os-stationen). `app-symbole.sh` schreibt alle Plattform-Symbole einer App, `kontaktbogen.sh` setzt alle Logos nebeneinander zum Vergleichen. Neue Zeichen aus Material Symbols (Apache-2.0): `werkzeug/logo/zeichen-zusammensetzen.py`; Herkunft: `werkzeug/logo/zeichen/LIZENZEN.md`.
 
 Für die Android-Apps (Fossify-Forks, Rosenweg Karten, Rosenweg Gerät, Rosenweg Kiosk) steht in `werkzeug/logo/android-apps.txt`, welche App welches Zeichen trägt; `android-apps.sh` schreibt Mipmaps, adaptive Icon und monochromes Designsymbol. Mehr: [docs/logos.md](docs/logos.md).
 
 ## Neue App anlegen
 
-1. `flutter create --platforms=android,linux --org ch.rosenweg4303 --project-name rosenweg_<name> rosenweg-<name>`
-2. applicationId/APPLICATION_ID auf `ch.rosenweg4303.<name>` setzen.
-3. `rosenweg_basis` als git-Abhängigkeit mit festem Tag (z. B. `ref: v0.5.0`), lokal `pubspec_overrides.yaml` mit `path: ../rosenweg-basis`.
-4. Zeichen zeichnen (`werkzeug/logo/zeichen/<name>.svg`, 400×400), `erzeugen.sh`.
-5. Authentik: Rücksprung `ch.rosenweg4303.<name>:/anmeldung` eintragen.
-6. `linux/paket/` aus rosenweg-profil kopieren und Namen ersetzen.
-7. Desktop: Seiten mit `RosenwegGeruest` bauen und die kleinste Fenstergrösse 400×560 setzen (macOS `contentMinSize`, Linux `gtk_widget_set_size_request`, Windows `WM_GETMINMAXINFO`; Muster in rosenweg-salz).
+Jede Portal-Funktion wird eine eigene App (Plan „Alle Portal-Funktionen als Flutter-Apps“). Damit nicht jede App Anmeldung, Plattform-Ordner, Installer, Logo und CI neu erfindet, gibt es die **App-Vorlage** `vorlage/` und das Skript `werkzeug/neue-app.sh`.
+
+### Was die Vorlage mitbringt
+
+`vorlage/` ist selbst eine baubare App („Rosenweg Vorlage“, Kennung `ch.rosenweg4303.vorlage`), abgeleitet aus rosenweg-salz, rosenweg-profil und rosenweg-vm:
+
+| Teil | Inhalt |
+|---|---|
+| Start | `rosenwegStarten`: Logdatei, Fehlerfang, Anmeldeschirm der Basis (Karte, QR, Konto; Station still per Kerberos; geteiltes Telefon über Rosenweg Gerät), Updater |
+| Seiten | `RosenwegGeruest` mit zwei Bereichen (Handy: unten, ab 840 px: Leiste links), Menü „Anmeldung“, „Über“, „Abmelden“ (nicht auf geteilten Telefonen), Beispiel-API-Aufruf mit Laden/Fehler/Nochmals |
+| Deutsch | de-CH, auch Flutters eigene Dialoge (aus `RosenwegRahmen`) |
+| Attrappe | `lib/attrappe.dart`, `--dart-define=RW_ATTRAPPE=1`: ohne Server; Widget-Tests Handy/Desktop/Fehler; Bildschirmfotos mit `RW_FOTO=…` |
+| Fenster | kleinste Grösse 400×560 auf Linux, macOS, Windows |
+| Linux | `linux/paket/bauen.sh` → `.deb` (Debian 13, `/opt/<app>`, hicolor-Symbole, Starter `ch.rosenweg4303.<k>.desktop`), `im-container.sh` für den Bau-Container, `paket.conf` = Vorlage für os-stationen `pakete/<app>/` (PXE-Server) |
+| Android | Signatur über `SIGNING_*` (Org-Secrets), minSdk 26, adaptive + monochrome Symbole |
+| Windows | Inno-Setup-Installer pro Person ohne Adminrechte (`windows/installer/<app>.iss`, eigene AppId je App) |
+| macOS | `macos/installer/bauen.sh`: App (ad hoc oder Developer ID, Notarisierung wenn Secrets da) + DMG mit eigenem Hintergrund |
+| iOS | baut ohne Signatur |
+| CI | `.github/workflows/app.yml` und `apps.yml` rufen die wiederverwendbaren Workflows dieser Basis |
+| /apps | `apps-eintrag.json` für das App-Register, `assets/logo/<app>-192.png` |
+
+### Anlegen
+
+```sh
+cd rosenweg-basis
+werkzeug/neue-app.sh telefonbuch "Rosenweg Telefonbuch" telefonbuch
+werkzeug/neue-app.sh mail-freigabe "Rosenweg Mail-Freigabe" mail-freigabe \
+    --gruppe verwaltung --beschreibung "Mails der Verwaltung prüfen und freigeben."
+```
+
+| Argument / Option | Bedeutung |
+|---|---|
+| `<name>` | kurz, z. B. `mail-freigabe` → Repo `rosenweg-mail-freigabe`, Dart `rosenweg_mail_freigabe`, Kennung `ch.rosenweg4303.mailfreigabe` (ohne Bindestrich: Java-Paket und Rücksprung-Schema `ch.rosenweg4303.mailfreigabe:/anmeldung`) |
+| `"<Anzeigename>"` | wie im Startmenü; Umlaute gehen (Dateinamen werden zu `ae/oe/ue`, Windows-Quelltext bekommt `\u`-Folgen, das Inno-Skript ein BOM, die macOS-Programmdatei heisst wie das Dart-Paket) |
+| `<zeichen>` | Name aus `werkzeug/logo/zeichen/` (alle 41 Apps aus `werkzeug/logo/flutter-apps.txt` haben eines) oder Pfad zu einem SVG |
+| `--gruppe` | Farbe des Zeichens: `bewohner` rot, `verwaltung` blau, `technik` grün; Vorgabe aus `flutter-apps.txt` |
+| `--beschreibung` | ein Satz für „Über“, Paketbeschreibung, Startmenü, /apps |
+| `--ziel <ordner>` | Standard: neben der Basis (`../rosenweg-<name>`) |
+| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`, derzeit `v0.5.0`) und der Workflows (Standard `main`) |
+| `--basis-lokal <pfad>` | `pubspec_overrides.yaml` auf eine lokale Basis (dann wird `pubspec.lock` nicht committet) |
+| `--ohne-pub`, `--ohne-git` | kein `flutter pub get` / kein erster Commit |
+| `--repo` | **zusätzlich** `Rosenweg/rosenweg-<name>` auf GitHub anlegen (privat) und `main` pushen – ohne den Schalter geschieht nichts auf GitHub |
+
+Das Skript kopiert die Vorlage, ersetzt alle Namen (es bricht ab, wenn ein Platzhalter übrig bleibt), erzeugt alle Symbole (`werkzeug/logo/app-symbole.sh`), legt `git` mit einem ersten Commit an und druckt die Schritte ausserhalb des Repos.
+
+### Danach (einmal je App)
+
+1. **Authentik** (`rosenweg-apps`): Rücksprung `ch.rosenweg4303.<k>:/anmeldung` (strikt) eintragen – Desktop braucht nichts (`localhost`-Regex gilt für alle).
+2. **GitHub**: Repo anlegen (oder `--repo`), dann
+   - Repo-Secret `BASIS_TOKEN` (fein granuliert, nur rosenweg-basis, Contents read-only) oder `BASIS_DEPLOY_KEY`,
+   - Org-Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` für das Repo freigeben (ohne: Debug-Signatur, kein Release),
+   - Repo in die Runner-Gruppe `rosenweg-privat` aufnehmen (Linux und Android laufen auf dem eigenen Runner).
+3. **/apps**: `apps-eintrag.json` in `APPS_REGISTER` (Rosenweg/Website `pbx/api/app.py`) übernehmen, `assets/logo/<app>-192.png` als `img/apps/<app>.png` ins Website-Repo. Ohne Register-Eintrag nimmt die Anlage keine Releases an.
+4. **Android-Updater**: der Rosenweg Updater (commons-rosenweg `updater`) kennt die Pakete der Flutter-Apps; neue Kennung dort ergänzen, sonst prüft auf Handys mit nur Flutter-Apps niemand.
+5. **Stationen**: nach dem ersten Release `linux/paket/paket.conf` als `pakete/<app>/paket.conf` (mit `hochladen.sh`) in os-stationen, Version und Prüfsumme eintragen.
+6. Inhalt bauen (`lib/seiten/`, `lib/attrappe.dart`, `docs/anleitung.md`), Bedienung auf Handy **und** Station prüfen.
+
+### Bau und Release (wiederverwendbare Workflows)
+
+| Workflow (hier) | Aufgabe |
+|---|---|
+| `.github/workflows/app.yml` | `workflow_call`: Version lesen → Linux (analyze, test, `.deb`) und Android (APK, Signatur und Paketname geprüft) immer; Windows (Installer + Rauchtest), macOS (DMG), iOS (unsigniert) nur für ein Release, von Hand oder mit `alle_plattformen`; bei `veroeffentlichen` und **neuem** Tag `v<version>`: GitHub-Release mit allen Dateien und `SHA256SUMS`, dann `apps.yml` der App für den Tag starten |
+| `.github/workflows/app-apps.yml` | `workflow_call`: Dateien des Release-Tags an /apps (Action `Rosenweg/Website/.github/actions/apps-release`, GitHub-OIDC) |
+| `.github/workflows/vorlage.yml` | prüft hier selbst: `neue-app.sh` (Probe mit Bindestrich und Umlaut, analyze + test) und die Vorlage auf allen fünf Plattformen gegen diesen Stand der Basis |
+
+In der App: PR → CI; Merge auf `main` mit erhöhter `version:` → Release und /apps; ohne neue Version nur CI. Kein Tag von Hand nötig.
+
+**Voraussetzung:** rosenweg-basis ist privat; andere Repos dürfen ihre Workflows erst nutzen, wenn unter *Settings → Actions → General → Access* „Accessible from repositories in the 'Rosenweg' organization“ gewählt ist (`gh api -X PUT repos/Rosenweg/rosenweg-basis/actions/permissions/access -f access_level=organization`).
+
+### Grenzen je Plattform
+
+| Plattform | Grenze |
+|---|---|
+| iOS | nur Bau ohne Signatur; Verteilen, Core NFC und Push brauchen das Apple Developer Program; /apps kennt kein iOS |
+| macOS | ohne Developer-ID-Zertifikat ad hoc signiert, Gatekeeper fragt beim ersten Start; Secrets `MACOS_*`/`NOTAR_*` schalten Signatur und Notarisierung ein |
+| Windows | ohne Zertifikat unsigniert (SmartScreen fragt einmal); `WINDOWS_ZERTIFIKAT_*` signiert App und Installer |
+| Linux | `.deb` nur Debian 13/amd64; Kamera (`mobile_scanner`) und WebView fehlen unter Linux – Desktop-Ersatz vorsehen |
+| Android | Release nur mit dem Rosenweg-Schlüssel; Updater nur, wenn commons-rosenweg die Kennung kennt |
 
 ## Prüfen und CI
 

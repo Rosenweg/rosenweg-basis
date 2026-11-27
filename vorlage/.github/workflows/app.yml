@@ -1,0 +1,38 @@
+# Bau und Release fuer alle Plattformen - die Arbeit macht der wiederverwendbare
+# Workflow in rosenweg-basis (.github/workflows/app.yml, dort die Einzelheiten).
+#
+#   Pull Request          Linux (analyze, test, .deb) und Android (APK)
+#   Merge auf main        dasselbe; ist die Version in pubspec.yaml NEU (Tag
+#                         vx.y.z gibt es noch nicht): zusaetzlich Windows, macOS,
+#                         iOS, dann GitHub-Release vx.y.z und /apps (apps.yml)
+#   von Hand              alle Plattformen, ohne Release
+#
+# Secrets: BASIS_TOKEN (Repo-Secret, Lesezugriff auf rosenweg-basis), die
+# Org-Secrets ANDROID_KEYSTORE_BASE64/-PASSWORD und ANDROID_KEY_ALIAS/-PASSWORD
+# (fuer dieses Repo freigeben), optional MACOS_*/NOTAR_*/WINDOWS_ZERTIFIKAT_*.
+name: App
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: write   # Release (nur nach Merge mit neuer Version)
+  actions: write    # apps.yml fuer den neuen Tag starten
+  packages: read    # commons-rosenweg aus GitHub Packages (Android)
+
+jobs:
+  app:
+    uses: Rosenweg/rosenweg-basis/.github/workflows/app.yml@main
+    with:
+      app: rosenweg-vorlage
+      paket: ch.rosenweg4303.vorlage
+      titel: Rosenweg Vorlage
+      veroeffentlichen: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    secrets: inherit

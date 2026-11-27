@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <title>Baustein (Rosenweg Vorlage)</title>
+  <!-- Platzhalter der App-Vorlage: neue-app.sh ersetzt ihn durch das Zeichen der neuen App -->
+  <path fill-rule="evenodd" d="M60 120 H340 A28 28 0 0 1 368 148 V340 A28 28 0 0 1 340 368 H60 A28 28 0 0 1 32 340 V148 A28 28 0 0 1 60 120 Z M82 170 V318 H318 V170 Z"/>
+  <rect x="84" y="40" width="72" height="96" rx="20"/>
+  <rect x="244" y="40" width="72" height="96" rx="20"/>
+</svg>

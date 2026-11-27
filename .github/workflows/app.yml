@@ -1,0 +1,679 @@
+# Wiederverwendbar: Bau und Release einer Rosenweg-Flutter-App auf allen fuenf
+# Plattformen. Gerufen von .github/workflows/app.yml jeder App (aus vorlage/,
+# werkzeug/neue-app.sh), damit nicht jede App 4-5 Workflow-Dateien kopiert.
+#
+# Ablauf:
+#   version   Version aus pubspec.yaml (x.y.z+n). Mit veroeffentlichen: true
+#             (Push auf main) wird nur veroeffentlicht, wenn es den Tag vx.y.z
+#             noch nicht gibt (Version unveraendert = nur CI, kein Release)
+#             und der Rosenweg-Signierschluessel da ist.
+#   linux     flutter analyze + test + build linux, Debian-Paket
+#             (linux/paket/bauen.sh) - eigener Runner (rosenweg-privat, Debian 13)
+#   android   APK, signiert mit dem Rosenweg-Schluessel (Org-Secrets
+#             ANDROID_KEYSTORE_BASE64/-PASSWORD, ANDROID_KEY_ALIAS/-PASSWORD;
+#             ohne: Debug-Signatur, dann kein Release) - eigener Runner
+#   windows   Inno-Setup-Installer (windows/installer/<app>.iss) mit Rauchtest
+#   macos     App + DMG (macos/installer/bauen.sh), ad hoc oder Developer ID
+#   ios       Bau ohne Signatur (unsigniertes .ipa, nur als Nachweis)
+#   release   GitHub-Release v<version> mit allen Dateien am gebauten Commit,
+#             danach startet es den Workflow apps.yml der App fuer den Tag
+#             (-> /apps; ein von GITHUB_TOKEN angelegtes Release loest
+#             "release published" nicht aus). Muster: Rosenweg/Website
+#             .github/workflows/android-release.yml.
+#
+# Windows, macOS und iOS kosten Minuten (private Repos: doppelt/zehnfach):
+# sie laufen nur fuer ein Release, von Hand (workflow_dispatch) oder mit
+# alle_plattformen: true; Linux und Android immer.
+#
+# Secrets (secrets: inherit im Aufrufer):
+#   BASIS_TOKEN (oder BASIS_DEPLOY_KEY)   Lesezugriff auf die private rosenweg-basis
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
+#   ANDROID_KEY_PASSWORD                  Org-Secrets, fuer das App-Repo freigeben
+#   MACOS_ZERTIFIKAT_P12, MACOS_ZERTIFIKAT_PASSWORT, NOTAR_KEY_P8, NOTAR_KEY_ID,
+#   NOTAR_ISSUER                          optional: Developer ID + Notarisierung
+#   WINDOWS_ZERTIFIKAT_PFX, WINDOWS_ZERTIFIKAT_PASSWORT
+#                                         optional: Code-Signing (sonst SmartScreen)
+#
+# Aufrufer (vorlage/.github/workflows/app.yml):
+#   jobs:
+#     app:
+#       uses: Rosenweg/rosenweg-basis/.github/workflows/app.yml@main
+#       with: { app: rosenweg-x, paket: ch.rosenweg4303.x, veroeffentlichen: ${{ github.event_name == 'push' }} }
+#       secrets: inherit
+# Voraussetzung: rosenweg-basis erlaubt Workflows aus der Organisation
+# (Settings > Actions > Access: "Accessible from repositories in the
+# 'Rosenweg' organization").
+name: Rosenweg-App
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: Name wie Repo und Paket, z. B. rosenweg-telefonbuch
+        type: string
+        required: true
+      paket:
+        description: Kennung (applicationId, Bundle-ID), z. B. ch.rosenweg4303.telefonbuch
+        type: string
+        required: true
+      titel:
+        description: Anzeigename fuer das Release, z. B. Rosenweg Telefonbuch
+        type: string
+        default: ""
+      ordner:
+        description: Ordner der App im Repo (nur rosenweg-basis selbst braucht vorlage)
+        type: string
+        default: "."
+      plattformen:
+        description: Welche Plattformen (Leerzeichen-getrennt)
+        type: string
+        default: "linux android windows macos ios"
+      alle_plattformen:
+        description: Windows, macOS und iOS auch ohne Release bauen
+        type: boolean
+        default: false
+      veroeffentlichen:
+        description: Bei neuer Version Release anlegen und an /apps schicken (Push auf main)
+        type: boolean
+        default: false
+      basis_lokal:
+        description: rosenweg_basis aus dem ausgecheckten Repo (nur in rosenweg-basis selbst)
+        type: boolean
+        default: false
+      flutter_version:
+        type: string
+        default: "3.47.5"
+      flutter_sha256:
+        description: Pruefsumme des Linux-Archivs dieser Flutter-Version
+        type: string
+        default: 2132e990f236f8d22e7c6314b29a191a95b10d7cbcfec9b4e2e303d996652cbb
+      signatur_sha256:
+        description: Erwarteter SHA-256 des Signaturzertifikats (Rosenweg-Schluessel)
+        type: string
+        default: 7b3bac26e82b6103546b96861dcf1bb89b3239424ff11fdf684975cf78c5a5ae
+      apps_workflow:
+        description: Workflow der App, der ein Release an /apps schickt (leer = keiner)
+        type: string
+        default: apps.yml
+
+env:
+  ORDNER: ${{ inputs.ordner }}
+  APP: ${{ inputs.app }}
+  FLUTTER_VERSION: ${{ inputs.flutter_version }}
+  FLUTTER_SHA256: ${{ inputs.flutter_sha256 }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      los: ${{ steps.v.outputs.los }}
+      linux: ${{ steps.v.outputs.linux }}
+      android: ${{ steps.v.outputs.android }}
+      windows: ${{ steps.v.outputs.windows }}
+      macos: ${{ steps.v.outputs.macos }}
+      ios: ${{ steps.v.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version und Plattformen
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VEROEFFENTLICHEN: ${{ inputs.veroeffentlichen }}
+          ALLE: ${{ inputs.alle_plattformen }}
+          PLATTFORMEN: ${{ inputs.plattformen }}
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          cd "$ORDNER"
+          zeile=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '[:space:]')
+          version=${zeile%%+*}
+          [[ "$zeile" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]] \
+            || { echo "::error file=$ORDNER/pubspec.yaml::version muss x.y.z+n sein (ist: $zeile)"; exit 1; }
+          tag="v$version"
+          echo "Version $zeile, Tag $tag"
+          los=false
+          if [ "$VEROEFFENTLICHEN" = true ]; then
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+              echo "::notice::Tag $tag gibt es schon: Version unveraendert, kein Release."
+            elif [[ " $PLATTFORMEN " == *" android "* ]] && { [ -z "$KS_B64" ] || [ -z "$KS_PASS" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASS" ]; }; then
+              echo "::warning::Kein Release fuer $tag: Signier-Secrets (ANDROID_*) fehlen oder sind fuer dieses Repo nicht freigegeben."
+            else
+              los=true
+              echo "::notice::Neue Version $version: alle Plattformen bauen, dann Release $tag."
+            fi
+          fi
+          teuer=false
+          if [ "$los" = true ] || [ "$ALLE" = true ] || [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then teuer=true; fi
+          {
+            echo "version=$version"; echo "tag=$tag"; echo "los=$los"
+            for p in linux android; do
+              [[ " $PLATTFORMEN " == *" $p "* ]] && echo "$p=true" || echo "$p=false"
+            done
+            for p in windows macos ios; do
+              [[ " $PLATTFORMEN " == *" $p "* ]] && [ "$teuer" = true ] && echo "$p=true" || echo "$p=false"
+            done
+          } >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+  linux:
+    needs: version
+    if: needs.version.outputs.linux == 'true'
+    runs-on:
+      group: rosenweg-privat
+      labels: [self-hosted, Linux, X64]
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Der Runner hat kein allgemeines sudo, nur ein eingeschraenktes apt-get.
+      - name: Systempakete
+        run: |
+          noetig="clang cmake ninja-build pkg-config xz-utils curl unzip git openssh-client \
+                  libgtk-3-dev liblzma-dev libstdc++-14-dev libsecret-1-dev libjsoncpp-dev \
+                  dpkg-dev binutils patchelf librsvg2-bin file lintian"
+          fehlt=""
+          for p in $noetig; do dpkg -s "$p" >/dev/null 2>&1 || fehlt="$fehlt $p"; done
+          if [ -n "$fehlt" ]; then
+            echo "Fehlende Pakete:$fehlt"
+            sudo -n apt-get update -qq
+            sudo -n apt-get install -y -qq --no-install-recommends $fehlt
+          fi
+
+      - name: Flutter (Cache im Benutzerverzeichnis)
+        run: |
+          set -euo pipefail
+          C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
+          if [ ! -x "$C/flutter-$FLUTTER_VERSION/bin/flutter" ]; then
+            curl -fsSL -o "$C/flutter.txz" "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz"
+            echo "$FLUTTER_SHA256  $C/flutter.txz" | sha256sum -c -
+            mkdir -p "$C/flutter-$FLUTTER_VERSION" && tar -xJf "$C/flutter.txz" -C "$C/flutter-$FLUTTER_VERSION" --strip-components=1 && rm "$C/flutter.txz"
+          fi
+          echo "$C/flutter-$FLUTTER_VERSION/bin" >> "$GITHUB_PATH"
+          echo "PUB_CACHE=$C/pub-cache" >> "$GITHUB_ENV"
+
+      - &basis
+        name: Zugang zur Basis
+        shell: bash
+        env:
+          BASIS_TOKEN: ${{ secrets.BASIS_TOKEN }}
+          BASIS_DEPLOY_KEY: ${{ secrets.BASIS_DEPLOY_KEY }}
+          BASIS_LOKAL: ${{ inputs.basis_lokal }}
+        run: |
+          set -euo pipefail
+          basis=https://github.com/Rosenweg/rosenweg-basis.git
+          if [ "$BASIS_LOKAL" = true ]; then
+            # rosenweg-basis prueft die eigene Vorlage gegen den eigenen Stand
+            rel=$(printf '%s' "$ORDNER" | sed 's#[^/][^/]*#..#g')
+            printf 'dependency_overrides:\n  rosenweg_basis:\n    path: %s\n' "$rel" > "$ORDNER/pubspec_overrides.yaml"
+            echo "rosenweg_basis aus dem Arbeitsstand ($rel)"
+          elif [ -n "${BASIS_DEPLOY_KEY:-}" ]; then
+            (umask 077; printf '%s\n' "$BASIS_DEPLOY_KEY" > "$RUNNER_TEMP/basis_key")
+            echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > "$RUNNER_TEMP/known_hosts"
+            {
+              echo "GIT_SSH_COMMAND=ssh -i $RUNNER_TEMP/basis_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o StrictHostKeyChecking=yes"
+              echo "GIT_CONFIG_COUNT=1"
+              echo "GIT_CONFIG_KEY_0=url.git@github.com:Rosenweg/rosenweg-basis.git.insteadOf"
+              echo "GIT_CONFIG_VALUE_0=$basis"
+            } >> "$GITHUB_ENV"
+          elif [ -n "${BASIS_TOKEN:-}" ]; then
+            kopf=$(printf 'x-access-token:%s' "$BASIS_TOKEN" | base64 | tr -d '\n')
+            echo "::add-mask::$kopf"
+            {
+              echo "GIT_CONFIG_COUNT=1"
+              echo "GIT_CONFIG_KEY_0=http.$basis.extraheader"
+              echo "GIT_CONFIG_VALUE_0=Authorization: Basic $kopf"
+            } >> "$GITHUB_ENV"
+          else
+            echo "::error::Secret BASIS_TOKEN (oder BASIS_DEPLOY_KEY) fehlt - ohne kann pub die private Rosenweg/rosenweg-basis nicht holen."
+            exit 1
+          fi
+          # pubspec.lock darf nicht auf eine lokale Basis zeigen (pubspec_overrides.yaml war aktiv)
+          if [ "$BASIS_LOKAL" != true ] && [ -f "$ORDNER/pubspec.lock" ] && grep -q 'source: path' "$ORDNER/pubspec.lock"; then
+            echo "::error file=$ORDNER/pubspec.lock::pubspec.lock enthaelt einen path-Eintrag. Ohne pubspec_overrides.yaml 'flutter pub get' und committen."
+            exit 1
+          fi
+          if [ "$BASIS_LOKAL" != true ] && [ -f "$ORDNER/pubspec.lock" ]; then
+            echo "PUB_GET=flutter pub get --enforce-lockfile" >> "$GITHUB_ENV"
+          else
+            echo "PUB_GET=flutter pub get" >> "$GITHUB_ENV"
+          fi
+
+      - name: Pruefen und bauen
+        run: |
+          set -euo pipefail
+          cd "$ORDNER"
+          flutter config --no-analytics --enable-linux-desktop >/dev/null
+          $PUB_GET
+          flutter analyze
+          flutter test
+          flutter build linux --release
+
+      # Dasselbe .deb wie im Bau-Container (linux/paket/im-container.sh). Die
+      # Stationen holen es mit Pruefsumme vom PXE-Server (os-stationen,
+      # pakete/<app>/paket.conf), eigene Debian-Rechner ueber /apps.
+      - name: Debian-Paket
+        run: |
+          set -euo pipefail
+          cd "$ORDNER"
+          rm -rf ausgabe && mkdir ausgabe
+          linux/paket/bauen.sh --nur-paket
+          cp linux/paket/out/*.deb ausgabe/
+          (cd ausgabe && sha256sum ./*.deb)
+
+      - name: Schluessel entfernen
+        if: always()
+        run: rm -f "$RUNNER_TEMP/basis_key" "$RUNNER_TEMP/known_hosts"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app }}-linux
+          path: ${{ inputs.ordner }}/ausgabe/*.deb
+          if-no-files-found: error
+          retention-days: 14
+
+  android:
+    needs: version
+    if: needs.version.outputs.android == 'true'
+    runs-on:
+      group: rosenweg-privat
+      labels: [self-hosted, Linux, X64]
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read   # commons-rosenweg (ch.rosenweg4303:cloud, :updater) aus GitHub Packages
+    env:
+      JDK_VERSION: "21.0.13.1+2"
+      JDK_SHA256: bb8a93f9ae6e7a693b2b721e85dbeff26ae1a77447985a8d7afcdd9c7cf6222e
+      # cmdline-tools 19.0: ab 23.0 ist sdkmanager nur noch ein Verweis auf die neue "android"-CLI
+      ANDROID_CMDLINE_TOOLS: "13114758"
+      ANDROID_CMDLINE_TOOLS_SHA256: 7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Systempakete
+        run: |
+          noetig="curl unzip xz-utils git openssh-client"
+          fehlt=""
+          for p in $noetig; do dpkg -s "$p" >/dev/null 2>&1 || fehlt="$fehlt $p"; done
+          if [ -n "$fehlt" ]; then
+            sudo -n apt-get update -qq
+            sudo -n apt-get install -y -qq --no-install-recommends $fehlt
+          fi
+
+      # Muster rosenweg-salz android.yml: alles als feste Versionen mit Pruefsumme
+      # im Cache des Benutzerverzeichnisses; Plattform, Build-Tools und NDK laedt
+      # das Android-Gradle-Plugin beim ersten Bau selbst.
+      - name: Flutter, JDK, Android-SDK (Cache im Benutzerverzeichnis)
+        run: |
+          set -euo pipefail
+          C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
+          if [ ! -x "$C/flutter-$FLUTTER_VERSION/bin/flutter" ]; then
+            curl -fsSL -o "$C/flutter.txz" "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz"
+            echo "$FLUTTER_SHA256  $C/flutter.txz" | sha256sum -c -
+            mkdir -p "$C/flutter-$FLUTTER_VERSION" && tar -xJf "$C/flutter.txz" -C "$C/flutter-$FLUTTER_VERSION" --strip-components=1 && rm "$C/flutter.txz"
+          fi
+          J="$C/jdk-${JDK_VERSION//+/_}"
+          if [ ! -x "$J/bin/java" ]; then
+            curl -fsSL -o "$C/jdk.tgz" "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-${JDK_VERSION//+/%2B}/OpenJDK21U-jdk_x64_linux_hotspot_${JDK_VERSION//+/_}.tar.gz"
+            echo "$JDK_SHA256  $C/jdk.tgz" | sha256sum -c -
+            mkdir -p "$J" && tar -xzf "$C/jdk.tgz" -C "$J" --strip-components=1 && rm "$C/jdk.tgz"
+          fi
+          A="$C/android-sdk"
+          if [ ! -x "$A/cmdline-tools/$ANDROID_CMDLINE_TOOLS/bin/sdkmanager" ]; then
+            curl -fsSL -o "$C/ct.zip" "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_CMDLINE_TOOLS}_latest.zip"
+            echo "$ANDROID_CMDLINE_TOOLS_SHA256  $C/ct.zip" | sha256sum -c -
+            rm -rf "$C/ct" && unzip -q "$C/ct.zip" -d "$C/ct" && rm "$C/ct.zip"
+            mkdir -p "$A/cmdline-tools"
+            rm -rf "$A/cmdline-tools/$ANDROID_CMDLINE_TOOLS" && mv "$C/ct/cmdline-tools" "$A/cmdline-tools/$ANDROID_CMDLINE_TOOLS" && rm -rf "$C/ct"
+          fi
+          ln -sfn "$ANDROID_CMDLINE_TOOLS" "$A/cmdline-tools/latest"
+          (yes || true) | JAVA_HOME="$J" "$A/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$A" --licenses >/dev/null
+          if [ ! -d "$A/platform-tools" ]; then
+            JAVA_HOME="$J" "$A/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$A" "platform-tools" >/dev/null
+          fi
+          echo "$C/flutter-$FLUTTER_VERSION/bin" >> "$GITHUB_PATH"
+          echo "$J/bin" >> "$GITHUB_PATH"
+          {
+            echo "JAVA_HOME=$J"
+            echo "ANDROID_HOME=$A"
+            echo "ANDROID_SDK_ROOT=$A"
+            echo "GRADLE_USER_HOME=$C/gradle"
+            echo "GRADLE_OPTS=-Dorg.gradle.daemon=false"
+            echo "PUB_CACHE=$C/pub-cache"
+          } >> "$GITHUB_ENV"
+
+      - *basis
+
+      - name: Signierschluessel (falls als Secret hinterlegt)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            (umask 077; printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/rosenweg.jks")
+            echo "SIGNING_STORE_FILE=$RUNNER_TEMP/rosenweg.jks" >> "$GITHUB_ENV"
+            echo "Signatur: Rosenweg-Schluessel"
+          else
+            echo "::warning::Kein Rosenweg-Signierschluessel (Org-Secret ANDROID_KEYSTORE_BASE64 fuer dieses Repo freigeben) - APK mit Debug-Schluessel signiert, kein Release."
+          fi
+
+      - name: APK bauen und pruefen
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # rosenweg_basis android/build.gradle.kts holt commons-rosenweg aus GitHub
+          # Packages; Maven dort verlangt auch fuer oeffentliche Pakete eine Anmeldung.
+          GITHUB_TOKEN: ${{ github.token }}
+          PAKET: ${{ inputs.paket }}
+          SOLL: ${{ inputs.signatur_sha256 }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          cd "$ORDNER"
+          flutter config --no-analytics >/dev/null
+          $PUB_GET
+          flutter build apk --release
+          rm -rf ausgabe && mkdir ausgabe
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          bt=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          badging=$("$bt/aapt2" dump badging "$apk" | head -n 1)
+          echo "$badging"
+          echo "$badging" | grep -q "name='$PAKET'" || { echo "::error::Paketname ist nicht $PAKET"; exit 1; }
+          echo "$badging" | grep -q "versionName='$VERSION'" || { echo "::error::versionName passt nicht zu $VERSION"; exit 1; }
+          if [ -n "${SIGNING_STORE_FILE:-}" ]; then
+            ist=$("$bt/apksigner" verify --print-certs "$apk" | sed -n 's/.*certificate SHA-256 digest: //p' | head -n 1 | tr -d ':' | tr 'A-F' 'a-f')
+            soll=$(printf '%s' "$SOLL" | tr -d ': ' | tr 'A-F' 'a-f')
+            [ "$ist" = "$soll" ] || { echo "::error::Signatur passt nicht zum Rosenweg-Schluessel (SHA-256 $ist)"; exit 1; }
+            name="$APP-$VERSION.apk"
+          else
+            name="$APP-$VERSION-debug-signiert.apk"
+          fi
+          cp "$apk" "ausgabe/$name"
+          (cd ausgabe && sha256sum ./*.apk)
+
+      - name: Schluessel entfernen
+        if: always()
+        run: rm -f "$RUNNER_TEMP/rosenweg.jks" "$RUNNER_TEMP/basis_key" "$RUNNER_TEMP/known_hosts"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app }}-android
+          path: ${{ inputs.ordner }}/ausgabe/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    needs: version
+    if: needs.version.outputs.windows == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ inputs.flutter_version }}
+          channel: stable
+
+      - *basis
+
+      - name: Bauen
+        run: |
+          set -euo pipefail
+          cd "$ORDNER"
+          flutter config --no-analytics --enable-windows-desktop >/dev/null
+          $PUB_GET
+          flutter build windows --release
+
+      - name: Signierzertifikat (falls Secret gesetzt)
+        shell: pwsh
+        env:
+          PFX: ${{ secrets.WINDOWS_ZERTIFIKAT_PFX }}
+        run: |
+          if ($env:PFX) {
+            $p = Join-Path $env:RUNNER_TEMP 'signieren.pfx'
+            [IO.File]::WriteAllBytes($p, [Convert]::FromBase64String($env:PFX))
+            "RW_SIGNTOOL_ZERT=$p" | Out-File -Append $env:GITHUB_ENV
+            $st = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+            "RW_SIGNTOOL=$($st.FullName)" | Out-File -Append $env:GITHUB_ENV
+          } else {
+            Write-Output "::warning::Kein Code-Signing-Zertifikat - Installer unsigniert (SmartScreen fragt beim ersten Start)."
+          }
+
+      # Inno Setup: laeuft auch unsigniert, installiert ohne Adminrechte fuer die
+      # Person, saubere Deinstallation (Begruendung: windows/installer/<app>.iss).
+      - name: Installer (Inno Setup)
+        env:
+          RW_SIGNTOOL_PASSWORT: ${{ secrets.WINDOWS_ZERTIFIKAT_PASSWORT }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          cd "$ORDNER"
+          quelle="build/windows/x64/runner/Release"
+          signieren() {
+            [ -n "${RW_SIGNTOOL_ZERT:-}" ] || return 0
+            MSYS_NO_PATHCONV=1 "$(cygpath -u "$RW_SIGNTOOL")" sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 \
+              /f "$RW_SIGNTOOL_ZERT" /p "$RW_SIGNTOOL_PASSWORT" "$@"
+          }
+          signieren "$quelle"/*.exe
+          iscc="/c/Program Files (x86)/Inno Setup 6/ISCC.exe"
+          [ -x "$iscc" ] || choco install innosetup -y --no-progress >/dev/null
+          # Git-Bash wandelt Argumente wie /DVersion=... sonst in Pfade um
+          MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' \
+            "$iscc" "/DVersion=$VERSION" "/DQuelle=$(cygpath -w "$PWD/$quelle")" "windows\\installer\\$APP.iss"
+          signieren build/windows-installer/*.exe
+          ls -la build/windows-installer
+
+      # Installer still (pro Person) ausfuehren und die App 15 s laufen lassen:
+      # sie muss starten und am Leben bleiben (Muster rosenweg-vm).
+      - name: Rauchtest (installieren, starten)
+        shell: pwsh
+        run: |
+          Set-Location $env:ORDNER
+          $setup = Get-ChildItem build/windows-installer/*.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/CURRENTUSER','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          $bin = ($env:APP -replace '-', '_') + '.exe'
+          $exe = Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Programs') -Recurse -Filter $bin | Select-Object -First 1
+          if (-not $exe) { throw "nicht installiert: $bin" }
+          $p = Start-Process $exe.FullName -PassThru
+          Start-Sleep -Seconds 15
+          if ($p.HasExited) { throw "App nach dem Start beendet (Code $($p.ExitCode))" }
+          Stop-Process -Id $p.Id -Force
+
+      - name: Aufraeumen
+        if: always()
+        run: rm -f "$RUNNER_TEMP/signieren.pfx" "$RUNNER_TEMP/basis_key" "$RUNNER_TEMP/known_hosts"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app }}-windows
+          path: ${{ inputs.ordner }}/build/windows-installer/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  macos:
+    needs: version
+    if: needs.version.outputs.macos == 'true'
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ inputs.flutter_version }}
+          channel: stable
+
+      - *basis
+
+      - name: Signierzertifikat (falls Secret gesetzt)
+        env:
+          P12: ${{ secrets.MACOS_ZERTIFIKAT_P12 }}
+          P12_PW: ${{ secrets.MACOS_ZERTIFIKAT_PASSWORT }}
+          NOTAR_KEY_P8: ${{ secrets.NOTAR_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          if [ -n "$P12" ]; then
+            KC="$RUNNER_TEMP/signieren.keychain-db"; KC_PW="$(uuidgen)"
+            security create-keychain -p "$KC_PW" "$KC"
+            security set-keychain-settings -lut 3600 "$KC"
+            security unlock-keychain -p "$KC_PW" "$KC"
+            echo "$P12" | base64 --decode > "$RUNNER_TEMP/z.p12"
+            security import "$RUNNER_TEMP/z.p12" -k "$KC" -P "$P12_PW" -T /usr/bin/codesign
+            rm "$RUNNER_TEMP/z.p12"
+            security set-key-partition-list -S apple-tool:,apple: -k "$KC_PW" "$KC" >/dev/null
+            security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          else
+            echo "::warning::Kein Developer-ID-Zertifikat - App ad hoc signiert (Gatekeeper fragt beim ersten Start)."
+          fi
+          if [ -n "$NOTAR_KEY_P8" ]; then
+            echo "$NOTAR_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notar.p8"
+            echo "RW_NOTAR_KEY=$RUNNER_TEMP/notar.p8" >> "$GITHUB_ENV"
+          fi
+
+      - name: Bauen (App + DMG)
+        env:
+          RW_NOTAR_KEY_ID: ${{ secrets.NOTAR_KEY_ID }}
+          RW_NOTAR_ISSUER: ${{ secrets.NOTAR_ISSUER }}
+        run: |
+          set -euo pipefail
+          cd "$ORDNER"
+          flutter config --no-analytics >/dev/null
+          $PUB_GET
+          macos/installer/bauen.sh
+          ls -la build/macos-installer
+
+      - name: Aufraeumen
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/notar.p8" "$RUNNER_TEMP/basis_key" "$RUNNER_TEMP/known_hosts"
+          security delete-keychain "$RUNNER_TEMP/signieren.keychain-db" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app }}-macos
+          path: ${{ inputs.ordner }}/build/macos-installer/*.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+  ios:
+    needs: version
+    if: needs.version.outputs.ios == 'true'
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ inputs.flutter_version }}
+          channel: stable
+
+      - *basis
+
+      # Nur ein Bau ohne Signatur: Verteilen (TestFlight/App Store, Ad-hoc) braucht
+      # das Apple Developer Program; /apps nimmt keine iOS-Dateien an.
+      - name: Bauen (ohne Signatur)
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          cd "$ORDNER"
+          flutter config --no-analytics >/dev/null
+          $PUB_GET
+          flutter build ios --release --no-codesign
+          rm -rf ausgabe && mkdir -p ausgabe/Payload
+          cp -R build/ios/iphoneos/Runner.app ausgabe/Payload/
+          (cd ausgabe && zip -qry "$APP-$VERSION-ios-unsigniert.ipa" Payload && rm -rf Payload)
+          ls -la ausgabe
+
+      - name: Schluessel entfernen
+        if: always()
+        run: rm -f "$RUNNER_TEMP/basis_key" "$RUNNER_TEMP/known_hosts"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app }}-ios-unsigniert
+          path: ${{ inputs.ordner }}/ausgabe/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: [version, linux, android, windows, macos, ios]
+    if: ${{ !cancelled() && !failure() && needs.version.outputs.los == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write   # Tag und Release
+      actions: write    # apps.yml fuer den Tag starten
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ inputs.app }}-*
+          path: ausgabe
+          merge-multiple: true
+
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
+          TITEL: ${{ inputs.titel }}
+        run: |
+          set -euo pipefail
+          ls -la ausgabe
+          if ls ausgabe/*-debug-signiert.apk >/dev/null 2>&1; then
+            echo "::error::Debug-signierte APK - kein Release."; exit 1
+          fi
+          (cd ausgabe && sha256sum ./* > SHA256SUMS && cat SHA256SUMS)
+          {
+            echo "Version $VERSION, automatisch nach dem Merge auf main gebaut ($GITHUB_SHA)."
+            echo
+            echo "| Datei | Plattform |"
+            echo "|---|---|"
+            for f in ausgabe/*; do
+              n=$(basename "$f")
+              case "$n" in
+                *.apk) p="Android (Rosenweg-Schlüssel)" ;;
+                *.deb) p="Linux, Debian 13 (Stationen über den PXE-Server, sonst /apps)" ;;
+                *.dmg) p="macOS" ;;
+                *-Setup.exe) p="Windows" ;;
+                *.ipa) p="iOS, unsigniert (nur Nachweis, nicht installierbar)" ;;
+                *) continue ;;
+              esac
+              echo "| \`$n\` | $p |"
+            done
+            echo
+            git_log=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq .commit.message 2>/dev/null | head -c 3000 || true)
+            [ -z "$git_log" ] || { echo "---"; echo; echo "$git_log"; }
+          } > "$RUNNER_TEMP/notiz.md"
+          gh release create "$TAG" ausgabe/* -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "${TITEL:-$APP} $TAG" --notes-file "$RUNNER_TEMP/notiz.md"
+
+      - name: An /apps schicken (Workflow der App fuer den Tag)
+        if: inputs.apps_workflow != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          WF: ${{ inputs.apps_workflow }}
+        run: gh workflow run "$WF" -R "$GITHUB_REPOSITORY" --ref "$TAG"

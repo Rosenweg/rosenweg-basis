@@ -1,0 +1,61 @@
+# Wiederverwendbar: Dateien eines Release-Tags an /apps schicken
+# (www.rosenweg4303.ch/apps, Updater der Apps, Katalog der geteilten Telefone).
+#
+# Laeuft fuer einen Tag (workflow_dispatch mit --ref v1.2.3, wie ihn app.yml
+# nach dem Release startet, oder "release published" bei einem von Hand
+# veroeffentlichten Release): holt APK, .deb, DMG und Windows-Installer aus dem
+# GitHub-Release und gibt sie an Rosenweg/Website/.github/actions/apps-release
+# (Anmeldung per GitHub-OIDC, kein Geheimnis). Die Anlage nimmt nur Repos aus
+# ihrem App-Register an (pbx/api/app.py APPS_REGISTER, Eintrag: apps-eintrag.json
+# der App) und prueft Pruefsumme, Version = Tag und die Rosenweg-Signatur der APK.
+# Das unsignierte iOS-.ipa bleibt nur im GitHub-Release.
+#
+# Aufrufer (vorlage/.github/workflows/apps.yml):
+#   on: { workflow_dispatch: {}, release: { types: [published] } }
+#   permissions: { contents: read, id-token: write }
+#   jobs:
+#     apps:
+#       uses: Rosenweg/rosenweg-basis/.github/workflows/app-apps.yml@main
+#       with: { paket: ch.rosenweg4303.x }
+name: Rosenweg-App an /apps
+
+on:
+  workflow_call:
+    inputs:
+      paket:
+        description: Android-Paketname zur Kontrolle (ch.rosenweg4303.<app>)
+        type: string
+        required: true
+
+jobs:
+  apps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write   # OIDC-Token fuer /apps
+    steps:
+      - name: Dateien aus dem Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF_TYPE" != tag ]; then
+            echo "::error::Nur fuer einen Release-Tag (dieser Lauf: $GITHUB_REF). Von Hand: gh workflow run apps.yml --ref v1.2.3"
+            exit 1
+          fi
+          gh release download "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" -D ausgabe \
+            -p '*.apk' -p '*.deb' -p '*.dmg' -p '*-Setup.exe'
+          if ls ausgabe/*-debug-signiert.apk >/dev/null 2>&1; then
+            echo "::warning::Debug-signierte APK - nicht an /apps."
+            rm -f ausgabe/*-debug-signiert.apk
+          fi
+          gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --json body --jq .body | head -c 2000 > notiz.txt
+          ls -la ausgabe
+          echo "NOTIZ<<RW_ENDE" >> "$GITHUB_ENV"; cat notiz.txt >> "$GITHUB_ENV"; printf '\nRW_ENDE\n' >> "$GITHUB_ENV"
+
+      - uses: Rosenweg/Website/.github/actions/apps-release@main
+        with:
+          dateien: ausgabe/*
+          paket: ${{ inputs.paket }}
+          notiz: ${{ env.NOTIZ }}
