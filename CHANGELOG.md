@@ -1,3 +1,22 @@
+## Nächste Fassung (Version: vom Integrator)
+
+Bausteine Diagramme und Echtzeit (Flutter-Plan Welle 2, Priorität B; Pilot
+Rosenweg Wetter, danach Energie, ZEV, NOC, Anzeigen):
+
+- **Diagramme** (`fl_chart`): `Verlaufsdiagramm` als Linie oder Balken mit
+  Zeitachse (bis 36 h Uhrzeit, sonst Datum), runden Schritten auf der
+  Wertachse, Lücken bei fehlenden Werten, Antippen = Zeit und Wert, Satz
+  statt leerem Raster bei zu wenig Werten; `Kleinverlauf` für Kacheln;
+  `ZeitraumWahl` mit `Zeitraum.kurz` (1 h … 7 T) und `Zeitraum.kalender`
+  (Tag/Monat/Jahr); `Messreihe`/`Messpunkt`, `diagrammFarben`.
+- **Echtzeit über MQTT** (`mqtt_client`): `RosenwegMqtt` über den Broker der
+  Anlage wie die Web-Seiten (`wss://mqtt.rosenweg4303.ch`, wahlweise 8883),
+  Zugang fest (öffentlicher Lese-Benutzer) oder über `POST /api/mqtt/token`,
+  Wiederverbinden mit Rückoff und Neu-Abonnieren, retained-Werte sofort,
+  aber nicht als „live“ gezählt; `EchtzeitAnzeige` (live / wartet / veraltet
+  / getrennt / kein Zugriff); `EchtzeitAttrappe` für Tests. Kein ntfy.
+- Beispiel-App: Seite „Diagramm“.
+
 ## 0.8.0 – Benachrichtigungen, Hintergrund, App-Links
 
 Entscheid Stefan 27.11.2026: echte Benachrichtigungen, auch im Hintergrund,
