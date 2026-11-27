@@ -3,7 +3,7 @@
 #   gh workflow run apps.yml --ref v1.2.3
 # Arbeit: rosenweg-basis .github/workflows/app-apps.yml (GitHub-OIDC, kein Geheimnis).
 # Die Anlage nimmt das Repo erst an, wenn es im App-Register steht
-# (apps-eintrag.json -> Rosenweg/Website pbx/api/app.py APPS_REGISTER).
+# (apps-eintrag.json -> Rosenweg/Website apps-register.json).
 name: An /apps
 
 on:

@@ -427,7 +427,7 @@ Das Skript kopiert die Vorlage, ersetzt alle Namen (es bricht ab, wenn ein Platz
 2. **GitHub**: Repo anlegen (oder `--repo`), dann
    - Org-Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` für das Repo freigeben (ohne: Debug-Signatur, kein Release),
    - kein `BASIS_TOKEN` und keine Runner-Gruppe: rosenweg-basis ist öffentlich, alle Jobs laufen auf GitHub-Runnern (`ubuntu-latest`, das `.deb` im Container `debian:13`; `windows-latest`, `macos-latest`). Eigene Runner nie, auch nicht für Releases.
-3. **/apps**: `apps-eintrag.json` in `APPS_REGISTER` (Rosenweg/Website `pbx/api/app.py`) übernehmen, `assets/logo/<app>-192.png` als `img/apps/<app>.png` ins Website-Repo. Ohne Register-Eintrag nimmt die Anlage keine Releases an.
+3. **/apps**: `apps-eintrag.json` in `apps-register.json` (Rosenweg/Website, Abschnitt `apps`) übernehmen, `assets/logo/<app>-192.png` als `img/apps/<app>.png` ins Website-Repo. Ohne Register-Eintrag nimmt die Anlage keine Releases an.
 4. **Android-Updater**: der Rosenweg Updater (commons-rosenweg `updater`) kennt die Pakete der Flutter-Apps; neue Kennung dort ergänzen, sonst prüft auf Handys mit nur Flutter-Apps niemand.
 5. **Stationen**: nach dem ersten Release `linux/paket/paket.conf` als `pakete/<app>/paket.conf` (mit `hochladen.sh`) in os-stationen, Version und Prüfsumme eintragen.
 6. Inhalt bauen (`lib/seiten/`, `lib/attrappe.dart`, `docs/anleitung.md`) aus den [Bausteinen für Apps](#bausteine-für-apps), Bedienung auf Handy **und** Station prüfen.

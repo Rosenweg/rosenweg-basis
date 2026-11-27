@@ -40,7 +40,8 @@ permissions:
 jobs:
   neue-app:
     runs-on: ubuntu-latest
-    # Debian 13: ImageMagick 7 (magick), wie es neue-app.sh verlangt
+    # Debian 13: ImageMagick 7 (magick), wie es neue-app.sh verlangt; clang fuer
+    # die Build-Hooks der Plugins (pdfrx/pdfium_dart) unter flutter test
     container: debian:13
     timeout-minutes: 30
     env:
@@ -51,7 +52,7 @@ jobs:
         run: |
           apt-get update -qq
           DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-            ca-certificates librsvg2-bin imagemagick python3 xz-utils curl git zstd unzip >/dev/null
+            ca-certificates librsvg2-bin imagemagick python3 xz-utils curl git zstd unzip clang >/dev/null
 
       - uses: actions/checkout@v4
 

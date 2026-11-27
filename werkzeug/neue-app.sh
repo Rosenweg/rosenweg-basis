@@ -162,6 +162,10 @@ for wurzel, _, dateien in os.walk(app):
         if n in ("app.yml", "apps.yml") and "/.github/workflows" in wurzel:
             t = t.replace("/.github/workflows/app.yml@main", f"/.github/workflows/app.yml@{wf_ref}")
             t = t.replace("/.github/workflows/app-apps.yml@main", f"/.github/workflows/app-apps.yml@{wf_ref}")
+        if n == "apps-eintrag.json":
+            # Schluessel im Register = kurzer Name; Technik-Apps in der Gruppe "Technik" auf /apps
+            t = t.replace('"app": "vorlage"', f'"app": "{kurz}"')
+            t = t.replace('"technik": false', f'"technik": {"true" if gruppe == "technik" else "false"}')
         if n == "erzeugen.sh":
             t = t.replace("GRUPPE=bewohner", f"GRUPPE={gruppe}")
         if n == "main.cpp" and not titel.isascii():
@@ -226,7 +230,7 @@ Noch zu tun (README.md der Basis, Abschnitt "Neue App anlegen"):
      ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD fuer das Repo freigeben (kein BASIS_TOKEN:
      rosenweg-basis ist oeffentlich). Alles laeuft auf GitHub-Runnern, nie eigene;
      privat kosten sie Minuten, oeffentlich nicht.
-  4. /apps: apps-eintrag.json in Rosenweg/Website pbx/api/app.py APPS_REGISTER,
+  4. /apps: apps-eintrag.json in Rosenweg/Website apps-register.json (Abschnitt apps),
      assets/logo/$REPO_NAME-192.png als www img/apps/$REPO_NAME.png
   5. Stationen: linux/paket/paket.conf nach os-stationen pakete/$REPO_NAME/ (nach dem ersten Release)
   6. Version in pubspec.yaml erhoehen und mergen = erstes Release (alle Plattformen)
