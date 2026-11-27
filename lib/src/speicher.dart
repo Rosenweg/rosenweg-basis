@@ -29,21 +29,26 @@ class AppSpeicher {
   /// Datei in einem bestimmten Ordner (Tests).
   AppSpeicher.inOrdner(Directory ordner) : _datei = File('${ordner.path}${Platform.pathSeparator}speicher.json');
 
-  static AppSpeicher? _app;
+  static final _app = <String, AppSpeicher>{};
 
-  /// Der Speicher der laufenden App (einmal angelegt).
-  static Future<AppSpeicher> app() async {
-    final a = _app;
+  /// Der Speicher der laufenden App (einmal je [name] angelegt).
+  ///
+  /// Eigener [name] fuer jeden Teil, der in einem anderen Isolate schreibt
+  /// (z. B. `hintergrund` fuer [HintergrundAbfrage]): jeder Isolate haelt
+  /// seine Datei im Speicher und schreibt sie ganz – zwei Isolate auf einer
+  /// Datei wuerden sich gegenseitig ueberschreiben.
+  static Future<AppSpeicher> app([String name = 'speicher']) async {
+    final a = _app[name];
     if (a != null) return a;
     File? datei;
     try {
       final d = await getApplicationSupportDirectory();
       await d.create(recursive: true);
-      datei = File('${d.path}${Platform.pathSeparator}speicher.json');
+      datei = File('${d.path}${Platform.pathSeparator}$name.json');
     } catch (e) {
       Protokoll.schreiben('Speicher: kein Ordner fuer App-Daten, nur im Speicher', e);
     }
-    return _app = AppSpeicher._(datei);
+    return _app[name] = AppSpeicher._(datei);
   }
 
   final File? _datei;

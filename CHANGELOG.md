@@ -1,3 +1,32 @@
+## 0.8.0 – Benachrichtigungen, Hintergrund, App-Links
+
+Entscheid Stefan 27.11.2026: echte Benachrichtigungen, auch im Hintergrund,
+ohne ntfy.
+
+- **`Benachrichtigung`** (flutter_local_notifications): `einrichten`,
+  `erlaubnisFragen`, `zeigen`, `planen` (Erinnerung zu einer Zeit, z. B.
+  Waschküche 15 Minuten vor dem Start), `entfernen`, `angetippt`/`startZiel`
+  (Antippen → Ziel in der App). Android, iOS, macOS, Windows; Linux sofort,
+  geplant nur solange die App läuft.
+- **`HintergrundAbfrage`** (workmanager): Android WorkManager etwa alle
+  15 Minuten mit Netz, iOS BGAppRefreshTask `<kennung>.abfrage` (iOS
+  entscheidet selbst, wann); Desktop nur in der laufenden App
+  (`HintergrundAbfrage.einmal` aus `BeimOeffnen`). Meldet nur mit
+  bestehender Anmeldung still an (`RosenwegSitzung.hintergrundStarten`), nie
+  auf geteilten Telefonen (wechselnde Personen). Eigener Speicher
+  `hintergrund.json` (`AppSpeicher.app('hintergrund')`).
+- **`AppVerweise.strom`** (app_links): Android App Links / iOS Universal
+  Links / Desktop-Verweise an die App.
+- Android-Manifest der Basis: Empfänger für geplante Benachrichtigungen,
+  `RECEIVE_BOOT_COMPLETED` (POST_NOTIFICATIONS bringt das Plugin).
+
+**Jede App muss beim Wechsel auf diese Fassung** in
+`android/app/build.gradle.kts` Core Library Desugaring einschalten
+(`isCoreLibraryDesugaringEnabled = true` und
+`coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")`), sonst
+bricht der Android-Bau ab. Vorlage und Beispiel haben es. Apps mit
+`HintergrundAbfrage` auf iOS: AppDelegate und Info.plist wie im README.
+
 ## 0.7.1
 
 - **macOS-Update über den Browser** (Test 27.11.2026 auf dem Mac): Ein
@@ -19,6 +48,7 @@
   Play-Protect-Ablehnung mit Anleitung und „Nochmals versuchen“,
   Benachrichtigung „wartet auf Bestätigung“, Installationen über die
   Session-ID (Befunde A37).
+
 ## 0.7.0
 
 - **Wochenraster** (Kalender-Raster für Belegungen; zuerst für Rosenweg

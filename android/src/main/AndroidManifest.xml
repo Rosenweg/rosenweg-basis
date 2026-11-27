@@ -21,7 +21,21 @@
         </intent>
     </queries>
 
+    <!-- Geplante Benachrichtigungen (Benachrichtigung.planen) nach einem Neustart wieder einplanen -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application>
+        <!-- flutter_local_notifications: geplante Benachrichtigungen (z. B. Erinnerung
+             Waschkueche 15 Minuten vor dem Start). POST_NOTIFICATIONS bringt das Plugin mit. -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
         <!-- Ruecksprung der Browser-Anmeldung (<applicationId>:/anmeldung) und Anmeldeschirm
              kommen aus commons-rosenweg (cloud): RosenwegAnmeldungActivity, RosenwegAnmeldeSchirm. -->
     </application>

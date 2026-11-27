@@ -273,6 +273,45 @@ final neu = await Neuigkeiten(await AppSpeicher.app(), 'meine').vergleichen({for
 - `AppSpeicher`: kleine JSON-Datei für nicht geheime Werte (`getApplicationSupportDirectory`), sonst nur im Speicher. Geheimnisse gehören in den Schlüsselbund.
 - `Neuigkeiten`: merkt sich je Liste den Stand (`id → status`) und liefert, was seitdem neu ist oder sich geändert hat; beim ersten Mal nichts.
 
+### Benachrichtigungen und Abfrage im Hintergrund
+
+```dart
+@pragma('vm:entry-point')
+void hintergrund() => HintergrundAbfrage.ausfuehren(appAngaben, abfrage);   // oberste Ebene in main.dart
+
+Future<void> abfrage(HintergrundKontext k) async {            // Hintergrund und laufende App
+  final neu = await Neuigkeiten(k.speicher, 'meine').vergleichen({...});
+  for (final id in neu) await Benachrichtigung.zeigen(id: Benachrichtigung.idFuer('m-$id'), titel: …, text: …, ziel: 'meine/$id');
+}
+
+void main() {
+  HintergrundAbfrage.anmelden(appAngaben, hintergrund);       // Android, iOS; sonst nichts
+  rosenwegStarten(appAngaben, …);
+}
+// Desktop: BeimOeffnen(alle: 5 min, pruefen: () => HintergrundAbfrage.einmal(app, abfrage, sitzung: s))
+await Benachrichtigung.planen(id: …, wann: start.subtract(const Duration(minutes: 15)), titel: 'Waschküche', text: '…');
+Benachrichtigung.angetippt.listen((ziel) => …);  await Benachrichtigung.startZiel();
+AppVerweise.strom.listen((uri) => …);            // App Links
+```
+
+| Plattform | Abfrage | Benachrichtigung |
+|---|---|---|
+| Android | WorkManager, ~15 min, mit Netz | sofort und geplant; Erlaubnis ab Android 13 (`erlaubnisFragen`) |
+| iOS | BGAppRefreshTask (iOS entscheidet) | nach Erlaubnis |
+| macOS, Windows | nur solange die App läuft | ja |
+| Linux | nur solange die App läuft | sofort; geplant nur solange die App läuft |
+| geteilte Telefone | nie | – |
+
+Pflicht je App: Android Core Library Desugaring (siehe CHANGELOG). iOS mit
+Hintergrund: `import workmanager_apple`, in `AppDelegate`
+`WorkmanagerPlugin.setPluginRegistrantCallback { GeneratedPluginRegistrant.register(with: $0) }`
+und `WorkmanagerPlugin.registerPeriodicTask(withIdentifier: "<kennung>.abfrage", earliestBeginInSeconds: 900)`;
+Info.plist `BGTaskSchedulerPermittedIdentifiers` = `<kennung>.abfrage`, `UIBackgroundModes` = `fetch`.
+
+App Links (Android): Intent-Filter mit `android:autoVerify="true"` im Manifest der App und
+`/.well-known/assetlinks.json` auf dem Web-Server mit Paket und SHA-256 des Rosenweg-Schlüssels.
+iOS Universal Links brauchen die Team-ID (Apple Developer Program) – bis dahin öffnet iOS die Web-Seite.
+
 ### PDF-Ansicht
 
 ```dart
