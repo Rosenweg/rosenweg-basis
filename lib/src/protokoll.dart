@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import 'dart:async';
 import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 
 /// Logdatei der App, damit Fehler nicht still verschwinden.
 ///
@@ -62,14 +65,70 @@ class Protokoll {
     }
   }
 
-  /// Eine Zeile mit Zeitstempel. Wirft nie.
+  /// Nur fuer Tests: statt stderr (z. B. ein IOSink, dessen Schreiben
+  /// asynchron scheitert) und Mithoeren der Zeilen.
+  @visibleForTesting
+  static IOSink Function()? konsoleFuerTests;
+  @visibleForTesting
+  static void Function(String zeile)? mithoeren;
+  @visibleForTesting
+  static bool? windowsFuerTests;
+
+  /// Konsole: null = noch nicht bestimmt, sonst der Sink oder "keine".
+  static IOSink? _konsole;
+  static bool _konsoleBestimmt = false;
+
+  /// Fuer Tests: Konsole neu bestimmen.
+  @visibleForTesting
+  static void konsoleVergessen() {
+    _konsole = null;
+    _konsoleBestimmt = false;
+  }
+
+  /// stderr nur, wo es eine gibt. Windows-Apps ohne Konsole (Start ueber das
+  /// Startmenue) haben einen ungueltigen stderr-Handle; das Schreiben
+  /// scheitert dort ASYNCHRON (`FileSystemException: writeFrom failed`), am
+  /// try/catch vorbei, und landete als "unerwarteter Fehler" in der App
+  /// (Test win11-1, 27.11.2026). Darum: auf Windows nur mit Konsole, Pipe
+  /// oder Datei; und ueberall die Fehler des Sinks abfangen und danach
+  /// schweigen.
+  static IOSink? get _konsoleOderNichts {
+    if (_konsoleBestimmt) return _konsole;
+    _konsoleBestimmt = true;
+    IOSink? k;
+    try {
+      if (konsoleFuerTests != null) {
+        k = konsoleFuerTests!();
+      } else if (windowsFuerTests ?? Platform.isWindows) {
+        final art = stdioType(stderr);
+        k = art == StdioType.terminal || art == StdioType.pipe || art == StdioType.file ? stderr : null;
+      } else {
+        k = stderr;
+      }
+    } catch (_) {
+      k = null;
+    }
+    if (k != null) {
+      final sink = k;
+      // Fehler des Sinks (auch spaetere) nie unbehandelt lassen.
+      unawaited(sink.done.then<void>((_) {}, onError: (Object _) {
+        if (identical(_konsole, sink)) _konsole = null;
+      }));
+    }
+    return _konsole = k;
+  }
+
+  /// Eine Zeile mit Zeitstempel. Wirft nie, auch nicht spaeter.
   static void schreiben(String text, [Object? fehler, StackTrace? stapel]) {
     final zeile = StringBuffer('${DateTime.now().toIso8601String()} $text');
     if (fehler != null) zeile.write(': $fehler');
     if (stapel != null) zeile.write('\n$stapel');
+    mithoeren?.call('$zeile');
     try {
-      stderr.writeln(zeile);
-    } catch (_) {}
+      _konsoleOderNichts?.writeln(zeile);
+    } catch (_) {
+      _konsole = null;
+    }
     final p = pfad;
     if (p == null) return;
     try {

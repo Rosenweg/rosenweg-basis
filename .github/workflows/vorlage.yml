@@ -1,0 +1,114 @@
+# Prueft die App-Vorlage (vorlage/) und werkzeug/neue-app.sh gegen den
+# eigenen Stand der Basis:
+#   neue-app   neue-app.sh legt eine Probe-App an (Ersetzungen, Logos),
+#              danach flutter analyze + test darin
+#   vorlage    die Vorlage selbst mit dem wiederverwendbaren app.yml (ohne
+#              Release); rosenweg_basis aus diesem Stand. Alles auf
+#              GitHub-Runnern; Windows, macOS und iOS bei jedem Lauf, solange
+#              das Repo oeffentlich ist (sonst nur von Hand:
+#                gh workflow run vorlage.yml -R Rosenweg/rosenweg-basis --ref <zweig>)
+name: Vorlage
+
+on:
+  pull_request:
+    paths:
+      - 'vorlage/**'
+      - 'werkzeug/**'
+      - 'lib/**'
+      - 'android/**'
+      - 'ios/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/app.yml'
+      - '.github/workflows/app-apps.yml'
+      - '.github/workflows/vorlage.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'vorlage/**'
+      - 'werkzeug/**'
+      - '.github/workflows/app.yml'
+      - '.github/workflows/vorlage.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: vorlage-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  neue-app:
+    runs-on: ubuntu-latest
+    # Debian 13: ImageMagick 7 (magick), wie es neue-app.sh verlangt
+    container: debian:13
+    timeout-minutes: 30
+    env:
+      FLUTTER_VERSION: "3.47.5"
+      FLUTTER_SHA256: 2132e990f236f8d22e7c6314b29a191a95b10d7cbcfec9b4e2e303d996652cbb
+    steps:
+      - name: Systempakete
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+            ca-certificates librsvg2-bin imagemagick python3 xz-utils curl git zstd unzip >/dev/null
+
+      - uses: actions/checkout@v4
+
+      - name: Flutter-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rosenweg-flutter-ci
+          key: flutter-neue-app-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-${{ hashFiles('pubspec.yaml', 'vorlage/pubspec.yaml') }}
+          restore-keys: flutter-neue-app-${{ env.FLUTTER_VERSION }}-${{ env.FLUTTER_SHA256 }}-
+
+      - name: Flutter (feste Version mit Pruefsumme)
+        run: |
+          set -euo pipefail
+          C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
+          if [ ! -x "$C/flutter-$FLUTTER_VERSION/bin/flutter" ]; then
+            curl -fsSL -o "$C/flutter.txz" "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz"
+            echo "$FLUTTER_SHA256  $C/flutter.txz" | sha256sum -c -
+            mkdir -p "$C/flutter-$FLUTTER_VERSION" && tar -xJf "$C/flutter.txz" -C "$C/flutter-$FLUTTER_VERSION" --strip-components=1 && rm "$C/flutter.txz"
+          fi
+          git config --global --add safe.directory "$C/flutter-$FLUTTER_VERSION"
+          echo "$C/flutter-$FLUTTER_VERSION/bin" >> "$GITHUB_PATH"
+          echo "PUB_CACHE=$C/pub-cache" >> "$GITHUB_ENV"
+
+      - name: neue-app.sh (Probe mit Umlaut und Bindestrich)
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/probe"
+          werkzeug/neue-app.sh --ziel "$RUNNER_TEMP/probe" --basis-lokal "$GITHUB_WORKSPACE" --ohne-git \
+            mail-freigabe "Rosenweg Mail-Freigabe" mail-freigabe --gruppe verwaltung \
+            --beschreibung "Mails der Verwaltung prüfen und freigeben."
+
+      - name: Probe pruefen
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/probe/rosenweg-mail-freigabe"
+          flutter config --no-analytics >/dev/null
+          flutter pub get
+          flutter analyze
+          flutter test
+
+  vorlage:
+    # Ohne veroeffentlichen laufen release/nachtrag nie; GitHub verlangt die
+    # Rechte trotzdem beim Aufruf (app.yml fordert sie in diesen Jobs an).
+    permissions:
+      contents: write
+      actions: write
+      packages: read
+    uses: ./.github/workflows/app.yml
+    with:
+      app: rosenweg-vorlage
+      paket: ch.rosenweg4303.vorlage
+      titel: Rosenweg Vorlage
+      ordner: vorlage
+      basis_lokal: true
+    # Signier-Secrets nur bei Push auf main, bei pull_request leer (Debug-Signatur)
+    secrets:
+      ANDROID_KEYSTORE_BASE64: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+      ANDROID_KEY_ALIAS: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANDROID_KEY_ALIAS || '' }}
+      ANDROID_KEY_PASSWORD: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANDROID_KEY_PASSWORD || '' }}

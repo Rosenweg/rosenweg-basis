@@ -1,0 +1,77 @@
+# Wiederverwendbar: Dateien eines Release-Tags an /apps schicken
+# (www.rosenweg4303.ch/apps, Updater der Apps, Katalog der geteilten Telefone).
+#
+# Laeuft fuer einen Tag (workflow_dispatch mit --ref v1.2.3, wie ihn app.yml
+# nach dem Release startet, oder "release published" bei einem von Hand
+# veroeffentlichten Release): holt APK, .deb, DMG und Windows-Installer aus dem
+# GitHub-Release und gibt sie an Rosenweg/Website/.github/actions/apps-release
+# (Anmeldung per GitHub-OIDC, kein Geheimnis). Die Anlage nimmt nur Repos aus
+# ihrem App-Register an (pbx/api/app.py APPS_REGISTER, Eintrag: apps-eintrag.json
+# der App) und prueft Pruefsumme, Version = Tag und die Rosenweg-Signatur der APK.
+# Das unsignierte iOS-.ipa bleibt nur im GitHub-Release.
+#
+# Aufrufer (vorlage/.github/workflows/apps.yml):
+#   on: { workflow_dispatch: {}, release: { types: [published] } }
+#   permissions: { contents: read }
+#   jobs:
+#     apps:
+#       permissions: { contents: read, id-token: write }
+#       uses: Rosenweg/rosenweg-basis/.github/workflows/app-apps.yml@main
+#       with: { paket: ch.rosenweg4303.x }
+name: Rosenweg-App an /apps
+
+on:
+  workflow_call:
+    inputs:
+      paket:
+        description: Android-Paketname zur Kontrolle (ch.rosenweg4303.<app>)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  apps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write   # OIDC-Token fuer /apps
+    steps:
+      - name: Dateien aus dem Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            if (process.env.GITHUB_REF_TYPE !== 'tag') {
+              core.setFailed(`Nur fuer einen Release-Tag (dieser Lauf: ${context.ref}). Von Hand: gh workflow run apps.yml --ref v1.2.3`);
+              return;
+            }
+            const repo = { owner: context.repo.owner, repo: context.repo.repo };
+            const tag = process.env.GITHUB_REF_NAME;
+            const rel = await github.rest.repos.getReleaseByTag({ ...repo, tag });
+            fs.mkdirSync('ausgabe', { recursive: true });
+            const passt = (n) => /\.(apk|deb|dmg)$/.test(n) || n.endsWith('-Setup.exe');
+            for (const a of rel.data.assets.filter((a) => passt(a.name))) {
+              if (a.name.endsWith('-debug-signiert.apk')) {
+                core.warning(`Debug-signierte APK - nicht an /apps: ${a.name}`);
+                continue;
+              }
+              const antwort = await github.rest.repos.getReleaseAsset({
+                ...repo, asset_id: a.id, headers: { accept: 'application/octet-stream' },
+              });
+              fs.writeFileSync(path.join('ausgabe', a.name), Buffer.from(antwort.data));
+              core.info(`Geladen: ${a.name} (${a.size} Bytes)`);
+            }
+            const notiz = (rel.data.body || '').slice(0, 2000);
+            fs.appendFileSync(process.env.GITHUB_ENV, `NOTIZ<<RW_ENDE\n${notiz}\nRW_ENDE\n`);
+
+      - run: ls -la ausgabe
+
+      - uses: Rosenweg/Website/.github/actions/apps-release@main
+        with:
+          dateien: ausgabe/*
+          paket: ${{ inputs.paket }}
+          notiz: ${{ env.NOTIZ }}

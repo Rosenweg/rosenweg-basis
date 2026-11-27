@@ -90,3 +90,11 @@ class GeraetFehler implements Exception {
   @override
   String toString() => text;
 }
+
+/// Der Browser fuer die Anmeldung liess sich nicht oeffnen (kein
+/// Standard-Browser, gesperrt).
+class BrowserNichtGeoeffnet implements Exception {
+  @override
+  String toString() => 'Der Browser für die Anmeldung liess sich nicht öffnen. '
+      'Bitte einen Standard-Browser einrichten und nochmals versuchen.';
+}

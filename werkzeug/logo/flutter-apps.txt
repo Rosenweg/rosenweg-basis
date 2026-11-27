@@ -1,0 +1,46 @@
+# Rosenweg-Flutter-Apps (Plan "Alle Portal-Funktionen als Flutter-Apps", Abschnitt 1e) und ihre Logos.
+# Gelesen von kontaktbogen.sh und werkzeug/neue-app.sh (Vorschlag fuer Zeichen und Gruppe).
+# repo | titel | zeichen (zeichen/<name>.svg) | gruppe (bewohner|verwaltung|technik) | kennung (ch.rosenweg4303.<kennung>)
+#   gruppe: Farbe des Zeichens (baukasten.py --gruppe); bewohner = rot wie bisher
+#   Rosenweg Stationen: Zeichen und Farben genau wie das Logo von os-stationen (docs/logo.svg), darum "bewohner" (rot)
+rosenweg-profil|Rosenweg Profil|person|bewohner|profil
+rosenweg-salz|Rosenweg Salz|salz|bewohner|salz
+rosenweg-vm|Rosenweg Virtuelle Computer|monitor|bewohner|vm
+rosenweg-karten|Rosenweg Karten|karten|technik|karten
+rosenweg-telefonbuch|Rosenweg Telefonbuch|telefonbuch|bewohner|telefonbuch
+rosenweg-mein-telefon|Rosenweg Mein Telefon|mein-telefon|bewohner|meintelefon
+rosenweg-zutritt|Rosenweg Zutritt|zutritt|bewohner|zutritt
+rosenweg-waschkueche|Rosenweg Waschküche|waschkueche|bewohner|waschkueche
+rosenweg-reparatur|Rosenweg Reparatur|reparatur|bewohner|reparatur
+rosenweg-wetter|Rosenweg Wetter|wetter|bewohner|wetter
+rosenweg-energie|Rosenweg Energie|energie|bewohner|energie
+rosenweg-zev|Rosenweg ZEV|zev|bewohner|zev
+rosenweg-termine|Rosenweg Termine|termine|bewohner|termine
+rosenweg-vollmachten|Rosenweg Vollmachten|vollmachten|bewohner|vollmachten
+rosenweg-unterlagen|Rosenweg Unterlagen|unterlagen|bewohner|unterlagen
+rosenweg-projekte|Rosenweg Projekte|projekte|bewohner|projekte
+rosenweg-stweg|Rosenweg STWEG|stweg|bewohner|stweg
+rosenweg-internet|Rosenweg Internet|internet|bewohner|internet
+rosenweg-tv|Rosenweg TV|tv|bewohner|tv
+rosenweg-anlagen|Rosenweg Anlagen|anlagen|bewohner|anlagen
+rosenweg-mail-freigabe|Rosenweg Mail-Freigabe|mail-freigabe|verwaltung|mailfreigabe
+rosenweg-auslagen|Rosenweg Auslagen|auslagen|verwaltung|auslagen
+rosenweg-handwerker|Rosenweg Handwerker|handwerker|verwaltung|handwerker
+rosenweg-briefe|Rosenweg Briefe|briefe|verwaltung|briefe
+rosenweg-objekte|Rosenweg Objekte|objekte|verwaltung|objekte
+rosenweg-personen|Rosenweg Personen|personen|verwaltung|personen
+rosenweg-rundmail|Rosenweg Rundmail|rundmail|verwaltung|rundmail
+rosenweg-mail-archiv|Rosenweg Mail-Archiv|mail-archiv|verwaltung|mailarchiv
+rosenweg-aushaenge|Rosenweg Aushänge|aushaenge|verwaltung|aushaenge
+rosenweg-anzeigen|Rosenweg Anzeigen|anzeigen|verwaltung|anzeigen
+rosenweg-rechte|Rosenweg Rechte|rechte|verwaltung|rechte
+rosenweg-stationen|Rosenweg Stationen|stationen|bewohner|stationen
+rosenweg-sicherungen|Rosenweg Sicherungen|sicherungen|technik|sicherungen
+rosenweg-ssh|Rosenweg SSH|ssh|technik|ssh
+rosenweg-proxmox|Rosenweg Proxmox|proxmox|technik|proxmox
+rosenweg-noc|Rosenweg NOC|noc|technik|noc
+rosenweg-mqtt|Rosenweg MQTT|mqtt|technik|mqtt
+rosenweg-isp-verwaltung|Rosenweg ISP-Verwaltung|isp-verwaltung|technik|ispverwaltung
+rosenweg-telefonanlage|Rosenweg Telefonanlage|telefonanlage|technik|telefonanlage
+rosenweg-geteilte-telefone|Rosenweg Geteilte Telefone|geteilte-telefone|technik|geteiltetelefone
+rosenweg-whatsapp|Rosenweg WhatsApp|whatsapp|technik|whatsapp

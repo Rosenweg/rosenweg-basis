@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:url_launcher/url_launcher.dart';
 
+import '../netz/fehler.dart';
 import '../plattform.dart';
 
 /// Wie die Anmeldeseite von Authentik zur App zurueckfindet.
@@ -107,7 +108,7 @@ class LocalhostRuecksprung implements Ruecksprung {
   @override
   Future<Uri> warten(Uri url, {Duration zeit = const Duration(minutes: 5)}) async {
     try {
-      if (!await _oeffnen(url)) throw StateError('Browser liess sich nicht oeffnen');
+      if (!await _oeffnen(url)) throw BrowserNichtGeoeffnet();
       return await _ergebnis.future.timeout(zeit, onTimeout: () => throw AnmeldungAbgebrochen());
     } finally {
       if (RosenwegPlattform.istIos) unawaited(closeInAppWebView().catchError((_) {}));
@@ -150,7 +151,7 @@ class SchemaRuecksprung implements Ruecksprung {
   @override
   Future<Uri> warten(Uri url, {Duration zeit = const Duration(minutes: 5)}) async {
     try {
-      if (!await _oeffnen(url)) throw StateError('Browser liess sich nicht oeffnen');
+      if (!await _oeffnen(url)) throw BrowserNichtGeoeffnet();
       return await _ergebnis.future.timeout(zeit, onTimeout: () => throw AnmeldungAbgebrochen());
     } finally {
       await _abo.cancel();

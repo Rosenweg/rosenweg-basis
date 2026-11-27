@@ -20,12 +20,14 @@
 #                        (R.mipmap.ic_launcher_red …, Aktivitaets-Aliase)
 #                        zeigen alle auf das eine Rosenweg-Icon
 #   ALLE=1, GROESSEN=1   siehe unten
+#   GRUPPE=<gruppe>      Farbe des Zeichens (bewohner, verwaltung, technik; baukasten.py)
+# Flutter-Apps mit allen Plattformen: app-symbole.sh (ruft dieses Skript auf).
 # Die Linux-Symbole (hicolor 16…512) rechnet das Paket selbst aus den SVGs
 # (linux/paket/bauen.sh) nach derselben Regel (logo_quelle unten).
 #
 # Detailstufe nach Pixelgroesse: bis 40 px -winzig (Turm + Rose, ohne Weg),
 # bis 108 px -klein, darueber die volle Fassung.
-# Benoetigt: python3, rsvg-convert (librsvg).
+# Benoetigt: python3, rsvg-convert (librsvg), awk.
 # ============================================================================
 set -eu
 HIER="$(cd "$(dirname "$0")" && pwd)"
@@ -35,7 +37,8 @@ APP="$(cd "$1" && pwd)"; NAME="$2"; TITEL="$3"; ZEICHEN="${4:-}"
 L="$APP/assets/logo"
 mkdir -p "$L"
 if [ -n "$ZEICHEN" ]; then
-  python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --zeichen "$ZEICHEN" --ziel "$L" ${ALLE:+--alle} >/dev/null
+  python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --zeichen "$ZEICHEN" --ziel "$L" ${ALLE:+--alle} \
+    ${GRUPPE:+--gruppe "$GRUPPE"} >/dev/null
 else
   python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --ziel "$L" ${ALLE:+--alle} >/dev/null
 fi
@@ -55,10 +58,10 @@ if [ -n "${ANDROID_RES:-}" ] || [ -d "$APP/android/app" ]; then
   for d in mdpi:1 hdpi:1.5 xhdpi:2 xxhdpi:3 xxxhdpi:4; do
     n=${d%%:*}; f=${d##*:}
     mkdir -p "$A/mipmap-$n"
-    r "$L/$NAME" "$(echo "48*$f/1" | bc)" "$A/mipmap-$n/ic_launcher.png"
+    r "$L/$NAME" "$(awk "BEGIN{print int(48*$f)}")" "$A/mipmap-$n/ic_launcher.png"
     # Vordergrund: sichtbar sind nur ~2/3 der 108 dp; Stufe nach sichtbarer Groesse.
-    r "$L/$NAME-vordergrund" "$(echo "108*$f/1" | bc)" "$A/mipmap-$n/ic_launcher_foreground.png"
-    r "$L/$NAME-monochrom" "$(echo "108*$f/1" | bc)" "$A/mipmap-$n/ic_launcher_monochrome.png"
+    r "$L/$NAME-vordergrund" "$(awk "BEGIN{print int(108*$f)}")" "$A/mipmap-$n/ic_launcher_foreground.png"
+    r "$L/$NAME-monochrom" "$(awk "BEGIN{print int(108*$f)}")" "$A/mipmap-$n/ic_launcher_monochrome.png"
   done
   mkdir -p "$A/mipmap-anydpi-v26" "$A/values"
   cat > "$A/mipmap-anydpi-v26/ic_launcher.xml" <<'EOF'

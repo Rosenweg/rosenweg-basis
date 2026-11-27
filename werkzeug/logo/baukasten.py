@@ -26,6 +26,11 @@ mit --alle zusaetzlich (wie rosenweg-vm assets/logo):
 
 Ohne --zeichen: nur das Wappen, ohne Plakette (Logo der Basis selbst).
 
+--gruppe faerbt das Zeichen nach Zielgruppe (zweites Unterscheidungsmerkmal neben
+dem Zeichen, Plan "Alle Apps mit eigenem Logo"): bewohner rot wie der Grund
+(Standard, so sehen Profil, Salz und Virtuelle Computer schon aus), verwaltung
+blau, technik gruen. Die monochrome Fassung kennt keine Farben.
+
 Das Zeichen ist ein SVG mit viewBox="0 0 400 400" und Formen OHNE eigene Farbe
 (fill setzt der Baukasten; fill-rule bleibt). Kraeftige Formen, keine Haarlinien.
 
@@ -51,6 +56,13 @@ FARBEN = dict(
     blatt="#43A047",
     plakette="#FFFFFF",
     zeichen="#D32F2F",
+)
+
+# Farbe des Zeichens je Zielgruppe (--gruppe)
+GRUPPEN = dict(
+    bewohner="#D32F2F",    # wie der Grund: warm
+    verwaltung="#1565C0",  # blau
+    technik="#2E7D32",     # gruen
 )
 
 # Monochrom: alles, was sichtbar sein soll, weiss; Umrisse und Grund schwarz.
@@ -204,17 +216,20 @@ def main():
     a.add_argument("--zeichen")
     a.add_argument("--ziel", required=True)
     a.add_argument("--alle", action="store_true", help="auch -macos und -vollflaeche")
+    a.add_argument("--gruppe", choices=sorted(GRUPPEN), default="bewohner",
+                   help="Farbe des Zeichens nach Zielgruppe (Standard bewohner = rot)")
     o = a.parse_args()
+    farben = dict(FARBEN, zeichen=GRUPPEN[o.gruppe])
 
     z = zeichen_lesen(o.zeichen) if o.zeichen else None
     os.makedirs(o.ziel, exist_ok=True)
     for stufe in STUFEN:
         dateien = {
-            f"{o.name}{stufe}.svg": svg(o.titel, bild(stufe, z, FARBEN)),
+            f"{o.name}{stufe}.svg": svg(o.titel, bild(stufe, z, farben)),
             # Adaptive icon: Android legt das Rot dahinter und schneidet rund/
             # eckig zu; das Wappen sitzt als Kreis in der Sicherheitszone.
             f"{o.name}-vordergrund{stufe}.svg": svg(f"{o.titel} (Android adaptive icon, Vordergrund)",
-                                                   bild(stufe, z, FARBEN, form="kreis", hintergrund=False), ADAPTIV),
+                                                   bild(stufe, z, farben, form="kreis", hintergrund=False), ADAPTIV),
             f"{o.name}-monochrom{stufe}.svg": svg(
                 f"{o.titel} (Android monochrom)",
                 ['<defs><mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">'
@@ -222,8 +237,8 @@ def main():
                  + '</mask></defs>', '<rect width="1024" height="1024" fill="#FFFFFF" mask="url(#m)"/>'], ADAPTIV),
         }
         if o.alle:
-            dateien[f"{o.name}-macos{stufe}.svg"] = svg(f"{o.titel} (macOS)", bild(stufe, z, FARBEN), MACOS)
-            dateien[f"{o.name}-vollflaeche{stufe}.svg"] = svg(f"{o.titel} (vollflaechig)", bild(stufe, z, FARBEN, form="quadrat"))
+            dateien[f"{o.name}-macos{stufe}.svg"] = svg(f"{o.titel} (macOS)", bild(stufe, z, farben), MACOS)
+            dateien[f"{o.name}-vollflaeche{stufe}.svg"] = svg(f"{o.titel} (vollflaechig)", bild(stufe, z, farben, form="quadrat"))
         for n, text in dateien.items():
             with open(os.path.join(o.ziel, n), "w") as f:
                 f.write(text)

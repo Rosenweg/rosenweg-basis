@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Rosenweg Vorlage
+Comment=Gerüst für neue Rosenweg-Apps: Anmeldung, Seiten, Updater.
+Exec=rosenweg-vorlage
+# Name im Symbol-Thema (hicolor), kein Pfad.
+Icon=rosenweg-vorlage
+Terminal=false
+# Dateiname = GTK-Anwendungskennung (APPLICATION_ID in linux/CMakeLists.txt).
+StartupWMClass=ch.rosenweg4303.vorlage
+# Kategorie "Rosenweg" im Startmenue der Stationen (os-stationen 60-programme.sh)
+Categories=Office;Utility;
+Keywords=Rosenweg;

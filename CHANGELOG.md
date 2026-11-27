@@ -51,6 +51,40 @@ Welle 0 des Flutter-Plans: Bausteine, die fast jede Portal-App braucht
   share_plus, pdfrx, desktop_drop, zxing2, image,
   http_parser. Apps brauchen Kamera-/Datei-Berechtigungen (README).
 
+## 0.5.2
+
+- Android: `ch.rosenweg4303:cloud` 0.9.0 → **0.13.4** (commons-rosenweg). Der
+  native Anmeldeschirm hat jetzt wie in den Kotlin-Apps „QR-Code scannen“
+  (Karte – Konto – QR, wie der Sperrbildschirm von Rosenweg Gerät; QR von
+  `rosenweg4303.ch/smartphones` → „App auf eigenem Handy“). Das Modul bringt
+  `android.permission.CAMERA` und `uses-feature camera` (`required=false`) ins
+  Manifest der App; gefragt wird erst beim Tippen, der Knopf erscheint nur mit
+  Kamera. Schnittstelle für das Plugin unverändert (`RosenwegAnmeldung`,
+  `RosenwegAnmeldeSchirm` mit `startActivityForResult`, `RESULT_OK` =
+  angemeldet). Dart-Seite unverändert.
+- `ch.rosenweg4303:updater` bleibt 0.1.4 (kommt jetzt auch über cloud mit).
+
+## 0.5.1
+
+Mängel aus dem Test auf win11-1 (Windows 11, Domänen-PC):
+
+- `Protokoll.schreiben`: Windows-App ohne Konsole (Start übers Startmenü)
+  schrieb nach einem ungültigen stderr; der Fehler kam asynchron
+  (`FileSystemException: writeFrom failed`) am try/catch vorbei und setzte
+  die App kurz auf „Fehler“. Jetzt: auf Windows nur mit Konsole, Pipe oder
+  Datei; Fehler des Sinks werden überall abgefangen, danach schweigt stderr.
+- Kartenleser: ins Protokoll nur noch ein Zustandswechsel (kein PC/SC,
+  kein Leser, n Leser, Fehler) statt alle 3 s „Kartenleser: kein PC/SC“.
+- Verständliche Fehler: `fehlerFuerPerson(e)` liefert einen deutschen Satz
+  und die Technik getrennt; `FehlerAnzeige(details:)` bzw.
+  `FehlerAnzeige.aus(e)` zeigt die Technik zugeklappt unter „Details“.
+  `RosenwegSitzung.fehlerDetails`, `fehlerText` ohne rohe Ausnahmen.
+  `BrowserNichtGeoeffnet` statt `StateError('Browser liess sich nicht oeffnen')`.
+- Updater aus bei verwalteter Installation (`RosenwegVerwaltet`): .exe unter
+  Program Files/Windows (Installation mit `/ALLUSERS`) oder GPO-Schalter
+  `HKLM\Software\(Policies\)Rosenweg\Verwaltet` = 1. Sonst gilt die Regel
+  unverändert.
+
 ## 0.5.0 (unveröffentlicht)
 
 - **Updater für alle Flutter-Apps** (Regel Stefan: jede Rosenweg-App

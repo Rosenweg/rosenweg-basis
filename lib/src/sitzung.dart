@@ -9,6 +9,7 @@ import 'anmeldung/rosenweg_konto.dart';
 import 'anmeldung/ruecksprung.dart';
 import 'anmeldung/schluesselbund.dart';
 import 'konfig.dart';
+import 'fehler_fuer_person.dart';
 import 'netz/api.dart';
 import 'netz/dateien.dart';
 import 'netz/geraet_person.dart';
@@ -100,7 +101,13 @@ class RosenwegSitzung extends ChangeNotifier {
   static Future<bool> _standardGeraetDa() async => RosenwegPlattform.istAndroid && await RosenwegPlattform.geraetDa();
 
   Phase phase = Phase.pruefen;
+
+  /// Satz fuer die Person (Phase [Phase.fehler]).
   String? fehler;
+
+  /// Technische Einzelheiten zu [fehler] (aufklappbar unter "Details"),
+  /// null bei Fehlern, deren Satz schon alles sagt.
+  String? fehlerDetails;
 
   /// Geteiltes Telefon: Rosenweg Geraet meldet an und ab, nicht die App.
   bool geteiltesTelefon = false;
@@ -180,11 +187,19 @@ class RosenwegSitzung extends ChangeNotifier {
 
   RosenwegApi _apiFuer(Transport t) => RosenwegApi(t, nichtAngemeldet: _nichtMehrAngemeldet);
 
-  void _setzen(Phase p, [String? f]) {
-    if (p != phase || f != null) Protokoll.schreiben('Phase ${p.name}${f != null ? ' — $f' : ''}');
+  void _setzen(Phase p, [String? f, String? details]) {
+    if (p != phase || f != null) {
+      Protokoll.schreiben('Phase ${p.name}${f != null ? ' — $f' : ''}${details != null ? ' ($details)' : ''}');
+    }
     phase = p;
     fehler = f;
+    fehlerDetails = details;
     notifyListeners();
+  }
+
+  void _fehler(Object e) {
+    final f = fehlerFuerPerson(e);
+    _setzen(Phase.fehler, f.text, f.details);
   }
 
   Future<void> starten() async {
@@ -226,7 +241,7 @@ class RosenwegSitzung extends ChangeNotifier {
         _setzen(Phase.abgemeldet);
       }
     } catch (e) {
-      _setzen(Phase.fehler, '$e');
+      _fehler(e);
     }
   }
 
@@ -240,7 +255,7 @@ class RosenwegSitzung extends ChangeNotifier {
         _setzen(Phase.anmelden);
         _setzen(await a.anmeldeSchirm() ? Phase.bereit : Phase.abgemeldet);
       } catch (e) {
-        _setzen(Phase.fehler, '$e');
+        _fehler(e);
       }
       return;
     }
@@ -259,7 +274,7 @@ class RosenwegSitzung extends ChangeNotifier {
     } on AnmeldungAbgebrochen {
       _setzen(Phase.abgemeldet);
     } catch (e) {
-      _setzen(Phase.fehler, '$e');
+      _fehler(e);
     }
   }
 
@@ -355,7 +370,8 @@ class RosenwegSitzung extends ChangeNotifier {
   /// still weiterlaufen. Den Pfad der Logdatei mit anzeigen.
   void unerwartet(Object e) {
     final p = Protokoll.pfad;
-    _setzen(Phase.fehler, '$e${p != null ? '\n\nEinzelheiten: $p' : ''}');
+    final f = fehlerFuerPerson(e);
+    _setzen(Phase.fehler, f.text, '${f.details ?? e}${p != null ? '\n\nProtokoll: $p' : ''}');
   }
 }
 
