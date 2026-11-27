@@ -10,8 +10,15 @@
 - Geräte-Kennung fürs NOC: Rückfall auf eine zufällige Kennung im Ordner
   der App, wenn es keine Maschinen-ID gibt (z. B. macOS-Sandbox ohne
   `ioreg`).
-- Android: updater 0.1.7 / cloud 0.13.7 (Installationen über die
-  Session-ID, nie zwei gleichzeitig, „Installation fortsetzen“; Befund A37).
+- Abschnitt „Updates“ im Stil der neuen Update-Seite des Android-Updaters:
+  Karte mit Logo, Fassung „alt → neu“, Statuszeile mit Ladebalken, grosser
+  Knopf in der Gruppenfarbe.
+- Android: updater 0.1.8 / cloud 0.13.8 – neue Update-Seite (Gruppenfarbe,
+  je App eine Karte, hell/dunkel, Ränder), Recht „Unbekannte Apps
+  installieren“ vorher prüfen (auch nach Prozess-Ende zurück zur Seite),
+  Play-Protect-Ablehnung mit Anleitung und „Nochmals versuchen“,
+  Benachrichtigung „wartet auf Bestätigung“, Installationen über die
+  Session-ID (Befunde A37).
 ## 0.7.0
 
 - **Wochenraster** (Kalender-Raster für Belegungen; zuerst für Rosenweg
