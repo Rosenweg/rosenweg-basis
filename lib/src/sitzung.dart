@@ -10,9 +10,11 @@ import 'anmeldung/ruecksprung.dart';
 import 'anmeldung/schluesselbund.dart';
 import 'konfig.dart';
 import 'netz/api.dart';
+import 'netz/dateien.dart';
 import 'netz/geraet_person.dart';
 import 'plattform.dart';
 import 'protokoll.dart';
+import 'rechte.dart';
 
 enum Phase {
   /// Start: gespeicherte Anmeldung pruefen.
@@ -148,6 +150,29 @@ class RosenwegSitzung extends ChangeNotifier {
     return const Anmeldestand(art: AnmeldeArt.keine);
   }
 
+  /// Dateien hoch- und herunterladen mit dem Token dieser Anmeldung
+  /// (Fortschritt, roh oder multipart). Austauschbar fuer Tests und
+  /// Vorfuehrdaten.
+  late RosenwegDateien dateien = RosenwegDateien(
+    basis: app.konfig.api,
+    zugang: zugang,
+    nichtAngemeldet: _nichtMehrAngemeldet,
+    geteiltesTelefon: () => geteiltesTelefon,
+  );
+
+  /// Rechte der angemeldeten Person (`GET /api/auth/me`), nach jedem Wechsel
+  /// der Anmeldung neu. Widgets: [NurMit], `RechteBereich.von(context)`.
+  /// Austauschbar fuer Vorfuehrdaten (example/), sonst nie setzen.
+  late RosenwegRechte rechte = RosenwegRechte.fuer(this);
+
+  /// Kurzform: `sitzung.darf('reklamationen', Zugriff.schreiben)`. false,
+  /// solange die Rechte noch nicht geladen sind (`rechte.laden()`).
+  bool darf(String seite, [Zugriff zugriff = Zugriff.lesen]) => rechte.darf(seite, zugriff);
+
+  /// Zeitpunkt der letzten erfolgreichen [bestaetigen] (frische Anmeldung).
+  /// Nur Schaetzung fuer die Anzeige, falls die API keine Stufe nennt.
+  DateTime? bestaetigtUm;
+
   /// Desktop/iOS: ist das Rosenweg-Konto (Browser/Kerberos) die aktive
   /// Anmeldung? Sonst die Karten-Sitzung.
   bool _kontoAktiv = false;
@@ -251,12 +276,20 @@ class RosenwegSitzung extends ChangeNotifier {
   /// App bleibt dabei sichtbar; true = bestaetigt.
   Future<bool> bestaetigen() async {
     if (geteiltesTelefon) return false;
-    if (android != null) return android!.bestaetigen();
+    if (android != null) {
+      final ok = await android!.bestaetigen();
+      if (ok) {
+        bestaetigtUm = DateTime.now();
+        notifyListeners();
+      }
+      return ok;
+    }
     try {
       await konto.anmelden(bestaetigen: true);
       // Ab jetzt laeuft die App mit dem Rosenweg-Konto (die Karten-Sitzung bleibt bestehen)
       _kontoAktiv = true;
       _mitKerberos = false;
+      bestaetigtUm = DateTime.now();
       notifyListeners();
       return true;
     } on AnmeldungAbgebrochen {
@@ -274,6 +307,7 @@ class RosenwegSitzung extends ChangeNotifier {
     await konto.abmelden();
     await karte?.abmelden();
     _kontoAktiv = _mitKerberos = false;
+    bestaetigtUm = null;
     _setzen(Phase.abgemeldet);
   }
 

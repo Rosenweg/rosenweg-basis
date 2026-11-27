@@ -38,6 +38,22 @@ class ApiFehler implements Exception {
     return j is Map && j[name] is String ? j[name] as String : null;
   }
 
+  /// Fehler zu einzelnen Formularfeldern, falls die API sie nennt:
+  /// `felder: {name: "Text"}` oder `feld: "name"` (dann gilt `error` fuer
+  /// dieses Feld). Leer, wenn die API nur einen allgemeinen Text schickt —
+  /// [RosenwegFormular] zeigt ihn dann oben im Formular.
+  Map<String, String> get feldFehler {
+    final j = json;
+    if (j is! Map) return const {};
+    final f = j['felder'];
+    if (f is Map) {
+      return {for (final e in f.entries) if (e.value is String) '${e.key}': e.value as String};
+    }
+    final eins = j['feld'];
+    if (eins is String && eins.isNotEmpty) return {eins: text};
+    return const {};
+  }
+
   @override
   String toString() => text;
 }
@@ -55,6 +71,15 @@ class KeineBerechtigung extends ApiFehler {
   bool get neuAnmelden {
     final j = json;
     return j is Map && j['reauth'] == true;
+  }
+
+  /// Die Route verlangt eine hoehere Stufe der Anmeldung (API-Middleware
+  /// `verlangtKonto`, Plan 4.2.1): `stufe: "konto"` oder `"konto-frisch"`
+  /// in der 403-Antwort. null = gewoehnliches "keine Berechtigung".
+  String? get stufeNoetig {
+    final j = json;
+    final s = j is Map ? j['stufe'] : null;
+    return s is String && s.isNotEmpty ? s : null;
   }
 }
 

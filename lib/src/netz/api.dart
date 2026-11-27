@@ -162,17 +162,7 @@ class RosenwegApi {
       nichtAngemeldet?.call();
       rethrow;
     }
-    if (a.status >= 200 && a.status < 300) return a.json;
-    final j = a.json;
-    final text = j is Map && j['error'] is String && (j['error'] as String).isNotEmpty
-        ? j['error'] as String
-        : 'Der Server hat die Anfrage abgelehnt (${a.status}).';
-    if (a.status == 401) {
-      nichtAngemeldet?.call();
-      throw NichtAngemeldet('Bitte wieder mit dem Rosenweg-Konto anmelden.', j);
-    }
-    if (a.status == 403) throw KeineBerechtigung(text, j);
-    throw ApiFehler(a.status, text, j);
+    return apiAntwortPruefen(a, nichtAngemeldet: nichtAngemeldet);
   }
 
   Future<Object?> get(String pfad) => anfrage('GET', pfad);
@@ -193,4 +183,22 @@ class RosenwegApi {
     if (j is List) return j;
     throw ApiFehler(200, 'Unerwartete Antwort vom Server.', j);
   }
+}
+
+/// Antwort der Haupt-API → JSON bei 2xx, sonst die passende Ausnahme
+/// (401 [NichtAngemeldet] nach [nichtAngemeldet], 403 [KeineBerechtigung],
+/// sonst [ApiFehler] mit dem Feld `error`). Gemeinsam fuer [RosenwegApi] und
+/// den Datei-Transfer ([RosenwegDateien]).
+Object? apiAntwortPruefen(ApiAntwort a, {void Function()? nichtAngemeldet}) {
+  if (a.status >= 200 && a.status < 300) return a.json;
+  final j = a.json;
+  final text = j is Map && j['error'] is String && (j['error'] as String).isNotEmpty
+      ? j['error'] as String
+      : 'Der Server hat die Anfrage abgelehnt (${a.status}).';
+  if (a.status == 401) {
+    nichtAngemeldet?.call();
+    throw NichtAngemeldet('Bitte wieder mit dem Rosenweg-Konto anmelden.', j);
+  }
+  if (a.status == 403) throw KeineBerechtigung(text, j);
+  throw ApiFehler(a.status, text, j);
 }

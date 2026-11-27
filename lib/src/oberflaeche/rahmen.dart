@@ -13,6 +13,7 @@ import 'aktualisierung_leiste.dart';
 import 'anmeldeschirm.dart';
 import 'bausteine.dart';
 import 'farben.dart';
+import 'rechte_bausteine.dart';
 
 /// Zeigt je nach Phase der Sitzung Warten, Anmeldeschirm, Fehler — oder,
 /// sobald angemeldet, den Inhalt der App ([inhalt]).
@@ -28,7 +29,7 @@ class AnmeldeTor extends StatelessWidget {
           Phase.pruefen => const Scaffold(body: LadeAnzeige()),
           Phase.abgemeldet || Phase.anmelden => Scaffold(body: RosenwegAnmeldeSchirm(sitzung: sitzung)),
           Phase.fehler => Scaffold(body: FehlerAnzeige(text: sitzung.fehler ?? '', nochmals: sitzung.starten)),
-          Phase.bereit => inhalt(context),
+          Phase.bereit => RechteBereich(rechte: sitzung.rechte, child: Builder(builder: inhalt)),
         },
       );
 }
