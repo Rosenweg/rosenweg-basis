@@ -147,7 +147,9 @@ class Benachrichtigung {
   }) async {
     final a = attrappe;
     if (a != null) {
-      a.add((id: id, titel: titel, text: text, ziel: ziel, wann: null));
+      a
+        ..removeWhere((x) => x.id == id) // gleiche Id ersetzt, wie im System
+        ..add((id: id, titel: titel, text: text, ziel: ziel, wann: null));
       return;
     }
     if (kIsWeb) return;
@@ -172,7 +174,9 @@ class Benachrichtigung {
     if (!wann.isAfter(DateTime.now())) return;
     final a = attrappe;
     if (a != null) {
-      a.add((id: id, titel: titel, text: text, ziel: ziel, wann: wann));
+      a
+        ..removeWhere((x) => x.id == id)
+        ..add((id: id, titel: titel, text: text, ziel: ziel, wann: wann));
       return;
     }
     if (kIsWeb) return;
@@ -196,6 +200,21 @@ class Benachrichtigung {
       );
     } catch (e) {
       Protokoll.schreiben('Benachrichtigung planen', e);
+    }
+  }
+
+  /// Ids der geplanten, noch nicht gezeigten Benachrichtigungen dieser App
+  /// (Linux: die, die in der laufenden App warten).
+  static Future<Set<int>> geplant() async {
+    final a = attrappe;
+    if (a != null) return {for (final x in a) if (x.wann != null) x.id};
+    if (kIsWeb) return {};
+    if (Platform.isLinux) return _linuxUhren.keys.toSet();
+    try {
+      return {for (final r in await _plugin.pendingNotificationRequests()) r.id};
+    } catch (e) {
+      Protokoll.schreiben('Benachrichtigung: geplante lesen', e);
+      return {};
     }
   }
 

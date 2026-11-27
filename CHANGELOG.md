@@ -1,3 +1,22 @@
+## Unveröffentlicht – Kalenderdatei, Erinnerungen, Datei öffnen
+
+Für Rosenweg Termine; allgemein für jede App mit Terminen (Waschküche,
+Projekte, Handwerker). Baut auf 0.8.0 (Benachrichtigungen) auf. Version
+setzt der Integrations-Merge.
+
+- **`Kalenderdatei`** / **`KalenderTermin`**: Termine als .ics (RFC 5545)
+  zum Teilen oder Öffnen in jedem Kalender – UTC, ganztags, Maskierung,
+  Faltung nach 75 Bytes, `VALARM`; `dateinameAus(titel)`.
+- **`Erinnerungen`**: `abgleichen(sitzung, [Erinnerung …])` plant kommende,
+  ersetzt geänderte, entfernt weggefallene geplante Benachrichtigungen;
+  `alleEntfernen()`. Nie auf geteilten Telefonen (entfernt dort alles).
+- **`Benachrichtigung.geplant()`**: Ids der geplanten Benachrichtigungen;
+  die Attrappe ersetzt jetzt wie das System eine gleiche Id.
+- **`dateiOeffnen(context, datei)`**: mit der passenden App öffnen
+  (Android ACTION_VIEW über einen FileProvider der Basis,
+  `<applicationId>.rosenweg.dateien`, nur `cache/rosenweg-oeffnen/`;
+  Desktop Standard-App; iOS Teilen). Android: `androidx.core` im Plugin.
+
 ## 0.8.0 – Benachrichtigungen, Hintergrund, App-Links
 
 Entscheid Stefan 27.11.2026: echte Benachrichtigungen, auch im Hintergrund,

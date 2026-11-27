@@ -36,6 +36,17 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
+        <!-- dateiOeffnen (dateien_bausteine.dart): Datei mit der passenden App oeffnen, z. B. eine
+             .ics-Datei im Kalender. Nur der Cache-Ordner rosenweg-oeffnen/ ist freigegeben. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.rosenweg.dateien"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/rosenweg_dateien" />
+        </provider>
         <!-- Ruecksprung der Browser-Anmeldung (<applicationId>:/anmeldung) und Anmeldeschirm
              kommen aus commons-rosenweg (cloud): RosenwegAnmeldungActivity, RosenwegAnmeldeSchirm. -->
     </application>
