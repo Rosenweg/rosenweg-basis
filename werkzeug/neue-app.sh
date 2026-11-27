@@ -212,6 +212,17 @@ if [ "$REPO" = 1 ]; then
   echo "== GitHub: Rosenweg/$REPO_NAME (privat)"
   (cd "$APP" && gh repo create "Rosenweg/$REPO_NAME" --private --source . --push \
      --description "$TITEL – $BESCHREIBUNG")
+  # Linux, Android, Version und Release laufen auf dem eigenen Runner (Gruppe
+  # rosenweg-privat, Sichtbarkeit "selected"): ohne Aufnahme warten sie ewig.
+  # Braucht gh mit admin:org; sonst nur ein Hinweis (siehe "Noch zu tun").
+  GRUPPE_ID="$(gh api orgs/Rosenweg/actions/runner-groups --jq '.runner_groups[] | select(.name=="rosenweg-privat") | .id' 2>/dev/null || true)"
+  REPO_ID="$(gh api "repos/Rosenweg/$REPO_NAME" --jq .id 2>/dev/null || true)"
+  if [ -n "$GRUPPE_ID" ] && [ -n "$REPO_ID" ] \
+     && gh api -X PUT "orgs/Rosenweg/actions/runner-groups/$GRUPPE_ID/repositories/$REPO_ID" >/dev/null 2>&1; then
+    echo "== Runner-Gruppe rosenweg-privat: $REPO_NAME aufgenommen"
+  else
+    echo "WARNUNG: $REPO_NAME nicht in die Runner-Gruppe rosenweg-privat aufgenommen (gh braucht admin:org) - von Hand, sonst laeuft kein Bau."
+  fi
 fi
 
 cat <<EOF
@@ -223,6 +234,8 @@ Noch zu tun (README.md der Basis, Abschnitt "Neue App anlegen"):
   2. GitHub (falls nicht mit --repo): Repo Rosenweg/$REPO_NAME anlegen, main pushen
   3. Secrets: Repo-Secret BASIS_TOKEN; Org-Secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
      ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD fuer das Repo freigeben; Runner-Gruppe rosenweg-privat
+     (ohne --repo von Hand: alles ausser Windows/macOS/iOS laeuft auf dem eigenen Runner;
+     Windows/macOS/iOS nur beim Release oder von Hand - GitHub-Minuten)
   4. /apps: apps-eintrag.json in Rosenweg/Website pbx/api/app.py APPS_REGISTER,
      assets/logo/$REPO_NAME-192.png als www img/apps/$REPO_NAME.png
   5. Stationen: linux/paket/paket.conf nach os-stationen pakete/$REPO_NAME/ (nach dem ersten Release)

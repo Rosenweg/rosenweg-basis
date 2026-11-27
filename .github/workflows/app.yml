@@ -21,9 +21,13 @@
 #             "release published" nicht aus). Muster: Rosenweg/Website
 #             .github/workflows/android-release.yml.
 #
-# Windows, macOS und iOS kosten Minuten (private Repos: doppelt/zehnfach):
-# sie laufen nur fuer ein Release, von Hand (workflow_dispatch) oder mit
-# alle_plattformen: true; Linux und Android immer.
+# Runner: alles ausser Windows, macOS und iOS laeuft auf dem eigenen Runner
+# ([self-hosted, rosenweg], Gruppe rosenweg-privat - das App-Repo muss in der
+# Gruppe sein). Dort gibt es kein gh: GitHub-API ueber git bzw. github-script.
+# Windows, macOS und iOS brauchen GitHub-Runner und damit bezahlte Minuten
+# (private Repos; ohne Guthaben/Ausgabenlimit scheitern sie): sie laufen nur
+# fuer ein Release (neue Version auf main), von Hand (workflow_dispatch) oder
+# mit alle_plattformen: true - nie bei einem gewoehnlichen Push oder PR.
 #
 # Secrets (secrets: inherit im Aufrufer):
 #   BASIS_TOKEN (oder BASIS_DEPLOY_KEY)   Lesezugriff auf die private rosenweg-basis
@@ -104,7 +108,7 @@ env:
 
 jobs:
   version:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, rosenweg]
     timeout-minutes: 10
     permissions:
       contents: read
@@ -123,7 +127,6 @@ jobs:
       - name: Version und Plattformen
         id: v
         env:
-          GH_TOKEN: ${{ github.token }}
           VEROEFFENTLICHEN: ${{ inputs.veroeffentlichen }}
           ALLE: ${{ inputs.alle_plattformen }}
           PLATTFORMEN: ${{ inputs.plattformen }}
@@ -142,7 +145,10 @@ jobs:
           echo "Version $zeile, Tag $tag"
           los=false
           if [ "$VEROEFFENTLICHEN" = true ]; then
-            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+            # ohne gh (eigener Runner): Tag ueber git, checkout hat den Zugang
+            # hinterlegt; scheitert git, bricht set -e hier ab (kein Release)
+            vorhanden=$(git ls-remote --tags origin "refs/tags/$tag")
+            if [ -n "$vorhanden" ]; then
               echo "::notice::Tag $tag gibt es schon: Version unveraendert, kein Release."
             elif [[ " $PLATTFORMEN " == *" android "* ]] && { [ -z "$KS_B64" ] || [ -z "$KS_PASS" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASS" ]; }; then
               echo "::warning::Kein Release fuer $tag: Signier-Secrets (ANDROID_*) fehlen oder sind fuer dieses Repo nicht freigegeben."
@@ -621,24 +627,26 @@ jobs:
   release:
     needs: [version, linux, android, windows, macos, ios]
     if: ${{ !cancelled() && !failure() && needs.version.outputs.los == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, rosenweg]
     timeout-minutes: 20
     permissions:
       contents: write   # Tag und Release
       actions: write    # apps.yml fuer den Tag starten
     steps:
+      # Eigener Runner: der Arbeitsordner bleibt zwischen Laeufen liegen
+      # (rosenweg-salz v1.0.0: altes .deb mit hochgeladen). Darum vorher leeren.
+      - name: ausgabe/ leeren
+        run: rm -rf ausgabe
+
       - uses: actions/download-artifact@v4
         with:
           pattern: ${{ inputs.app }}-*
           path: ausgabe
           merge-multiple: true
 
-      - name: Release anlegen
+      - name: Dateien und Notiz
         env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.version.outputs.tag }}
           VERSION: ${{ needs.version.outputs.version }}
-          TITEL: ${{ inputs.titel }}
         run: |
           set -euo pipefail
           ls -la ausgabe
@@ -663,17 +671,44 @@ jobs:
               esac
               echo "| \`$n\` | $p |"
             done
-            echo
-            git_log=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq .commit.message 2>/dev/null | head -c 3000 || true)
-            [ -z "$git_log" ] || { echo "---"; echo; echo "$git_log"; }
           } > "$RUNNER_TEMP/notiz.md"
-          gh release create "$TAG" ausgabe/* -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "${TITEL:-$APP} $TAG" --notes-file "$RUNNER_TEMP/notiz.md"
 
-      - name: An /apps schicken (Workflow der App fuer den Tag)
-        if: inputs.apps_workflow != ''
+      # Ohne gh (auf dem eigenen Runner gibt es keins): Release, Dateien und der
+      # Start von apps.yml ueber die REST-API, wie rosenweg-salz linux.yml.
+      - name: Release anlegen, an /apps schicken
+        uses: actions/github-script@v7
         env:
-          GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.version.outputs.tag }}
+          TITEL: ${{ inputs.titel }}
           WF: ${{ inputs.apps_workflow }}
-        run: gh workflow run "$WF" -R "$GITHUB_REPOSITORY" --ref "$TAG"
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const repo = { owner: context.repo.owner, repo: context.repo.repo };
+            const { TAG, TITEL, WF, APP, RUNNER_TEMP } = process.env;
+            let notiz = fs.readFileSync(path.join(RUNNER_TEMP, 'notiz.md'), 'utf8');
+            try {
+              const c = await github.rest.repos.getCommit({ ...repo, ref: context.sha });
+              notiz += '\n---\n\n' + c.data.commit.message.slice(0, 3000) + '\n';
+            } catch (e) {
+              core.warning(`Commit-Nachricht nicht gelesen: ${e.message}`);
+            }
+            const rel = await github.rest.repos.createRelease({
+              ...repo, tag_name: TAG, target_commitish: context.sha,
+              name: `${TITEL || APP} ${TAG}`, body: notiz,
+            });
+            for (const f of fs.readdirSync('ausgabe').sort()) {
+              await github.rest.repos.uploadReleaseAsset({
+                ...repo, release_id: rel.data.id, name: f,
+                data: fs.readFileSync(path.join('ausgabe', f)),
+              });
+              core.info(`Hochgeladen: ${f}`);
+            }
+            core.notice(`Release ${TAG}: ${rel.data.html_url}`);
+            // Workflow der App fuer den Tag (-> /apps); ein mit GITHUB_TOKEN
+            // angelegtes Release loest "release published" nicht aus.
+            if (WF) {
+              await github.rest.actions.createWorkflowDispatch({ ...repo, workflow_id: WF, ref: TAG });
+              core.info(`${WF} fuer ${TAG} gestartet`);
+            }

@@ -7,6 +7,11 @@
 #                         iOS, dann GitHub-Release vx.y.z und /apps (apps.yml)
 #   von Hand              alle Plattformen, ohne Release
 #
+# Runner: Linux, Android, Version und Release auf dem eigenen Runner
+# [self-hosted, rosenweg] (dieses Repo muss in der Runner-Gruppe rosenweg-privat
+# sein, neue-app.sh --repo nimmt es auf). Windows, macOS und iOS brauchen
+# GitHub-Runner (bezahlte Minuten) und laufen darum nie bei PR/Push ohne Release.
+#
 # Secrets: BASIS_TOKEN (Repo-Secret, Lesezugriff auf rosenweg-basis), die
 # Org-Secrets ANDROID_KEYSTORE_BASE64/-PASSWORD und ANDROID_KEY_ALIAS/-PASSWORD
 # (fuer dieses Repo freigeben), optional MACOS_*/NOTAR_*/WINDOWS_ZERTIFIKAT_*.

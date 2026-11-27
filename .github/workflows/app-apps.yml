@@ -29,30 +29,47 @@ on:
 
 jobs:
   apps:
-    runs-on: ubuntu-latest
+    # eigener Runner (Gruppe rosenweg-privat), dort gibt es kein gh
+    runs-on: [self-hosted, rosenweg]
     timeout-minutes: 30
     permissions:
       contents: read
       id-token: write   # OIDC-Token fuer /apps
     steps:
+      # Der Arbeitsordner bleibt auf dem eigenen Runner zwischen Laeufen liegen.
+      - name: ausgabe/ leeren
+        run: rm -rf ausgabe notiz.txt
+
       - name: Dateien aus dem Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if [ "$GITHUB_REF_TYPE" != tag ]; then
-            echo "::error::Nur fuer einen Release-Tag (dieser Lauf: $GITHUB_REF). Von Hand: gh workflow run apps.yml --ref v1.2.3"
-            exit 1
-          fi
-          gh release download "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" -D ausgabe \
-            -p '*.apk' -p '*.deb' -p '*.dmg' -p '*-Setup.exe'
-          if ls ausgabe/*-debug-signiert.apk >/dev/null 2>&1; then
-            echo "::warning::Debug-signierte APK - nicht an /apps."
-            rm -f ausgabe/*-debug-signiert.apk
-          fi
-          gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --json body --jq .body | head -c 2000 > notiz.txt
-          ls -la ausgabe
-          echo "NOTIZ<<RW_ENDE" >> "$GITHUB_ENV"; cat notiz.txt >> "$GITHUB_ENV"; printf '\nRW_ENDE\n' >> "$GITHUB_ENV"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            if (process.env.GITHUB_REF_TYPE !== 'tag') {
+              core.setFailed(`Nur fuer einen Release-Tag (dieser Lauf: ${context.ref}). Von Hand: gh workflow run apps.yml --ref v1.2.3`);
+              return;
+            }
+            const repo = { owner: context.repo.owner, repo: context.repo.repo };
+            const tag = process.env.GITHUB_REF_NAME;
+            const rel = await github.rest.repos.getReleaseByTag({ ...repo, tag });
+            fs.mkdirSync('ausgabe', { recursive: true });
+            const passt = (n) => /\.(apk|deb|dmg)$/.test(n) || n.endsWith('-Setup.exe');
+            for (const a of rel.data.assets.filter((a) => passt(a.name))) {
+              if (a.name.endsWith('-debug-signiert.apk')) {
+                core.warning(`Debug-signierte APK - nicht an /apps: ${a.name}`);
+                continue;
+              }
+              const antwort = await github.rest.repos.getReleaseAsset({
+                ...repo, asset_id: a.id, headers: { accept: 'application/octet-stream' },
+              });
+              fs.writeFileSync(path.join('ausgabe', a.name), Buffer.from(antwort.data));
+              core.info(`Geladen: ${a.name} (${a.size} Bytes)`);
+            }
+            const notiz = (rel.data.body || '').slice(0, 2000);
+            fs.appendFileSync(process.env.GITHUB_ENV, `NOTIZ<<RW_ENDE\n${notiz}\nRW_ENDE\n`);
+
+      - run: ls -la ausgabe
 
       - uses: Rosenweg/Website/.github/actions/apps-release@main
         with:
