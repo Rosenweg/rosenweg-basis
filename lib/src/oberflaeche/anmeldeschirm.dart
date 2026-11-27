@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../anmeldung/karten_sitzung.dart';
 import '../anmeldung/kartenleser.dart';
+import '../konfig.dart';
 import '../plattform.dart';
 import '../protokoll.dart';
 import '../sitzung.dart';
@@ -14,7 +15,8 @@ import 'bausteine.dart';
 /// Farben und Texte des Rosenweg-Anmeldeschirms - dieselben wie
 /// `AnmeldeOberflaeche` im Modul anmeldeschirm von commons-rosenweg (Android-
 /// Apps, Sperrbildschirm der geteilten Telefone), damit er auf allen Geraeten
-/// gleich aussieht.
+/// gleich aussieht. Die festen Werte hier sind Blau (Ausschuss/Verwaltung und
+/// Standard); je Gruppe der App: [AnmeldeFarben.fuer].
 class AnmeldeFarben {
   AnmeldeFarben._();
   static const blau = Color(0xFF1E3A8A);
@@ -24,6 +26,85 @@ class AnmeldeFarben {
   static const rot = Color(0xFFFCA5A5);
   static const gruen = Color(0xFFBBF7D0);
   static const gelb = Color(0xFFFDE68A);
+
+  /// Farben des Schirms fuer die Gruppe der App; null = blau.
+  static AnmeldePalette fuer(RosenwegGruppe? gruppe) => switch (gruppe) {
+        RosenwegGruppe.bewohner => AnmeldePalette.rot,
+        RosenwegGruppe.technik => AnmeldePalette.gruen,
+        RosenwegGruppe.verwaltung || null => AnmeldePalette.blau,
+      };
+}
+
+/// Farben des Anmeldeschirms je Gruppe (Stefan 27.11.2026): Grund wie der
+/// Logo-Grund (werkzeug/logo/baukasten.py `--gruppe`), sonst bleibt alles
+/// gleich. Dieselben Werte wie `AnmeldeFarben` in commons-rosenweg (Modul
+/// anmeldeschirm). Auf Rot und Gruen erreichen helle Schrift, Meldungen und
+/// die weisse Schrift beider Knoepfe mindestens 4.5:1 (WCAG AA); die Knoepfe
+/// sind dort dunkler als der Grund und behalten den weissen Rand.
+class AnmeldePalette {
+  const AnmeldePalette({
+    required this.grund,
+    required this.hell,
+    required this.knopf,
+    required this.knopfDunkel,
+    required this.rahmen,
+    required this.fehler,
+    required this.ok,
+    required this.warnung,
+  });
+
+  final Color grund;
+
+  /// Helle Schrift: Kopf, Hinweise, Fuss, offene Schritte.
+  final Color hell;
+
+  /// Hauptknopf ("Mit Rosenweg-Konto anmelden").
+  final Color knopf;
+
+  /// Zweitknopf ("QR-Code scannen", "Mit dem Handy anmelden", "Abbrechen").
+  final Color knopfDunkel;
+
+  /// Rand des Felds "Mit dem Handy anmelden".
+  final Color rahmen;
+  final Color fehler;
+  final Color ok;
+  final Color warnung;
+
+  /// Ausschuss/Verwaltung und Standard: die bisherigen Farben.
+  static const blau = AnmeldePalette(
+    grund: AnmeldeFarben.blau,
+    hell: AnmeldeFarben.hellblau,
+    knopf: AnmeldeFarben.knopf,
+    knopfDunkel: AnmeldeFarben.knopfDunkel,
+    rahmen: AnmeldeFarben.knopf,
+    fehler: AnmeldeFarben.rot,
+    ok: AnmeldeFarben.gruen,
+    warnung: AnmeldeFarben.gelb,
+  );
+
+  /// Bewohner.
+  static const rot = AnmeldePalette(
+    grund: Color(0xFFD62828),
+    hell: Color(0xFFFFF1F1),
+    knopf: Color(0xFFA51D1D),
+    knopfDunkel: Color(0xFF7F1616),
+    rahmen: Color(0xFFFFF1F1),
+    fehler: Color(0xFFFFF7CC),
+    ok: Color(0xFFEBFFF1),
+    warnung: Color(0xFFFFF7CC),
+  );
+
+  /// Technik.
+  static const gruen = AnmeldePalette(
+    grund: Color(0xFF2E6B4F),
+    hell: Color(0xFFD7F2E3),
+    knopf: Color(0xFF1F5A3F),
+    knopfDunkel: Color(0xFF173F2D),
+    rahmen: Color(0xFFD7F2E3),
+    fehler: Color(0xFFFFE1E1),
+    ok: Color(0xFFBBF7D0),
+    warnung: Color(0xFFFDE68A),
+  );
 }
 
 /// Wo der Anmelde-QR fuer Apps steht.
@@ -32,7 +113,7 @@ const _qrSeite = 'rosenweg4303.ch/smartphones';
 /// Der Rosenweg-Anmeldeschirm in Flutter (Stefan 27.11.2026: "auch in den
 /// Flutter-Apps den Anmeldeschirm umsetzen, aber angepasst").
 ///
-/// Blau, Rosenweg-Siegel, oben "`<App>` · zum Benutzen anmelden", unten "Die
+/// Grund in der Gruppenfarbe der App ([RosenwegApp.gruppe], sonst blau), Rosenweg-Siegel, oben "`<App>` · zum Benutzen anmelden", unten "Die
 /// Anmeldung gilt nur fuer `<App>`." - wie auf Android. Die drei Wege je
 /// Plattform:
 ///
@@ -76,6 +157,9 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
   String get appName => s.app.name;
   bool get ios => RosenwegPlattform.istIos;
   bool get desktop => RosenwegPlattform.istDesktop;
+
+  /// Farben nach der Gruppe der App (wie ihr Logo).
+  AnmeldePalette get f => AnmeldeFarben.fuer(s.app.gruppe);
 
   Kartenleser? _leser;
   bool _leserDa = false;
@@ -314,7 +398,7 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
         progressIndicatorTheme: const ProgressIndicatorThemeData(color: Colors.white),
       ),
       child: ColoredBox(
-        color: AnmeldeFarben.blau,
+        color: f.grund,
         child: SafeArea(
           child: LayoutBuilder(builder: (context, platz) {
             final breit = platz.maxWidth >= 820 && _handyOffen;
@@ -336,7 +420,7 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
     final logo = schritte != null ? 110.0 : (platz.maxHeight < 640 ? 150.0 : (desktop ? 200.0 : 230.0));
     final teile = <Widget>[
       _text(schritte != null ? 'Anmelden' : '$appName · zum Benutzen anmelden',
-          groesse: schritte != null ? 26 : 15, farbe: schritte != null ? Colors.white : AnmeldeFarben.hellblau),
+          groesse: schritte != null ? 26 : 15, farbe: schritte != null ? Colors.white : f.hell),
       const SizedBox(height: 18),
       if (_handyOffen && !breit) _handyFeld() else _siegel(logo),
       if (schritte != null) ...[
@@ -345,7 +429,7 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
       ] else
         ..._wege(context, zeigeKarte: !(_handyOffen && !breit)),
       const SizedBox(height: 16),
-      _text('Die Anmeldung gilt nur für $appName.', groesse: 12, farbe: AnmeldeFarben.hellblau),
+      _text('Die Anmeldung gilt nur für $appName.', groesse: 12, farbe: f.hell),
     ];
     return Center(
       child: SingleChildScrollView(
@@ -369,7 +453,7 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
         if (!android) ...[
           _text('Die Anmeldeseite ist im Browser offen.\nNach der Anmeldung geht es hier weiter.', groesse: 15),
           const SizedBox(height: 16),
-          _knopf('Abbrechen', AnmeldeFarben.knopfDunkel, s.abbrechen, hoehe: 44),
+          _knopf('Abbrechen', f.knopfDunkel, s.abbrechen, hoehe: 44),
         ],
       ];
     }
@@ -377,7 +461,7 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
       // Der native Schirm (commons-rosenweg) liegt darueber; hierher kommt nur, wer ihn verlassen hat
       return [
         const SizedBox(height: 24),
-        _knopf('Anmelden', AnmeldeFarben.knopf, s.anmelden),
+        _knopf('Anmelden', f.knopf, s.anmelden),
       ];
     }
     final k = karte;
@@ -396,24 +480,24 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
       ],
       if (hinweis.isNotEmpty) ...[
         const SizedBox(height: 14),
-        _text(mitKarte && !ios ? 'Oder: ${hinweis.join('\n')}' : hinweis.join('\n'), groesse: 14, farbe: AnmeldeFarben.hellblau),
+        _text(mitKarte && !ios ? 'Oder: ${hinweis.join('\n')}' : hinweis.join('\n'), groesse: 14, farbe: f.hell),
       ],
       if (_meldung != null) ...[
         const SizedBox(height: 12),
-        _text(_meldung!, groesse: 15, farbe: AnmeldeFarben.rot),
+        _text(_meldung!, groesse: 15, farbe: f.fehler),
       ],
       const SizedBox(height: 24),
       if (mitKarte && ios) ...[
-        _knopf('Rosenweg-Karte lesen', AnmeldeFarben.knopfDunkel, _iosKarteLesen, hoehe: 48),
+        _knopf('Rosenweg-Karte lesen', f.knopfDunkel, _iosKarteLesen, hoehe: 48),
         const SizedBox(height: 10),
       ],
-      _knopf('Mit Rosenweg-Konto anmelden', AnmeldeFarben.knopf, s.anmelden),
+      _knopf('Mit Rosenweg-Konto anmelden', f.knopf, s.anmelden),
       if (mitQr) ...[
         const SizedBox(height: 10),
         if (ios)
-          _knopf('QR-Code scannen', AnmeldeFarben.knopfDunkel, _qrScannen, hoehe: 48)
+          _knopf('QR-Code scannen', f.knopfDunkel, _qrScannen, hoehe: 48)
         else
-          _knopf(_handyOffen ? 'QR-Code schliessen' : 'Mit dem Handy anmelden', AnmeldeFarben.knopfDunkel,
+          _knopf(_handyOffen ? 'QR-Code schliessen' : 'Mit dem Handy anmelden', f.knopfDunkel,
               _handyOffen ? _handyBeenden : _handyStarten,
               hoehe: 48),
       ],
@@ -441,26 +525,26 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
             style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 3)),
         const SizedBox(height: 10),
         _text('Scanne den Code mit der Kamera deines Handys.\nIm Portal „Anmelden“ bestätigen – fertig.',
-            groesse: 14, farbe: AnmeldeFarben.hellblau),
+            groesse: 14, farbe: f.hell),
         const SizedBox(height: 6),
         _text(rest.isNegative ? 'wird erneuert …' : 'gültig noch $m:${sek.toString().padLeft(2, '0')}',
-            groesse: 12, farbe: AnmeldeFarben.hellblau),
+            groesse: 12, farbe: f.hell),
       ]);
     } else if (_codeHolt) {
       teile.addAll([const SizedBox(height: 40), const Center(child: CircularProgressIndicator()), const SizedBox(height: 40)]);
     } else {
       teile.addAll([
-        _text(_codeText ?? '', groesse: 15, farbe: AnmeldeFarben.rot),
+        _text(_codeText ?? '', groesse: 15, farbe: f.fehler),
         const SizedBox(height: 12),
-        _knopf('Neuen Code holen', AnmeldeFarben.knopfDunkel, _handyStarten, hoehe: 44),
+        _knopf('Neuen Code holen', f.knopfDunkel, _handyStarten, hoehe: 44),
       ]);
     }
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AnmeldeFarben.knopfDunkel.withValues(alpha: 0.35),
+        color: f.knopfDunkel.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AnmeldeFarben.knopf, width: 2),
+        border: Border.all(color: f.rahmen, width: 2),
       ),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _text('Mit dem Handy anmelden', groesse: 17, fett: true),
@@ -477,10 +561,10 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
 
   Widget _schrittZeile(_Schritt z) {
     final (zeichen, farbe) = switch (z.stand) {
-      null => ('○', AnmeldeFarben.hellblau),
+      null => ('○', f.hell),
       _Stand.laeuft => ('⏳', Colors.white),
-      _Stand.ok => ('✓', AnmeldeFarben.gruen),
-      _Stand.fehler => ('✗', AnmeldeFarben.rot),
+      _Stand.ok => ('✓', f.ok),
+      _Stand.fehler => ('✗', f.fehler),
     };
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
@@ -503,7 +587,8 @@ class _AnmeldeSchirmZustand extends State<RosenwegAnmeldeSchirm> {
           style: FilledButton.styleFrom(
             backgroundColor: farbe,
             foregroundColor: Colors.white,
-            textStyle: const TextStyle(fontSize: 17),
+            // Schriftfamilie des Themas (sonst nimmt der Knopf die Standardschrift der Engine)
+            textStyle: TextStyle(fontSize: 17, fontFamily: Theme.of(context).textTheme.bodyMedium?.fontFamily),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Colors.white, width: 1.2)),
           ),

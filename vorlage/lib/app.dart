@@ -14,6 +14,9 @@ const appAngaben = RosenwegApp(
   beschreibung: 'Gerüst für neue Rosenweg-Apps: Anmeldung, Seiten, Updater.',
   quelle: 'https://github.com/Rosenweg/rosenweg-vorlage',
   logo: AssetImage('assets/logo/rosenweg-vorlage-512.png'),
+  // Farbe des Anmeldeschirms wie der Logo-Grund (assets/logo/erzeugen.sh GRUPPE);
+  // neue-app.sh setzt sie aus werkzeug/logo/flutter-apps.txt
+  gruppe: RosenwegGruppe.bewohner,
 );
 
 /// --dart-define=RW_ATTRAPPE=1: ohne Anmeldung und ohne Server, mit

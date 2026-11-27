@@ -36,7 +36,7 @@ Was drin ist:
 - **Bausteine für Apps (0.6.0):** Rechte aus `auth/me` mit „nur sichtbar mit Recht X“ und Stufe der Anmeldung, Listen mit Suche/Filter/Cursor und Desktop-Tabelle, Formulare mit Fehlern der API am Feld, QR-/Strichcode-Scannen auf allen Plattformen, Rosenweg-Karte in der App lesen (NFC am Handy, USB-Leser über PC/SC am Computer), Dateien hoch- und herunterladen mit Fortschritt, PDF-Ansicht.
 - **Logo-Baukasten** für alle App-Logos (Turm, Weg und Rose mit App-Zeichen).
 
-Veröffentlicht bis v0.4.0; 0.5.0 (Updater) und 0.6.0 (Bausteine) sind unveröffentlicht – siehe [CHANGELOG.md](CHANGELOG.md).
+Veröffentlicht bis v0.4.0; 0.5.0 (Updater), 0.6.0 (Bausteine) und 0.6.1 (Anmeldeschirm in Gruppenfarbe) sind unveröffentlicht – siehe [CHANGELOG.md](CHANGELOG.md).
 
 ## Läuft auf
 
@@ -414,7 +414,7 @@ werkzeug/neue-app.sh mail-freigabe "Rosenweg Mail-Freigabe" mail-freigabe \
 | `--gruppe` | Farbe des Zeichens: `bewohner` rot, `verwaltung` blau, `technik` grün; Vorgabe aus `flutter-apps.txt` |
 | `--beschreibung` | ein Satz für „Über“, Paketbeschreibung, Startmenü, /apps |
 | `--ziel <ordner>` | Standard: neben der Basis (`../rosenweg-<name>`) |
-| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`, derzeit `v0.6.0`) und der Workflows (Standard `main`) |
+| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`, derzeit `v0.6.1`) und der Workflows (Standard `main`) |
 | `--basis-lokal <pfad>` | `pubspec_overrides.yaml` auf eine lokale Basis (dann wird `pubspec.lock` nicht committet) |
 | `--ohne-pub`, `--ohne-git` | kein `flutter pub get` / kein erster Commit |
 | `--repo` | **zusätzlich** `Rosenweg/rosenweg-<name>` auf GitHub anlegen (privat) und `main` pushen – ohne den Schalter geschieht nichts auf GitHub |

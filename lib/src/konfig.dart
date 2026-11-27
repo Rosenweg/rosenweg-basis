@@ -58,6 +58,29 @@ class RosenwegKonfig {
   static const standard = RosenwegKonfig();
 }
 
+/// Zielgruppe einer App = Farbe ihres Logo-Grundes (werkzeug/logo/baukasten.py
+/// `--gruppe`, Spalte 4 von werkzeug/logo/flutter-apps.txt) und ihres
+/// Anmeldeschirms. Entscheid Stefan 27.11.2026.
+enum RosenwegGruppe {
+  /// Rosenweg-Rot #D62828: alle Bewohner.
+  bewohner,
+
+  /// Rosenweg-Blau #1E3A8A: Ausschuss, Hausverwaltung (bisher fuer alle).
+  verwaltung,
+
+  /// Dunkelgruen #2E6B4F: Technik, Admin.
+  technik;
+
+  /// Aus dem Namen (`bewohner`, `verwaltung`, `technik`); sonst null.
+  static RosenwegGruppe? ausName(String? name) {
+    final n = name?.trim().toLowerCase();
+    for (final g in values) {
+      if (g.name == n) return g;
+    }
+    return null;
+  }
+}
+
 /// Was eine einzelne App von sich sagt. Eine Zeile pro App, der Rest kommt
 /// aus der Basis.
 class RosenwegApp {
@@ -70,6 +93,7 @@ class RosenwegApp {
     this.logo,
     this.konfig = RosenwegKonfig.standard,
     this.ohneBrowser = true,
+    this.gruppe,
   });
 
   /// applicationId (Android) = APPLICATION_ID (GTK) = Schema des Ruecksprungs
@@ -101,6 +125,11 @@ class RosenwegApp {
   /// verlangen (Rosenweg VM: das vm-gateway prueft `userinfo`) - dann zeigt
   /// der Anmeldeschirm nur das Rosenweg-Konto.
   final bool ohneBrowser;
+
+  /// Zielgruppe wie das Logo (`--gruppe`): Farbe des Anmeldeschirms, auch des
+  /// nativen auf Android (commons-rosenweg ab cloud 0.13.6). null = blau wie
+  /// bisher.
+  final RosenwegGruppe? gruppe;
 
   /// Ruecksprung auf Telefonen; in Authentik bei rosenweg-apps als "strikt"
   /// eingetragen (docs/authentik.md).
