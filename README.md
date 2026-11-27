@@ -250,6 +250,28 @@ DateiAblage(mehrere: true, mitFoto: true, gewaehlt: hochladen)   // Knopf + am C
 | Android | Dateiauswahl des Systems | Kamera | – (Teilen) | Teilen |
 | iOS | Dateien-App | Kamera | – (Teilen → „In Dateien sichern“) | Teilen |
 
+### Fotos in Formularen, Bilder von der API
+
+```dart
+FotoFeld(titel: 'Foto', wert: foto, geaendert: (f) => setState(() => foto = f))   // im RosenwegFormular
+GeladenesBild(laden: () => sitzung.dateien.herunterladen('/api/reklamationen/7/foto'))
+bildZeigen(context, bytes, titel: 'Foto')                                          // Vollbild mit Zoom
+```
+
+- `FotoFeld`: Telefon „Foto aufnehmen“ + „Aus Galerie“, Computer „Bild wählen“ oder Bild hineinziehen; Vorschau mit Grösse, „Entfernen“; verkleinert vor dem Hochladen (Standard 1600 px, JPEG 75 %). `pflicht`, Fehler der API am Feld und „ungespeicherte Änderungen“ wie die anderen Felder.
+- `GeladenesBild`: lädt mit der Anmeldung, Antippen = gross; Fehler als Satz mit „Nochmals“.
+
+### Abfrage beim Öffnen (statt Push)
+
+```dart
+BeimOeffnen(pruefen: _nachfragen, alle: const Duration(minutes: 5), child: …)
+final neu = await Neuigkeiten(await AppSpeicher.app(), 'meine').vergleichen({for (final m in liste) '${m.id}': m.status});
+```
+
+- `BeimOeffnen`: fragt beim Start, nach der Rückkehr in den Vordergrund (frühestens nach `mindestAbstand`) und auf Wunsch regelmässig, solange die App vorne ist.
+- `AppSpeicher`: kleine JSON-Datei für nicht geheime Werte (`getApplicationSupportDirectory`), sonst nur im Speicher. Geheimnisse gehören in den Schlüsselbund.
+- `Neuigkeiten`: merkt sich je Liste den Stand (`id → status`) und liefert, was seitdem neu ist oder sich geändert hat; beim ersten Mal nichts.
+
 ### PDF-Ansicht
 
 ```dart

@@ -1,3 +1,23 @@
+## 0.6.3
+
+Bausteine aus Rosenweg Reparatur (Flutter-Plan: Kamera, Upload, Benachrichtigungen):
+
+- **`FotoFeld`** (`foto_feld.dart`): Foto als Formularfeld – Telefon „Foto
+  aufnehmen“ und „Aus Galerie“, Computer „Bild wählen“ oder hineinziehen;
+  Vorschau, Grösse, „Entfernen“; vor dem Hochladen verkleinert (1600 px,
+  JPEG 75 %). Arbeitet mit `RosenwegFormular` (Pflicht, Fehler am Feld,
+  „Änderungen verwerfen?“). Neu `formularSteuerungVon(context)` für eigene
+  Felder.
+- **`GeladenesBild`**, **`bildZeigen`**: Bild mit der Anmeldung laden,
+  Antippen = Vollbild mit Zoom; Fehler mit „Nochmals“.
+- **Abfrage beim Öffnen** (Push ohne ntfy, Entscheid Stefan 27.11.2026):
+  `BeimOeffnen` fragt beim Start, nach der Rückkehr in den Vordergrund und
+  auf Wunsch regelmässig; `AppSpeicher` (nicht geheime Werte als JSON im
+  Ordner für App-Daten, sonst nur im Speicher) und `Neuigkeiten` (was ist
+  seit dem letzten Blick neu oder anders).
+- `path_provider` als direkte Abhängigkeit (war schon über pdfrx da).
+- Vorlage bleibt auf `ref: v0.6.2`, bis der Tag v0.6.3 steht.
+
 ## 0.6.2
 
 - **„Nach Updates suchen“** (Stefan 27.11.2026: Updater nie durchgetestet):
