@@ -46,6 +46,25 @@ ohne ntfy.
 bricht der Android-Bau ab. Vorlage und Beispiel haben es. Apps mit
 `HintergrundAbfrage` auf iOS: AppDelegate und Info.plist wie im README.
 
+## Unveröffentlicht
+
+- **Gruppenfarbe nach der angemeldeten Person** (Entscheid Stefan
+  28.11.2026, docs/gruppenfarbe.md): `RosenwegApp.gruppe` ist jetzt die
+  Mindestfarbe. Mit `farbGruppen` (und optional `farbRechte`) nennt die App,
+  wo sie mehr freischaltet: Technik/Präsident grün, Ausschuss/Verwaltung blau.
+  `sitzung.farbe` (`GruppenFarbe`) setzt die Farbe aus `/api/auth/me`; Thema,
+  Anmeldeschirm und das neue `FarbLogo` folgen live. Abmelden setzt auf die
+  Mindestfarbe zurück, geteilte Telefone folgen der Person, die letzte Farbe
+  wird gemerkt (kein Flackern beim Start).
+- Thema in der Gruppenfarbe (`rosenwegThema(helligkeit, gruppe)`, Material 3
+  `fidelity`) statt des festen Grundtons #8B1E3F.
+- Startsymbol je Farbe: Android `activity-alias` `.Symbol<Farbe>`, umgeschaltet
+  per `setComponentEnabledSetting` nur bei Wechsel (`Startsymbol.kt`); iOS
+  alternate icons (`setAlternateIconName`); Desktop nur in der App.
+- Logo-Baukasten: `FARBEN="verwaltung technik"` in `erzeugen.sh` /
+  `app-symbole.sh` erzeugt Logos, Android- und iOS-Symbole je Farbe;
+  `farben-einbauen.py` baut Aliasse und Xcode-Einstellung ein;
+  `neue-app.sh --farben`, `flutter-apps.txt` Spalte 6.
 ## 0.7.1
 
 - **macOS-Update über den Browser** (Test 27.11.2026 auf dem Mac): Ein

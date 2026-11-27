@@ -558,6 +558,7 @@ Dasselbe läuft bei jedem Push und PR in `.github/workflows/pruefen.yml` auf ein
 | [docs/authentik.md](docs/authentik.md) | was in Authentik eingetragen sein muss, Kerberos |
 | [docs/geteilte-telefone.md](docs/geteilte-telefone.md) | Schnittstelle zu Rosenweg Gerät, Personenwechsel |
 | [docs/logos.md](docs/logos.md) | Logo-Baukasten |
+| [docs/gruppenfarbe.md](docs/gruppenfarbe.md) | Farbe nach der angemeldeten Person: Thema, Logo, Startsymbol |
 | [docs/rosenweg-vm-umstellen.md](docs/rosenweg-vm-umstellen.md) | was rosenweg-vm für die Umstellung auf die Basis ändern müsste |
 
 ## Lizenz

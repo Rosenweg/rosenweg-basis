@@ -11,4 +11,8 @@
 set -eu
 BASIS="${1:-../rosenweg-basis}"
 GRUPPE=bewohner
-sh "$BASIS/werkzeug/logo/app-symbole.sh" . rosenweg-vorlage "Rosenweg Vorlage" assets/logo/zeichen/vorlage.svg "$GRUPPE"
+# Weitere Gruppenfarben (RosenwegApp.farbGruppen in lib/app.dart), z. B. "verwaltung technik":
+# Logos, Android-Startsymbole (activity-alias) und iOS alternate icons je Farbe
+FARBEN=""
+FARBEN="$FARBEN" sh "$BASIS/werkzeug/logo/app-symbole.sh" . rosenweg-vorlage "Rosenweg Vorlage" assets/logo/zeichen/vorlage.svg "$GRUPPE"
+python3 "$BASIS/werkzeug/logo/farben-einbauen.py" . --standard "$GRUPPE" --farben $FARBEN >/dev/null
