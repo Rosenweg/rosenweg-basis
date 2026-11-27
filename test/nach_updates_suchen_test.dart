@@ -79,7 +79,8 @@ void main() {
     expect(find.text('Nach Updates suchen'), findsOneWidget);
     await t.tap(find.byKey(const Key('nach-updates-suchen')));
     await t.pumpAndSettle();
-    expect(find.textContaining('Neue Fassung 1.3.0'), findsOneWidget);
+    expect(find.textContaining('1.2.0  →  1.3.0'), findsOneWidget);
+    expect(find.text('Neue Fassung bereit'), findsOneWidget);
     expect(find.text('Installieren (1.3.0)'), findsOneWidget);
   });
 
