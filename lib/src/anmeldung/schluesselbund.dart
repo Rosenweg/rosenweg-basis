@@ -29,7 +29,11 @@ class Schluesselbund {
               // signierte App mit Team-ID, was im Entwicklungsbau fehlt.
               mOptions: MacOsOptions(usesDataProtectionKeychain: false),
             ),
-        _systemBereit = systemBereit ?? (speicher == null && Platform.isLinux ? linuxSecretServiceBereit : null);
+        // Nicht unter `flutter test` (dort ersetzt setMockInitialValues den Speicher)
+        _systemBereit = systemBereit ??
+            (speicher == null && Platform.isLinux && !Platform.environment.containsKey('FLUTTER_TEST')
+                ? linuxSecretServiceBereit
+                : null);
 
   /// Vor dem ersten Zugriff: darf der Schluesselbund des Systems benutzt
   /// werden, ohne dass er die Person etwas fragt? false = gleich
