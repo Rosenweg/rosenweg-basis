@@ -8,50 +8,54 @@
 #             noch nicht gibt (Version unveraendert = nur CI, kein Release)
 #             und der Rosenweg-Signierschluessel da ist.
 #   linux     flutter analyze + test + build linux, Debian-Paket
-#             (linux/paket/bauen.sh) - eigener Runner (rosenweg-privat, Debian 13)
+#             (linux/paket/bauen.sh) - ubuntu-latest im Container debian:13
 #   android   APK, signiert mit dem Rosenweg-Schluessel (Org-Secrets
 #             ANDROID_KEYSTORE_BASE64/-PASSWORD, ANDROID_KEY_ALIAS/-PASSWORD;
-#             ohne: Debug-Signatur, dann kein Release) - eigener Runner
+#             nur bei Push auf main oder Tag v*, sonst Debug-Signatur und kein
+#             Release)
 #   windows   Inno-Setup-Installer (windows/installer/<app>.iss) mit Rauchtest
 #   macos     App + DMG (macos/installer/bauen.sh), ad hoc oder Developer ID
 #   ios       Bau ohne Signatur (unsigniertes .ipa, nur als Nachweis)
 #   release   GitHub-Release v<version> am gebauten Commit, sobald Linux und
-#             Android (eigener Runner) durch sind - wartet NICHT auf Windows,
-#             macOS, iOS; der Text nennt sie "wird nachgereicht".
-#   nachtrag  wenn Windows/macOS/iOS fertig sind (auch fehlgeschlagen, z. B.
-#             GitHub-Ausgabenlimit): deren Dateien ins bestehende Release,
-#             SHA256SUMS neu, im Text steht, welche Plattformen fehlen und
-#             warum; danach startet es apps.yml der App fuer den Tag (-> /apps
-#             mit allem, was im Release liegt; ein von GITHUB_TOKEN angelegtes
-#             Release loest "release published" nicht aus).
+#             Android durch sind - wartet NICHT auf Windows, macOS, iOS; der
+#             Text nennt sie "wird nachgereicht".
+#   nachtrag  wenn Windows/macOS/iOS fertig sind (auch fehlgeschlagen): deren
+#             Dateien ins bestehende Release, SHA256SUMS neu, im Text steht,
+#             welche Plattformen fehlen und warum; danach startet es apps.yml
+#             der App fuer den Tag (-> /apps mit allem, was im Release liegt;
+#             ein von GITHUB_TOKEN angelegtes Release loest "release
+#             published" nicht aus).
 #             Ein Fehlschlag bei Windows/macOS/iOS verhindert das Release nie.
 #
-# Runner: alles ausser Windows, macOS und iOS laeuft auf dem eigenen Runner
-# ([self-hosted, rosenweg], Gruppe rosenweg-privat - das App-Repo muss in der
-# Gruppe sein). Dort gibt es kein gh: GitHub-API ueber git bzw. github-script.
-# Windows, macOS und iOS brauchen GitHub-Runner und damit bezahlte Minuten
-# (private Repos; ohne Guthaben/Ausgabenlimit scheitern sie): sie laufen nur
-# fuer ein Release (neue Version auf main), von Hand (workflow_dispatch) oder
-# mit alle_plattformen: true - nie bei einem gewoehnlichen Push oder PR.
+# Runner: nur von GitHub gehostete (ubuntu-latest, windows-latest,
+# macos-latest), nie eigene - das Repo ist oeffentlich, und ein PR aus einem
+# Fork darf keinen Code im Servernetz ausfuehren. Caches ueber actions/cache
+# (Schluessel = Version + Pruefsumme; ein PR kann den Cache von main nicht
+# ueberschreiben). Windows, macOS und iOS laufen in oeffentlichen Repos immer
+# (Minuten gratis); in einem privaten App-Repo nur fuer ein Release, von Hand
+# (workflow_dispatch) oder mit alle_plattformen: true.
 #
-# Secrets (secrets: inherit im Aufrufer):
-#   BASIS_TOKEN (oder BASIS_DEPLOY_KEY)   Lesezugriff auf die private rosenweg-basis
+# Secrets: der Aufrufer reicht sie NUR bei Push auf main bzw. Tag v* weiter
+# (bei pull_request leer, siehe vorlage/.github/workflows/app.yml); hier
+# zusaetzlich SIGNIEREN (unten). Fork-PRs bekommen ohnehin keine.
 #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
 #   ANDROID_KEY_PASSWORD                  Org-Secrets, fuer das App-Repo freigeben
 #   MACOS_ZERTIFIKAT_P12, MACOS_ZERTIFIKAT_PASSWORT, NOTAR_KEY_P8, NOTAR_KEY_ID,
 #   NOTAR_ISSUER                          optional: Developer ID + Notarisierung
 #   WINDOWS_ZERTIFIKAT_PFX, WINDOWS_ZERTIFIKAT_PASSWORT
 #                                         optional: Code-Signing (sonst SmartScreen)
+# rosenweg-basis ist oeffentlich: pub holt sie ohne Token.
 #
 # Aufrufer (vorlage/.github/workflows/app.yml):
+#   permissions: { contents: read }
 #   jobs:
 #     app:
+#       permissions: { contents: write, actions: write, packages: read }
 #       uses: Rosenweg/rosenweg-basis/.github/workflows/app.yml@main
 #       with: { app: rosenweg-x, paket: ch.rosenweg4303.x, veroeffentlichen: ${{ github.event_name == 'push' }} }
-#       secrets: inherit
-# Voraussetzung: rosenweg-basis erlaubt Workflows aus der Organisation
-# (Settings > Actions > Access: "Accessible from repositories in the
-# 'Rosenweg' organization").
+#       secrets:
+#         ANDROID_KEYSTORE_BASE64: ${{ github.event_name == 'push' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
+#         ...
 name: Rosenweg-App
 
 on:
@@ -104,16 +108,37 @@ on:
         description: Workflow der App, der ein Release an /apps schickt (leer = keiner)
         type: string
         default: apps.yml
+    secrets:
+      ANDROID_KEYSTORE_BASE64: { required: false }
+      ANDROID_KEYSTORE_PASSWORD: { required: false }
+      ANDROID_KEY_ALIAS: { required: false }
+      ANDROID_KEY_PASSWORD: { required: false }
+      MACOS_ZERTIFIKAT_P12: { required: false }
+      MACOS_ZERTIFIKAT_PASSWORT: { required: false }
+      NOTAR_KEY_P8: { required: false }
+      NOTAR_KEY_ID: { required: false }
+      NOTAR_ISSUER: { required: false }
+      WINDOWS_ZERTIFIKAT_PFX: { required: false }
+      WINDOWS_ZERTIFIKAT_PASSWORT: { required: false }
+
+# Nur zum Lesen; Jobs, die mehr brauchen (release, nachtrag), sagen es selbst.
+permissions:
+  contents: read
 
 env:
   ORDNER: ${{ inputs.ordner }}
   APP: ${{ inputs.app }}
   FLUTTER_VERSION: ${{ inputs.flutter_version }}
   FLUTTER_SHA256: ${{ inputs.flutter_sha256 }}
+  # Signieren nur bei Push auf main oder Tag v* (github = Ereignis des
+  # Aufrufers), nie bei pull_request: dann Debug-Signatur bzw. unsigniert.
+  SIGNIEREN: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+  # Oeffentliches Repo: Windows, macOS und iOS immer bauen (Minuten gratis).
+  OEFFENTLICH: ${{ github.event.repository.private == false }}
 
 jobs:
   version:
-    runs-on: [self-hosted, rosenweg]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
@@ -135,10 +160,11 @@ jobs:
           VEROEFFENTLICHEN: ${{ inputs.veroeffentlichen }}
           ALLE: ${{ inputs.alle_plattformen }}
           PLATTFORMEN: ${{ inputs.plattformen }}
-          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # nur ob sie da sind; die Werte selbst braucht erst der Android-Job
+          KS_B64: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
+          KS_PASS: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+          KEY_ALIAS: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEY_ALIAS || '' }}
+          KEY_PASS: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEY_PASSWORD || '' }}
         run: |
           set -euo pipefail
           cd "$ORDNER"
@@ -149,9 +175,11 @@ jobs:
           tag="v$version"
           echo "Version $zeile, Tag $tag"
           los=false
-          if [ "$VEROEFFENTLICHEN" = true ]; then
-            # ohne gh (eigener Runner): Tag ueber git, checkout hat den Zugang
-            # hinterlegt; scheitert git, bricht set -e hier ab (kein Release)
+          if [ "$VEROEFFENTLICHEN" = true ] && [ "$SIGNIEREN" != true ]; then
+            echo "::warning::veroeffentlichen nur bei Push auf main oder Tag v* (dieser Lauf: $GITHUB_EVENT_NAME $GITHUB_REF) - kein Release."
+          elif [ "$VEROEFFENTLICHEN" = true ]; then
+            # Tag ueber git, checkout hat den Zugang hinterlegt; scheitert
+            # git, bricht set -e hier ab (kein Release)
             vorhanden=$(git ls-remote --tags origin "refs/tags/$tag")
             if [ -n "$vorhanden" ]; then
               echo "::notice::Tag $tag gibt es schon: Version unveraendert, kein Release."
@@ -163,7 +191,7 @@ jobs:
             fi
           fi
           teuer=false
-          if [ "$los" = true ] || [ "$ALLE" = true ] || [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then teuer=true; fi
+          if [ "$los" = true ] || [ "$ALLE" = true ] || [ "$OEFFENTLICH" = true ] || [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then teuer=true; fi
           {
             echo "version=$version"; echo "tag=$tag"; echo "los=$los"
             for p in linux android; do
@@ -178,30 +206,33 @@ jobs:
   linux:
     needs: version
     if: needs.version.outputs.linux == 'true'
-    runs-on:
-      group: rosenweg-privat
-      labels: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
+    # Debian 13 wie die Stationen: bauen.sh rechnet die Abhaengigkeiten des
+    # .deb mit dpkg-shlibdeps gegen dieses System.
+    container: debian:13
     timeout-minutes: 60
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      # Der Runner hat kein allgemeines sudo, nur ein eingeschraenktes apt-get.
+      # vor checkout: mit git holt checkout das Repo samt .git (Stand im Paket)
       - name: Systempakete
         run: |
-          noetig="clang cmake ninja-build pkg-config xz-utils curl unzip git openssh-client \
-                  libgtk-3-dev liblzma-dev libstdc++-14-dev libsecret-1-dev libjsoncpp-dev \
-                  dpkg-dev binutils patchelf librsvg2-bin file lintian"
-          fehlt=""
-          for p in $noetig; do dpkg -s "$p" >/dev/null 2>&1 || fehlt="$fehlt $p"; done
-          if [ -n "$fehlt" ]; then
-            echo "Fehlende Pakete:$fehlt"
-            sudo -n apt-get update -qq
-            sudo -n apt-get install -y -qq --no-install-recommends $fehlt
-          fi
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+            ca-certificates clang cmake ninja-build pkg-config xz-utils curl unzip git zstd \
+            libgtk-3-dev liblzma-dev libstdc++-14-dev libsecret-1-dev libjsoncpp-dev \
+            dpkg-dev binutils patchelf librsvg2-bin file lintian >/dev/null
 
-      - name: Flutter (Cache im Benutzerverzeichnis)
+      - uses: actions/checkout@v4
+
+      - name: Flutter-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rosenweg-flutter-ci
+          key: flutter-${{ github.job }}-${{ inputs.flutter_version }}-${{ inputs.flutter_sha256 }}-${{ hashFiles(format('{0}/pubspec.lock', inputs.ordner), format('{0}/pubspec.yaml', inputs.ordner)) }}
+          restore-keys: flutter-${{ github.job }}-${{ inputs.flutter_version }}-${{ inputs.flutter_sha256 }}-
+
+      - name: Flutter (feste Version mit Pruefsumme)
         run: |
           set -euo pipefail
           C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
@@ -210,44 +241,25 @@ jobs:
             echo "$FLUTTER_SHA256  $C/flutter.txz" | sha256sum -c -
             mkdir -p "$C/flutter-$FLUTTER_VERSION" && tar -xJf "$C/flutter.txz" -C "$C/flutter-$FLUTTER_VERSION" --strip-components=1 && rm "$C/flutter.txz"
           fi
+          # Flutter-SDK als git-Arbeitsstand gehoert im Container nicht root
+          git config --global --add safe.directory "$C/flutter-$FLUTTER_VERSION"
           echo "$C/flutter-$FLUTTER_VERSION/bin" >> "$GITHUB_PATH"
           echo "PUB_CACHE=$C/pub-cache" >> "$GITHUB_ENV"
 
+      # rosenweg-basis ist oeffentlich: pub holt sie ohne Token. Hier nur die
+      # lokale Basis (vorlage/ in rosenweg-basis selbst) und die Lockdatei.
       - &basis
-        name: Zugang zur Basis
+        name: Basis und pubspec.lock
         shell: bash
         env:
-          BASIS_TOKEN: ${{ secrets.BASIS_TOKEN }}
-          BASIS_DEPLOY_KEY: ${{ secrets.BASIS_DEPLOY_KEY }}
           BASIS_LOKAL: ${{ inputs.basis_lokal }}
         run: |
           set -euo pipefail
-          basis=https://github.com/Rosenweg/rosenweg-basis.git
           if [ "$BASIS_LOKAL" = true ]; then
             # rosenweg-basis prueft die eigene Vorlage gegen den eigenen Stand
             rel=$(printf '%s' "$ORDNER" | sed 's#[^/][^/]*#..#g')
             printf 'dependency_overrides:\n  rosenweg_basis:\n    path: %s\n' "$rel" > "$ORDNER/pubspec_overrides.yaml"
             echo "rosenweg_basis aus dem Arbeitsstand ($rel)"
-          elif [ -n "${BASIS_DEPLOY_KEY:-}" ]; then
-            (umask 077; printf '%s\n' "$BASIS_DEPLOY_KEY" > "$RUNNER_TEMP/basis_key")
-            echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" > "$RUNNER_TEMP/known_hosts"
-            {
-              echo "GIT_SSH_COMMAND=ssh -i $RUNNER_TEMP/basis_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o StrictHostKeyChecking=yes"
-              echo "GIT_CONFIG_COUNT=1"
-              echo "GIT_CONFIG_KEY_0=url.git@github.com:Rosenweg/rosenweg-basis.git.insteadOf"
-              echo "GIT_CONFIG_VALUE_0=$basis"
-            } >> "$GITHUB_ENV"
-          elif [ -n "${BASIS_TOKEN:-}" ]; then
-            kopf=$(printf 'x-access-token:%s' "$BASIS_TOKEN" | base64 | tr -d '\n')
-            echo "::add-mask::$kopf"
-            {
-              echo "GIT_CONFIG_COUNT=1"
-              echo "GIT_CONFIG_KEY_0=http.$basis.extraheader"
-              echo "GIT_CONFIG_VALUE_0=Authorization: Basic $kopf"
-            } >> "$GITHUB_ENV"
-          else
-            echo "::error::Secret BASIS_TOKEN (oder BASIS_DEPLOY_KEY) fehlt - ohne kann pub die private Rosenweg/rosenweg-basis nicht holen."
-            exit 1
           fi
           # pubspec.lock darf nicht auf eine lokale Basis zeigen (pubspec_overrides.yaml war aktiv)
           if [ "$BASIS_LOKAL" != true ] && [ -f "$ORDNER/pubspec.lock" ] && grep -q 'source: path' "$ORDNER/pubspec.lock"; then
@@ -282,10 +294,6 @@ jobs:
           cp linux/paket/out/*.deb ausgabe/
           (cd ausgabe && sha256sum ./*.deb)
 
-      - name: Schluessel entfernen
-        if: always()
-        run: rm -f "$RUNNER_TEMP/basis_key" "$RUNNER_TEMP/known_hosts"
-
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.app }}-linux
@@ -296,9 +304,7 @@ jobs:
   android:
     needs: version
     if: needs.version.outputs.android == 'true'
-    runs-on:
-      group: rosenweg-privat
-      labels: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
       contents: read
@@ -312,20 +318,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Systempakete
-        run: |
-          noetig="curl unzip xz-utils git openssh-client"
-          fehlt=""
-          for p in $noetig; do dpkg -s "$p" >/dev/null 2>&1 || fehlt="$fehlt $p"; done
-          if [ -n "$fehlt" ]; then
-            sudo -n apt-get update -qq
-            sudo -n apt-get install -y -qq --no-install-recommends $fehlt
-          fi
+      # Muster rosenweg-salz android.yml: alles als feste Versionen mit
+      # Pruefsumme (nicht das vorinstallierte SDK des Runners), im actions/cache;
+      # Plattform, Build-Tools und NDK laedt das Android-Gradle-Plugin beim
+      # ersten Bau selbst. Gradle-Cache dazu (Schluessel: Gradle-Dateien).
+      - name: Werkzeug-Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/rosenweg-flutter-ci
+          key: android-${{ inputs.flutter_version }}-${{ inputs.flutter_sha256 }}-${{ env.JDK_SHA256 }}-${{ env.ANDROID_CMDLINE_TOOLS_SHA256 }}-${{ hashFiles(format('{0}/pubspec.lock', inputs.ordner), format('{0}/android/**/*.kts', inputs.ordner), format('{0}/android/gradle/wrapper/gradle-wrapper.properties', inputs.ordner)) }}
+          restore-keys: android-${{ inputs.flutter_version }}-${{ inputs.flutter_sha256 }}-${{ env.JDK_SHA256 }}-${{ env.ANDROID_CMDLINE_TOOLS_SHA256 }}-
 
-      # Muster rosenweg-salz android.yml: alles als feste Versionen mit Pruefsumme
-      # im Cache des Benutzerverzeichnisses; Plattform, Build-Tools und NDK laedt
-      # das Android-Gradle-Plugin beim ersten Bau selbst.
-      - name: Flutter, JDK, Android-SDK (Cache im Benutzerverzeichnis)
+      - name: Flutter, JDK, Android-SDK (feste Versionen mit Pruefsumme)
         run: |
           set -euo pipefail
           C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
@@ -366,7 +371,10 @@ jobs:
 
       - *basis
 
-      - name: Signierschluessel (falls als Secret hinterlegt)
+      # Nur bei Push auf main oder Tag v* (SIGNIEREN); bei pull_request immer
+      # Debug-Signatur, die Secrets kommen dann gar nicht in den Job.
+      - name: Signierschluessel (nur Push auf main / Tag v*)
+        if: env.SIGNIEREN == 'true'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
@@ -380,9 +388,9 @@ jobs:
 
       - name: APK bauen und pruefen
         env:
-          SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+          SIGNING_KEY_ALIAS: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEY_ALIAS || '' }}
+          SIGNING_KEY_PASSWORD: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEY_PASSWORD || '' }}
           # rosenweg_basis android/build.gradle.kts holt commons-rosenweg aus GitHub
           # Packages; Maven dort verlangt auch fuer oeffentliche Pakete eine Anmeldung.
           GITHUB_TOKEN: ${{ github.token }}
@@ -415,7 +423,7 @@ jobs:
 
       - name: Schluessel entfernen
         if: always()
-        run: rm -f "$RUNNER_TEMP/rosenweg.jks" "$RUNNER_TEMP/basis_key" "$RUNNER_TEMP/known_hosts"
+        run: rm -f "$RUNNER_TEMP/rosenweg.jks"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -452,7 +460,8 @@ jobs:
           $PUB_GET
           flutter build windows --release
 
-      - name: Signierzertifikat (falls Secret gesetzt)
+      - name: Signierzertifikat (nur Push auf main / Tag v*, falls Secret gesetzt)
+        if: env.SIGNIEREN == 'true'
         shell: pwsh
         env:
           PFX: ${{ secrets.WINDOWS_ZERTIFIKAT_PFX }}
@@ -471,7 +480,7 @@ jobs:
       # Person, saubere Deinstallation (Begruendung: windows/installer/<app>.iss).
       - name: Installer (Inno Setup)
         env:
-          RW_SIGNTOOL_PASSWORT: ${{ secrets.WINDOWS_ZERTIFIKAT_PASSWORT }}
+          RW_SIGNTOOL_PASSWORT: ${{ env.SIGNIEREN == 'true' && secrets.WINDOWS_ZERTIFIKAT_PASSWORT || '' }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
@@ -509,7 +518,7 @@ jobs:
 
       - name: Aufraeumen
         if: always()
-        run: rm -f "$RUNNER_TEMP/signieren.pfx" "$RUNNER_TEMP/basis_key" "$RUNNER_TEMP/known_hosts"
+        run: rm -f "$RUNNER_TEMP/signieren.pfx"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -521,7 +530,7 @@ jobs:
   macos:
     needs: version
     if: needs.version.outputs.macos == 'true'
-    runs-on: macos-26
+    runs-on: macos-latest
     timeout-minutes: 60
     permissions:
       contents: read
@@ -535,7 +544,8 @@ jobs:
 
       - *basis
 
-      - name: Signierzertifikat (falls Secret gesetzt)
+      - name: Signierzertifikat (nur Push auf main / Tag v*, falls Secret gesetzt)
+        if: env.SIGNIEREN == 'true'
         env:
           P12: ${{ secrets.MACOS_ZERTIFIKAT_P12 }}
           P12_PW: ${{ secrets.MACOS_ZERTIFIKAT_PASSWORT }}
@@ -562,8 +572,8 @@ jobs:
 
       - name: Bauen (App + DMG)
         env:
-          RW_NOTAR_KEY_ID: ${{ secrets.NOTAR_KEY_ID }}
-          RW_NOTAR_ISSUER: ${{ secrets.NOTAR_ISSUER }}
+          RW_NOTAR_KEY_ID: ${{ env.SIGNIEREN == 'true' && secrets.NOTAR_KEY_ID || '' }}
+          RW_NOTAR_ISSUER: ${{ env.SIGNIEREN == 'true' && secrets.NOTAR_ISSUER || '' }}
         run: |
           set -euo pipefail
           cd "$ORDNER"
@@ -575,7 +585,7 @@ jobs:
       - name: Aufraeumen
         if: always()
         run: |
-          rm -f "$RUNNER_TEMP/notar.p8" "$RUNNER_TEMP/basis_key" "$RUNNER_TEMP/known_hosts"
+          rm -f "$RUNNER_TEMP/notar.p8"
           security delete-keychain "$RUNNER_TEMP/signieren.keychain-db" 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
@@ -588,7 +598,7 @@ jobs:
   ios:
     needs: version
     if: needs.version.outputs.ios == 'true'
-    runs-on: macos-26
+    runs-on: macos-latest
     timeout-minutes: 60
     permissions:
       contents: read
@@ -618,10 +628,6 @@ jobs:
           (cd ausgabe && zip -qry "$APP-$VERSION-ios-unsigniert.ipa" Payload && rm -rf Payload)
           ls -la ausgabe
 
-      - name: Schluessel entfernen
-        if: always()
-        run: rm -f "$RUNNER_TEMP/basis_key" "$RUNNER_TEMP/known_hosts"
-
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.app }}-ios-unsigniert
@@ -629,12 +635,12 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  # Release, sobald Linux und Android durch sind (eigener Runner, keine
-  # GitHub-Minuten). Windows/macOS/iOS kommen im Job nachtrag dazu.
+  # Release, sobald Linux und Android durch sind. Windows/macOS/iOS kommen im
+  # Job nachtrag dazu.
   release:
     needs: [version, linux, android]
     if: ${{ !cancelled() && !failure() && needs.version.outputs.los == 'true' }}
-    runs-on: [self-hosted, rosenweg]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: write   # Tag und Release
@@ -647,12 +653,6 @@ jobs:
       ST_LINUX: ${{ needs.linux.result }}
       ST_ANDROID: ${{ needs.android.result }}
     steps:
-      # Eigener Runner: der Arbeitsordner bleibt zwischen Laeufen liegen
-      # (rosenweg-salz v1.0.0: altes .deb mit hochgeladen). Darum vorher leeren.
-      - &leeren
-        name: ausgabe/ leeren
-        run: rm -rf ausgabe
-
       - uses: actions/download-artifact@v4
         if: needs.linux.result == 'success'
         with:
@@ -674,8 +674,8 @@ jobs:
           (cd ausgabe && sha256sum ./* > "$RUNNER_TEMP/SHA256SUMS") && mv "$RUNNER_TEMP/SHA256SUMS" ausgabe/
           cat ausgabe/SHA256SUMS
 
-      # Ohne gh (eigener Runner): Release, Dateien, Text und der Start von
-      # apps.yml ueber die REST-API. Derselbe Schritt in release und nachtrag
+      # Release, Dateien, Text und der Start von apps.yml ueber die REST-API
+      # (github-script). Derselbe Schritt in release und nachtrag
       # (PHASE im Job-env).
       - &release_schritt
         name: Release (Dateien, Text, /apps)
@@ -768,7 +768,7 @@ jobs:
   nachtrag:
     needs: [version, linux, android, release, windows, macos, ios]
     if: ${{ always() && needs.release.result == 'success' }}
-    runs-on: [self-hosted, rosenweg]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: write   # Dateien und Text des Release
@@ -786,8 +786,6 @@ jobs:
       ST_MACOS: ${{ needs.macos.result }}
       ST_IOS: ${{ needs.ios.result }}
     steps:
-      - *leeren
-
       # alle vorhandenen Artefakte (fuer SHA256SUMS ueber alles); fehlende
       # Plattformen haben keins
       - uses: actions/download-artifact@v4

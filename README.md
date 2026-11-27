@@ -222,9 +222,8 @@ Das Skript kopiert die Vorlage, ersetzt alle Namen (es bricht ab, wenn ein Platz
 
 1. **Authentik** (`rosenweg-apps`): Rücksprung `ch.rosenweg4303.<k>:/anmeldung` (strikt) eintragen – Desktop braucht nichts (`localhost`-Regex gilt für alle).
 2. **GitHub**: Repo anlegen (oder `--repo`), dann
-   - Repo-Secret `BASIS_TOKEN` (fein granuliert, nur rosenweg-basis, Contents read-only) oder `BASIS_DEPLOY_KEY`,
    - Org-Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` für das Repo freigeben (ohne: Debug-Signatur, kein Release),
-   - Repo in die Runner-Gruppe `rosenweg-privat` aufnehmen (mit `--repo` erledigt das `neue-app.sh`): alles ausser Windows, macOS und iOS läuft auf dem eigenen Runner `[self-hosted, rosenweg]`; ohne Gruppe warten diese Jobs ewig.
+   - kein `BASIS_TOKEN` und keine Runner-Gruppe: rosenweg-basis ist öffentlich, alle Jobs laufen auf GitHub-Runnern (`ubuntu-latest`, das `.deb` im Container `debian:13`; `windows-latest`, `macos-latest`). Eigene Runner nie, auch nicht für Releases.
 3. **/apps**: `apps-eintrag.json` in `APPS_REGISTER` (Rosenweg/Website `pbx/api/app.py`) übernehmen, `assets/logo/<app>-192.png` als `img/apps/<app>.png` ins Website-Repo. Ohne Register-Eintrag nimmt die Anlage keine Releases an.
 4. **Android-Updater**: der Rosenweg Updater (commons-rosenweg `updater`) kennt die Pakete der Flutter-Apps; neue Kennung dort ergänzen, sonst prüft auf Handys mit nur Flutter-Apps niemand.
 5. **Stationen**: nach dem ersten Release `linux/paket/paket.conf` als `pakete/<app>/paket.conf` (mit `hochladen.sh`) in os-stationen, Version und Prüfsumme eintragen.
@@ -234,13 +233,13 @@ Das Skript kopiert die Vorlage, ersetzt alle Namen (es bricht ab, wenn ein Platz
 
 | Workflow (hier) | Aufgabe |
 |---|---|
-| `.github/workflows/app.yml` | `workflow_call`: Version lesen → Linux (analyze, test, `.deb`) und Android (APK, Signatur und Paketname geprüft) immer; Windows (Installer + Rauchtest), macOS (DMG), iOS (unsigniert) nur für ein Release, von Hand oder mit `alle_plattformen` (GitHub-Runner, bezahlte Minuten – nie bei gewöhnlichem Push/PR); alles andere auf dem eigenen Runner; bei `veroeffentlichen` und **neuem** Tag `v<version>`: GitHub-Release, sobald Linux und Android durch sind; Windows, macOS und iOS laden ihre Dateien danach ins bestehende Release (Job `nachtrag`, auch wenn eine davon scheitert – das Release bleibt, der Text nennt fehlende Plattformen und warum), `SHA256SUMS` über alles, dann `apps.yml` der App für den Tag starten |
+| `.github/workflows/app.yml` | `workflow_call`: Version lesen → Linux (analyze, test, `.deb`) und Android (APK, Signatur und Paketname geprüft) immer; Windows (Installer + Rauchtest), macOS (DMG), iOS (unsigniert) bei öffentlichem Repo immer, bei privatem nur für ein Release, von Hand oder mit `alle_plattformen`; alles auf GitHub-Runnern; Signier-Secrets nur bei Push auf main bzw. Tag `v*` (bei PR Debug-Signatur); bei `veroeffentlichen` und **neuem** Tag `v<version>`: GitHub-Release, sobald Linux und Android durch sind; Windows, macOS und iOS laden ihre Dateien danach ins bestehende Release (Job `nachtrag`, auch wenn eine davon scheitert – das Release bleibt, der Text nennt fehlende Plattformen und warum), `SHA256SUMS` über alles, dann `apps.yml` der App für den Tag starten |
 | `.github/workflows/app-apps.yml` | `workflow_call`: Dateien des Release-Tags an /apps (Action `Rosenweg/Website/.github/actions/apps-release`, GitHub-OIDC) |
 | `.github/workflows/vorlage.yml` | prüft hier selbst: `neue-app.sh` (Probe mit Bindestrich und Umlaut, analyze + test) und die Vorlage gegen diesen Stand der Basis: bei PR/Push Linux und Android, alle fünf Plattformen nur von Hand (`gh workflow run vorlage.yml --ref <zweig>`) |
 
 In der App: PR → CI; Merge auf `main` mit erhöhter `version:` → Release und /apps; ohne neue Version nur CI. Kein Tag von Hand nötig.
 
-**Voraussetzung:** rosenweg-basis ist privat; andere Repos dürfen ihre Workflows erst nutzen, wenn unter *Settings → Actions → General → Access* „Accessible from repositories in the 'Rosenweg' organization“ gewählt ist (`gh api -X PUT repos/Rosenweg/rosenweg-basis/actions/permissions/access -f access_level=organization`).
+rosenweg-basis ist öffentlich: andere Repos rufen die Workflows ohne weitere Freigabe auf. Die Aufrufer reichen Secrets einzeln und nur bei Push auf main weiter (kein `secrets: inherit`), siehe `vorlage/.github/workflows/app.yml`.
 
 ### Grenzen je Plattform
 
@@ -258,7 +257,7 @@ In der App: PR → CI; Merge auf `main` mit erhöhter `version:` → Release und
 flutter analyze && flutter test
 ```
 
-Dasselbe läuft bei jedem Push und PR in `.github/workflows/pruefen.yml` auf dem eigenen Runner. Keine Secrets nötig. Änderungen stehen in [CHANGELOG.md](CHANGELOG.md).
+Dasselbe läuft bei jedem Push und PR in `.github/workflows/pruefen.yml` auf einem GitHub-Runner. Keine Secrets nötig. Änderungen stehen in [CHANGELOG.md](CHANGELOG.md).
 
 ## Weitere Dokumente
 

@@ -64,7 +64,7 @@ flutter analyze && flutter test
 ```
 
 Dasselbe läuft bei jedem Push und PR in `.github/workflows/pruefen.yml`
-auf dem eigenen Runner. Änderungen stehen in [CHANGELOG.md](../CHANGELOG.md).
+auf einem GitHub-Runner. Änderungen stehen in [CHANGELOG.md](../CHANGELOG.md).
 
 ## Weiter
 
