@@ -100,9 +100,10 @@ Mehr: [docs/bedienung.md](docs/bedienung.md).
 | Formulare | `RosenwegFormular`, `FormularSteuerung`, `TextFeld`, `BetragFeld` (Rappen), `DatumFeld`, `ZeitFeld`, `AuswahlFeld`, `SchalterFeld`, `SuchAuswahlFeld`, `auswahlSuchen`, `Pruefen`, `loeschenBestaetigen`, `betragLesen/betragText`, `datumText`, `zeitText` |
 | Scannen | `codeScannen`, `KameraScanner`, `CodeEingabe`, `qrAusBild`, `codeAusBildWaehlen`, `scannerMitKamera` |
 | Karte lesen | `karteLesen`, `KarteLesenSeite`, `KartenleserBereich`, `Kartenleser.fuerApp`, `AndroidKartenleser`, `kartenleserHindernis`, `karteUidNormal`, `uidEintippen` |
-| Dateien | `RosenwegDateien` (`sitzung.dateien`: `hochladen` roh/multipart, `herunterladen`), `DateiDaten`, `dateienWaehlen`, `fotoAufnehmen`, `bildVerkleinern`, `dateiSpeichern`, `dateiTeilen`, `DateiAblage`, `mitFortschritt`, `TransferAnzeige` |
+| Dateien | `RosenwegDateien` (`sitzung.dateien`: `hochladen` roh/multipart, `herunterladen`), `DateiDaten`, `dateienWaehlen`, `fotoAufnehmen`, `bildVerkleinern`, `dateiSpeichern`, `dateiTeilen`, `dateiOeffnen`, `DateiAblage`, `mitFortschritt`, `TransferAnzeige` |
 | PDF | `PdfAnsicht`, `PdfSeite`, `pdfOeffnen` |
-| Kalender | `Wochenraster` (7 Tage × Stunden, Handy: ein Tag mit Tageswahl; Tippen in freie Stelle = Zeitpunkt), `RasterEintrag`, `RasterArt` (eigen/fremd/gesperrt), `WochenKopf` (KW, blättern, Heute), `montagVon`, `kalenderwoche`, `uhrText`, `tagLangText` |
+| Kalender | `Wochenraster` (7 Tage × Stunden, Handy: ein Tag mit Tageswahl; Tippen in freie Stelle = Zeitpunkt), `RasterEintrag`, `RasterArt` (eigen/fremd/gesperrt), `WochenKopf` (KW, blättern, Heute), `montagVon`, `kalenderwoche`, `uhrText`, `tagLangText`; `Kalenderdatei` (.ics), `KalenderTermin` |
+| Erinnerungen | `Erinnerungen` (`abgleichen`, `alleEntfernen`), `Erinnerung`; darunter `Benachrichtigung` (`geplant` …) |
 | Protokoll | `Protokoll.schreiben` – `~/.local/state/<ordner>/app.log`, nie Tokens |
 | Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte, Rosenweg-Konto oder QR-Code, Token aus Kotlin), DNS-Server, Rosenweg Gerät (`ContentResolver.call`), Karte lesen in der App (`NfcKarte`: Reader-Modus mit dem `Kartenleser` aus commons-rosenweg `anmeldeschirm`) |
 
@@ -236,6 +237,7 @@ await mitFortschritt(context, 'Foto wird hochgeladen',
 await sitzung.dateien.hochladen('/api/documents/Ordner/plan.pdf', datei, methode: 'PUT', inhaltstyp: 'application/octet-stream');
 final pdf = await sitzung.dateien.herunterladen('/api/vollmachten/7/pdf');
 await dateiSpeichern(context, pdf);                              // Computer: „Speichern unter“; Telefon: Teilen
+await dateiOeffnen(context, ics);                                // mit der passenden App (z. B. .ics im Kalender)
 DateiAblage(mehrere: true, mitFoto: true, gewaehlt: hochladen)   // Knopf + am Computer hineinziehen
 ```
 
@@ -243,13 +245,32 @@ DateiAblage(mehrere: true, mitFoto: true, gewaehlt: hochladen)   // Knopf + am C
 - **Roh** (Standard): Body = Datei, `Content-Type` der Datei oder `inhaltstyp`, Name im Kopf `X-Filename` (Umlaute URL-kodiert). Die API nimmt je Route nur einen Typ an: `/api/documents` `application/octet-stream`, `upload-signed` `application/pdf`. **Multipart**: `multipart: true`, Feld `feld`, weitere `felder`.
 - `bildVerkleinern`: lange Seite auf 2000 px, Drehung aus EXIF, JPEG 85 %, im eigenen Isolate.
 
-| | Wählen | Foto | Speichern | Teilen |
-|---|---|---|---|---|
-| Linux | GTK-Dialog (ohne zenity) | Bild wählen | „Speichern unter“ | – (Speichern) |
-| Windows | Explorer-Dialog | Bild wählen | „Speichern unter“ | Windows-Teilen |
-| macOS | Finder-Dialog | Bild wählen | „Speichern unter“ | Teilen-Menü |
-| Android | Dateiauswahl des Systems | Kamera | – (Teilen) | Teilen |
-| iOS | Dateien-App | Kamera | – (Teilen → „In Dateien sichern“) | Teilen |
+| | Wählen | Foto | Speichern | Teilen | Öffnen |
+|---|---|---|---|---|---|
+| Linux | GTK-Dialog (ohne zenity) | Bild wählen | „Speichern unter“ | – (Speichern) | Standard-App (xdg-open) |
+| Windows | Explorer-Dialog | Bild wählen | „Speichern unter“ | Windows-Teilen | Standard-App |
+| macOS | Finder-Dialog | Bild wählen | „Speichern unter“ | Teilen-Menü | Standard-App |
+| Android | Dateiauswahl des Systems | Kamera | – (Teilen) | Teilen | passende App (FileProvider der Basis), sonst Teilen |
+| iOS | Dateien-App | Kamera | – (Teilen → „In Dateien sichern“) | Teilen | – (Teilen) |
+
+### Termine als Kalenderdatei, Erinnerungen
+
+```dart
+final ics = Kalenderdatei.datei([
+  KalenderTermin(uid: 'stweg3-termin-42@rosenweg4303.ch', titel: 'Eigentümerversammlung',
+      beginn: DateTime(2026, 12, 3, 19), ort: 'Gemeinschaftsraum', erinnerung: const Duration(hours: 1)),
+], dateiname: Kalenderdatei.dateinameAus('Eigentümerversammlung'));
+await dateiOeffnen(context, ics);        // oder dateiTeilen
+
+await Erinnerungen.abgleichen(sitzung, [  // bei jedem Laden: was soll geplant sein?
+  Erinnerung(schluessel: 'termin-42', wann: beginn.subtract(const Duration(hours: 1)),
+      titel: 'Eigentümerversammlung', text: 'Heute 19:00 · Gemeinschaftsraum', ziel: 'termin/42'),
+]);
+await Erinnerungen.alleEntfernen();      // beim Abmelden
+```
+
+- `Kalenderdatei` (RFC 5545): UTC-Zeiten, ganztags als Datum (Ende = Tag danach), Text maskiert, Zeilen nach 75 Bytes gefaltet, optional `VALARM`. Gleiche `uid` = derselbe Termin (nochmals übernehmen aktualisiert ihn, wo der Kalender das kann). Ohne Ende: 1 Stunde.
+- `Erinnerungen.abgleichen` plant die kommenden, ersetzt geänderte und entfernt alle anderen **geplanten** Benachrichtigungen der App (sofort gezeigte bleiben); merkt sich nichts selbst (`Benachrichtigung.geplant`). Android-Kanal „Erinnerungen“. **Geteilte Telefone: nie** – dort entfernt es alles und plant nichts. Linux: nur solange die App läuft.
 
 ### Fotos in Formularen, Bilder von der API
 

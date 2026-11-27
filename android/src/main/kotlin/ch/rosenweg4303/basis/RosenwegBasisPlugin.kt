@@ -2,6 +2,7 @@
 package ch.rosenweg4303.basis
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
@@ -10,6 +11,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.core.content.FileProvider
 import ch.rosenweg4303.cloud.RosenwegAnmeldeSchirm
 import ch.rosenweg4303.cloud.RosenwegAnmeldung
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -19,6 +21,7 @@ import io.flutter.plugin.common.PluginRegistry
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
 import java.util.concurrent.Executors
 
 /**
@@ -34,6 +37,10 @@ import java.util.concurrent.Executors
  *                            Karte lesen: EventChannel "ch.rosenweg4303.basis/karte" (NfcKarte.kt)
  *  - geraetRufen             ContentResolver.call auf content://ch.rosenweg4303.telefon.anlage
  *                            {methode, arg, extras} -> Bundle als Map (nur Strings, Zahlen, bool)
+ *  - dateiOeffnen            {pfad, typ}: Datei aus dem Cache-Ordner rosenweg-oeffnen/ mit der
+ *                            passenden App oeffnen (ACTION_VIEW ueber FileProvider
+ *                            <applicationId>.rosenweg.dateien), z. B. .ics im Kalender ->
+ *                            true; false = keine App dafuer (Dart teilt dann)
  *
  * Anmeldung auf Handys ohne Rosenweg Geraet - ueber commons-rosenweg (cloud), wie in den
  * Kotlin-Apps (Stefan 26.11.2026: ein Anmeldeschirm fuer alle, nur einmal gepflegt):
@@ -142,6 +149,25 @@ class RosenwegBasisPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Acti
                     false
                 }
             )
+            "dateiOeffnen" -> {
+                val pfad = call.argument<String>("pfad") ?: return result.error("argument", "pfad fehlt", null)
+                val typ = call.argument<String>("typ") ?: "application/octet-stream"
+                try {
+                    val uri = FileProvider.getUriForFile(c, "${c.packageName}.rosenweg.dateien", File(pfad))
+                    val absicht = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, typ)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        if (aktivitaet == null) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    (aktivitaet?.activity ?: c).startActivity(absicht)
+                    result.success(true)
+                } catch (e: ActivityNotFoundException) {
+                    result.success(false)
+                } catch (e: Exception) {
+                    Log.w(TAG, "dateiOeffnen: ${e.javaClass.simpleName}")
+                    result.error("oeffnen", e.message ?: e.javaClass.simpleName, null)
+                }
+            }
             "geraetRufen" -> {
                 val methode = call.argument<String>("methode") ?: return result.error("argument", "methode fehlt", null)
                 val arg = call.argument<String>("arg")

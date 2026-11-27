@@ -2,13 +2,13 @@
 /// Dateien waehlen, fotografieren, verkleinern, speichern und teilen — auf
 /// allen fuenf Plattformen mit derselben Bedienung.
 ///
-/// | | Waehlen | Foto | Speichern | Teilen |
-/// |---|---|---|---|---|
-/// | Linux | GTK-Dialog | Bild waehlen | "Speichern unter" | – (Speichern) |
-/// | Windows | Explorer-Dialog | Bild waehlen | "Speichern unter" | Windows-Teilen |
-/// | macOS | Finder-Dialog | Bild waehlen | "Speichern unter" | Teilen-Menue |
-/// | Android | Dateiauswahl des Systems | Kamera | – (Teilen) | Teilen |
-/// | iOS | Dateien-App | Kamera | – (Teilen → "In Dateien sichern") | Teilen |
+/// | | Waehlen | Foto | Speichern | Teilen | Oeffnen |
+/// |---|---|---|---|---|---|
+/// | Linux | GTK-Dialog | Bild waehlen | "Speichern unter" | – (Speichern) | Standard-App (xdg-open) |
+/// | Windows | Explorer-Dialog | Bild waehlen | "Speichern unter" | Windows-Teilen | Standard-App |
+/// | macOS | Finder-Dialog | Bild waehlen | "Speichern unter" | Teilen-Menue | Standard-App |
+/// | Android | Dateiauswahl des Systems | Kamera | – (Teilen) | Teilen | passende App (sonst Teilen) |
+/// | iOS | Dateien-App | Kamera | – (Teilen → "In Dateien sichern") | Teilen | – (Teilen) |
 library;
 
 import 'dart:io';
@@ -19,7 +19,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../netz/dateien.dart';
 import '../plattform.dart';
@@ -192,6 +194,55 @@ Future<bool> dateiTeilen(BuildContext context, DateiDaten d, {String? text}) asy
     if (context.mounted) zeigeMeldung(context, 'Teilen ging nicht: $e', fehler: true);
     return false;
   }
+}
+
+/// Mit der passenden App oeffnen, z. B. eine .ics-Datei im Kalender (dort
+/// "Termin hinzufuegen"), ein PDF im Betrachter. Die Datei liegt dazu kurz
+/// im Cache-Ordner `rosenweg-oeffnen/` der App.
+///
+/// Android: ACTION_VIEW ueber den FileProvider der Basis; gibt es keine App
+/// fuer den Typ, das Teilen-Menue. iOS kennt kein "Oeffnen mit" fuer eigene
+/// Dateien: dort das Teilen-Menue. Desktop: Standard-App des Systems.
+/// true = geoeffnet (bzw. geteilt).
+Future<bool> dateiOeffnen(BuildContext context, DateiDaten d) async {
+  if (Platform.isIOS) return dateiTeilen(context, d);
+  try {
+    final datei = await _zumOeffnen(d);
+    final bool ok;
+    if (Platform.isAndroid) {
+      ok = await RosenwegPlattform.kanal.invokeMethod<bool>('dateiOeffnen', {'pfad': datei.path, 'typ': d.typ}) ?? false;
+    } else {
+      ok = await launchUrl(Uri.file(datei.path));
+    }
+    if (ok) return true;
+    if (!context.mounted) return false;
+    if (Platform.isAndroid) return await dateiTeilen(context, d);
+    zeigeMeldung(context, 'Keine App für ${d.name} gefunden – bitte speichern.', fehler: true);
+    return await dateiSpeichern(context, d);
+  } catch (e) {
+    Protokoll.schreiben('Öffnen', e);
+    if (context.mounted) zeigeMeldung(context, 'Öffnen ging nicht: $e', fehler: true);
+    return false;
+  }
+}
+
+/// Schreibt [d] nach `<Cache>/rosenweg-oeffnen/<zufall>/<name>`; aeltere
+/// Dateien dort (ab einem Tag) raeumt es dabei weg.
+Future<File> _zumOeffnen(DateiDaten d) async {
+  final ordner = Directory('${(await getTemporaryDirectory()).path}${Platform.pathSeparator}rosenweg-oeffnen');
+  await ordner.create(recursive: true);
+  try {
+    final grenze = DateTime.now().subtract(const Duration(days: 1));
+    for (final alt in ordner.listSync()) {
+      if (alt.statSync().modified.isBefore(grenze)) alt.deleteSync(recursive: true);
+    }
+  } catch (_) {}
+  final einzeln = Directory('${ordner.path}${Platform.pathSeparator}${DateTime.now().microsecondsSinceEpoch}');
+  await einzeln.create();
+  final name = d.name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+  final f = File('${einzeln.path}${Platform.pathSeparator}${name.isEmpty ? 'datei' : name}');
+  await f.writeAsBytes(d.bytes, flush: true);
+  return f;
 }
 
 /// Fortschritt eines Transfers als Wert fuer [TransferAnzeige].

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- FileProvider der Basis (dateiOeffnen): nur Dateien, die die App zum Oeffnen in den
+     Cache-Ordner rosenweg-oeffnen/ geschrieben hat (getTemporaryDirectory = cacheDir). -->
+<paths>
+    <cache-path name="oeffnen" path="rosenweg-oeffnen/" />
+</paths>
