@@ -95,8 +95,12 @@ void main() {
     await t.runAsync(s.starten);
     await t.pump();
     expect(s.phase, Phase.fehler);
-    expect(find.textContaining('kaputt'), findsOneWidget);
+    // Verstaendlicher Satz; der rohe Text nur unter "Details"
+    expect(find.textContaining('Bad state'), findsNothing);
     expect(find.text('Nochmals'), findsOneWidget);
+    await t.tap(find.text('Details'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('kaputt'), findsOneWidget);
   });
 
   testWidgets('Ueber zeigt GPL und Quelltext', (t) async {

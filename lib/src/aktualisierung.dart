@@ -12,6 +12,7 @@ import 'konfig.dart';
 import 'plattform.dart';
 import 'protokoll.dart';
 import 'station.dart';
+import 'verwaltet.dart';
 
 /// Regel (Stefan 25./27.11.2026): Jede Rosenweg-App aktualisiert sich selbst.
 /// Aus ist das nur, wo jemand anderes aktualisiert:
@@ -20,6 +21,7 @@ import 'station.dart';
 /// |---|---|
 /// | Android | Rosenweg Updater aus commons-rosenweg (kommt mit dem Android-Teil der Basis); auf geteilten Telefonen Rosenweg Geraet |
 /// | Rosenweg-Station (os-stationen) | os-stationen, darum hier aus und ohne Hinweis ([RosenwegStation]) |
+/// | Windows-Domaene (verwaltete Installation) | GPO mit `/ALLUSERS`, darum hier aus und ohne Hinweis ([RosenwegVerwaltet]: unter Program Files installiert oder `HKLM\Software\Rosenweg\Verwaltet` = 1) |
 /// | iOS | (noch) keine Verteilung ausserhalb des App Store, darum aus |
 /// | Linux (eigener Rechner), macOS, Windows | **dieser Updater** |
 ///
@@ -80,12 +82,16 @@ class RosenwegAktualisierung extends ChangeNotifier {
   }
 
   /// Laeuft der Updater hier? Nein auf Android (dort der Kotlin-Updater),
-  /// iOS, Rosenweg-Stationen und in Entwicklungsbauten.
-  bool get aktiv => _aktivFest ?? laeuftHier(plattform: plattform, station: RosenwegStation.erkannt);
+  /// iOS, Rosenweg-Stationen, verwalteten Installationen (Windows-Domaene,
+  /// GPO) und in Entwicklungsbauten.
+  bool get aktiv =>
+      _aktivFest ??
+      laeuftHier(plattform: plattform, station: RosenwegStation.erkannt, verwaltet: plattform != null && RosenwegVerwaltet.erkannt);
 
   /// Die Regel an einer Stelle (testbar).
-  static bool laeuftHier({required String? plattform, required bool station, bool release = kReleaseMode}) =>
-      plattform != null && !station && release;
+  static bool laeuftHier(
+          {required String? plattform, required bool station, bool verwaltet = false, bool release = kReleaseMode}) =>
+      plattform != null && !station && !verwaltet && release;
 
   AktualisierungsStand stand = AktualisierungsStand.nichts;
 
@@ -118,7 +124,14 @@ class RosenwegAktualisierung extends ChangeNotifier {
   /// Beim Start: nach [ersteVerzoegerung] pruefen, dann alle [abstand].
   void starten() {
     if (!aktiv) {
-      Protokoll.schreiben('Aktualisierung aus (${plattform == null ? 'Plattform' : RosenwegStation.erkannt ? 'Rosenweg-Station' : 'Entwicklungsbau'})');
+      final grund = plattform == null
+          ? 'Plattform'
+          : RosenwegStation.erkannt
+              ? 'Rosenweg-Station'
+              : RosenwegVerwaltet.erkannt
+                  ? 'verwaltete Installation, ${RosenwegVerwaltet.grund}'
+                  : 'Entwicklungsbau';
+      Protokoll.schreiben('Aktualisierung aus ($grund)');
       return;
     }
     _uhr?.cancel();
@@ -181,7 +194,7 @@ class RosenwegAktualisierung extends ChangeNotifier {
       await _installieren(d, f);
     } catch (e) {
       Protokoll.schreiben('Aktualisierung', e);
-      _setzen(AktualisierungsStand.fehler, text: e is AktualisierungsFehler ? e.text : 'Die neue Fassung konnte nicht geladen werden ($e).');
+      _setzen(AktualisierungsStand.fehler, text: e is AktualisierungsFehler ? e.text : 'Die neue Fassung konnte nicht geladen werden. Bitte später nochmals versuchen.');
     }
   }
 

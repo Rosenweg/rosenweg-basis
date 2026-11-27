@@ -59,7 +59,7 @@ void main() {
 
   test('Browser laesst sich nicht oeffnen: klare Meldung', () async {
     final r = await LocalhostAnmeldeweg(oeffnen: (_) async => false).vorbereiten();
-    await expectLater(r.warten(Uri.parse('https://a/')), throwsA(isA<StateError>()));
+    await expectLater(r.warten(Uri.parse('https://a/')), throwsA(isA<BrowserNichtGeoeffnet>()));
   });
 }
 

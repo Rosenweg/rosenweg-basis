@@ -2,8 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../fehler_fuer_person.dart';
 import '../konfig.dart';
-import '../netz/fehler.dart';
 import '../protokoll.dart';
 import 'farben.dart';
 
@@ -18,12 +18,23 @@ class RosenwegLogo extends StatelessWidget {
       Image(image: app.logoOderTurm, width: groesse, height: groesse, filterQuality: FilterQuality.medium, semanticLabel: app.name);
 }
 
-/// Fehler gross und verstaendlich, mit "Nochmals".
+/// Fehler gross und verstaendlich, mit "Nochmals". Technisches nur unter
+/// "Details" (zugeklappt, Text kopierbar).
 class FehlerAnzeige extends StatelessWidget {
-  const FehlerAnzeige({super.key, required this.text, this.nochmals, this.titel = 'Das hat nicht geklappt'});
+  const FehlerAnzeige({super.key, required this.text, this.nochmals, this.titel = 'Das hat nicht geklappt', this.details});
+
+  /// Aus einer Ausnahme: Satz und Details per [fehlerFuerPerson].
+  factory FehlerAnzeige.aus(Object e, {Key? key, VoidCallback? nochmals, String titel = 'Das hat nicht geklappt'}) {
+    final f = fehlerFuerPerson(e);
+    return FehlerAnzeige(key: key, text: f.text, details: f.details, nochmals: nochmals, titel: titel);
+  }
+
   final String text;
   final String titel;
   final VoidCallback? nochmals;
+
+  /// Technische Einzelheiten (roher Fehlertext, Pfad der Logdatei).
+  final String? details;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +49,33 @@ class FehlerAnzeige extends StatelessWidget {
         const SizedBox(height: 24),
         FilledButton.icon(onPressed: nochmals, icon: const Icon(Icons.refresh), label: const Text('Nochmals')),
       ],
+      if (details != null && details!.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        FehlerDetails(details!),
+      ],
     ]);
+  }
+}
+
+/// "Details" zum Aufklappen: der rohe Fehlertext fuer die Technik,
+/// kopierbar. Zugeklappt sieht die Person nur den Satz darueber.
+class FehlerDetails extends StatelessWidget {
+  const FehlerDetails(this.details, {super.key});
+  final String details;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        title: Text('Details', style: t.labelLarge),
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 8),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        children: [SelectableText(details, style: t.bodySmall?.copyWith(fontFamily: 'monospace'))],
+      ),
+    );
   }
 }
 
@@ -118,11 +155,12 @@ void zeigeMeldung(BuildContext context, String text, {bool fehler = false}) {
     ));
 }
 
-/// Ausnahme → Satz fuer die Person. Unbekanntes kommt ins Protokoll.
+/// Ausnahme → Satz fuer die Person ([fehlerFuerPerson]), ohne rohe
+/// Technik. Unbekanntes kommt mit den Einzelheiten ins Protokoll.
 String fehlerText(Object e) {
-  if (e is ApiFehler || e is ServerNichtErreichbar || e is ZuVieleAnfragen || e is GeraetFehler) return '$e';
-  Protokoll.schreiben('Unerwarteter Fehler', e);
-  return 'Unerwarteter Fehler: $e';
+  final f = fehlerFuerPerson(e);
+  if (f.details != null) Protokoll.schreiben('Unerwarteter Fehler', f.details);
+  return f.text;
 }
 
 /// Ja/Nein-Frage; true = bestaetigt.
