@@ -1,4 +1,26 @@
-## 0.6.1 (unveröffentlicht)
+## 0.6.2
+
+- **„Nach Updates suchen“** (Stefan 27.11.2026: Updater nie durchgetestet):
+  Abschnitt `AktualisierungKarte` auf der Seite „Anmeldung“
+  (`zeigeAnmeldung`, Konto-Menü jeder App) – ohne Änderung in den Apps.
+  - Android: `RosenwegPlattform.updaterPruefen()` → `RosenwegUpdater.jetztPruefen`
+    aus commons-rosenweg (eigene Seite: „Aktuell“, „Neue Fassung X –
+    Installieren“, Fehler im Klartext).
+  - Linux, macOS, Windows: `RosenwegAktualisierung.jetztPruefen()` →
+    `PruefErgebnis` (aktuell / neu / fehler / aus) mit Satz für die Person
+    (`RosenwegAktualisierung.klartext`), bei neuer Fassung „Installieren“.
+  - Stationen, verwaltete Installationen, iOS, Entwicklungsbau: nur der
+    Hinweis, wer aktualisiert (`ausGrund`), kein Knopf.
+  - `RosenwegAktualisierung.zuletzt`: der Updater der laufenden App.
+- **Versionsstand ans NOC**: bei jeder Prüfung (und auf Stationen bzw.
+  verwalteten PCs einmal nach dem Start) `POST
+  https://pbx.rosenweg4303.ch/api/apps/stand` mit Gerät (SHA-256 der
+  Maschinen-ID), Paket, Version, Plattform – keine Personendaten.
+- Android: cloud 0.13.6 (Anmeldeschirm in Gruppenfarbe wirkt damit), updater
+  0.1.6 (eigene Meldungsnummer statt 4303, WorkManager-Start nach den
+  ContentProvidern aus 0.1.5).
+
+## 0.6.1
 
 - **Anmeldeschirm in der Gruppenfarbe der App** (Stefan 27.11.2026): Grund
   wie der Logo-Grund (`baukasten.py --gruppe`) – Bewohner rot `#D62828`,
