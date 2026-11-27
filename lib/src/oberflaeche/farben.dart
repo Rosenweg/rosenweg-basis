@@ -31,5 +31,7 @@ ThemeData rosenwegThema(Brightness helligkeit) {
     cardTheme: const CardThemeData(margin: EdgeInsets.zero, clipBehavior: Clip.antiAlias),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
     listTileTheme: const ListTileThemeData(contentPadding: EdgeInsets.symmetric(horizontal: 16)),
+    // Dialoge am Desktop nicht ueber die ganze Fensterbreite.
+    dialogTheme: const DialogThemeData(constraints: BoxConstraints(minWidth: 280, maxWidth: 560)),
   );
 }
