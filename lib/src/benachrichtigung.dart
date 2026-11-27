@@ -47,7 +47,15 @@ class Benachrichtigung {
 
   /// Einmal beim Start (auch im Hintergrund-Isolate). Fragt nicht nach der
   /// Erlaubnis – das macht [erlaubnisFragen], wenn die Person es braucht.
-  static Future<bool> einrichten(RosenwegApp app) => _bereit ??= _einrichten(app);
+  static Future<bool> einrichten(RosenwegApp app) {
+    // Attrappe: nichts zwischenspeichern – ein in einem frueheren Widget-Test
+    // (andere FakeAsync-Zone) erzeugtes Future wuerde dort nie fertig
+    if (attrappe != null) {
+      _app = app;
+      return Future.value(true);
+    }
+    return _bereit ??= _einrichten(app);
+  }
 
   static Future<bool> _einrichten(RosenwegApp app) async {
     _app = app;
