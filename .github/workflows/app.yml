@@ -15,11 +15,16 @@
 #   windows   Inno-Setup-Installer (windows/installer/<app>.iss) mit Rauchtest
 #   macos     App + DMG (macos/installer/bauen.sh), ad hoc oder Developer ID
 #   ios       Bau ohne Signatur (unsigniertes .ipa, nur als Nachweis)
-#   release   GitHub-Release v<version> mit allen Dateien am gebauten Commit,
-#             danach startet es den Workflow apps.yml der App fuer den Tag
-#             (-> /apps; ein von GITHUB_TOKEN angelegtes Release loest
-#             "release published" nicht aus). Muster: Rosenweg/Website
-#             .github/workflows/android-release.yml.
+#   release   GitHub-Release v<version> am gebauten Commit, sobald Linux und
+#             Android (eigener Runner) durch sind - wartet NICHT auf Windows,
+#             macOS, iOS; der Text nennt sie "wird nachgereicht".
+#   nachtrag  wenn Windows/macOS/iOS fertig sind (auch fehlgeschlagen, z. B.
+#             GitHub-Ausgabenlimit): deren Dateien ins bestehende Release,
+#             SHA256SUMS neu, im Text steht, welche Plattformen fehlen und
+#             warum; danach startet es apps.yml der App fuer den Tag (-> /apps
+#             mit allem, was im Release liegt; ein von GITHUB_TOKEN angelegtes
+#             Release loest "release published" nicht aus).
+#             Ein Fehlschlag bei Windows/macOS/iOS verhindert das Release nie.
 #
 # Runner: alles ausser Windows, macOS und iOS laeuft auf dem eigenen Runner
 # ([self-hosted, rosenweg], Gruppe rosenweg-privat - das App-Repo muss in der
@@ -624,91 +629,174 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # Release, sobald Linux und Android durch sind (eigener Runner, keine
+  # GitHub-Minuten). Windows/macOS/iOS kommen im Job nachtrag dazu.
   release:
-    needs: [version, linux, android, windows, macos, ios]
+    needs: [version, linux, android]
     if: ${{ !cancelled() && !failure() && needs.version.outputs.los == 'true' }}
     runs-on: [self-hosted, rosenweg]
     timeout-minutes: 20
     permissions:
       contents: write   # Tag und Release
-      actions: write    # apps.yml fuer den Tag starten
+    env:
+      PHASE: release
+      TAG: ${{ needs.version.outputs.tag }}
+      VERSION: ${{ needs.version.outputs.version }}
+      TITEL: ${{ inputs.titel }}
+      PLATTFORMEN: ${{ inputs.plattformen }}
+      ST_LINUX: ${{ needs.linux.result }}
+      ST_ANDROID: ${{ needs.android.result }}
     steps:
       # Eigener Runner: der Arbeitsordner bleibt zwischen Laeufen liegen
       # (rosenweg-salz v1.0.0: altes .deb mit hochgeladen). Darum vorher leeren.
-      - name: ausgabe/ leeren
+      - &leeren
+        name: ausgabe/ leeren
         run: rm -rf ausgabe
 
       - uses: actions/download-artifact@v4
+        if: needs.linux.result == 'success'
+        with:
+          name: ${{ inputs.app }}-linux
+          path: ausgabe
+
+      - uses: actions/download-artifact@v4
+        if: needs.android.result == 'success'
+        with:
+          name: ${{ inputs.app }}-android
+          path: ausgabe
+
+      - &summen
+        name: Pruefsummen
+        run: |
+          set -euo pipefail
+          mkdir -p ausgabe && rm -f ausgabe/SHA256SUMS
+          ls -la ausgabe
+          (cd ausgabe && sha256sum ./* > "$RUNNER_TEMP/SHA256SUMS") && mv "$RUNNER_TEMP/SHA256SUMS" ausgabe/
+          cat ausgabe/SHA256SUMS
+
+      # Ohne gh (eigener Runner): Release, Dateien, Text und der Start von
+      # apps.yml ueber die REST-API. Derselbe Schritt in release und nachtrag
+      # (PHASE im Job-env).
+      - &release_schritt
+        name: Release (Dateien, Text, /apps)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const e = process.env;
+            const repo = { owner: context.repo.owner, repo: context.repo.repo };
+            const tag = e.TAG;
+            const nachtrag = e.PHASE === 'nachtrag';
+            const PLATTFORM = {
+              linux: { titel: 'Linux', passt: (n) => n.endsWith('.deb'), text: 'Linux, Debian 13 (Stationen über den PXE-Server, sonst /apps)' },
+              android: { titel: 'Android', passt: (n) => n.endsWith('.apk'), text: 'Android (Rosenweg-Schlüssel)' },
+              windows: { titel: 'Windows', passt: (n) => n.endsWith('-Setup.exe'), text: 'Windows' },
+              macos: { titel: 'macOS', passt: (n) => n.endsWith('.dmg'), text: 'macOS' },
+              ios: { titel: 'iOS', passt: (n) => n.endsWith('.ipa'), text: 'iOS, unsigniert (nur Nachweis, nicht installierbar)' },
+            };
+            const lauf = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`;
+            const gewollt = e.PLATTFORMEN.split(/\s+/).filter((p) => PLATTFORM[p]);
+            const lokal = fs.existsSync('ausgabe') ? fs.readdirSync('ausgabe').sort() : [];
+            if (lokal.some((f) => f.endsWith('-debug-signiert.apk'))) {
+              core.setFailed('Debug-signierte APK - kein Release.'); return;
+            }
+
+            // Release holen oder (Phase release) anlegen
+            let rel;
+            try {
+              rel = (await github.rest.repos.getReleaseByTag({ ...repo, tag })).data;
+            } catch (err) {
+              if (nachtrag || err.status !== 404) throw err;
+              rel = (await github.rest.repos.createRelease({
+                ...repo, tag_name: tag, target_commitish: context.sha,
+                name: `${e.TITEL || e.APP} ${tag}`, body: 'Wird gerade angelegt …',
+              })).data;
+              core.notice(`Release ${tag} angelegt: ${rel.html_url}`);
+            }
+            const hoch = async (name, data) => {
+              const alt = rel.assets.find((a) => a.name === name);
+              if (alt) await github.rest.repos.deleteReleaseAsset({ ...repo, asset_id: alt.id });
+              await github.rest.repos.uploadReleaseAsset({ ...repo, release_id: rel.id, name, data });
+              core.info(`Hochgeladen: ${name}`);
+            };
+            for (const f of lokal) {
+              if (f === 'SHA256SUMS') continue;
+              if (rel.assets.some((a) => a.name === f && a.size === fs.statSync(path.join('ausgabe', f)).size)) continue;
+              await hoch(f, fs.readFileSync(path.join('ausgabe', f)));
+            }
+            // SHA256SUMS ueber alle Dateien (nachtrag hat alle Artefakte geladen)
+            if (fs.existsSync('ausgabe/SHA256SUMS')) await hoch('SHA256SUMS', fs.readFileSync('ausgabe/SHA256SUMS'));
+            rel = (await github.rest.repos.getRelease({ ...repo, release_id: rel.id })).data;
+
+            // Text: vorhandene Dateien, fehlende Plattformen mit Grund
+            const namen = rel.assets.map((a) => a.name).sort();
+            const zeilen = [];
+            const fehlt = [];
+            for (const p of gewollt) {
+              const da = namen.filter(PLATTFORM[p].passt);
+              for (const n of da) zeilen.push(`| \`${n}\` | ${PLATTFORM[p].text} |`);
+              if (da.length) continue;
+              const st = e[`ST_${p.toUpperCase()}`] || '';
+              const grund = st === '' ? 'wird nachgereicht, sobald der Bau durch ist'
+                : st === 'failure' ? `Bau fehlgeschlagen (z. B. GitHub-Ausgabenlimit); nachholen: im [Lauf](${lauf}) „Re-run failed jobs“`
+                : st === 'cancelled' ? 'Bau abgebrochen'
+                : st === 'skipped' ? 'nicht gebaut'
+                : `kein Ergebnis (${st})`;
+              fehlt.push(`- **${PLATTFORM[p].titel}**: ${grund}`);
+            }
+            let body = `Version ${e.VERSION}, automatisch nach dem Merge auf main gebaut (${context.sha}).\n\n`;
+            body += '| Datei | Plattform |\n|---|---|\n' + zeilen.join('\n') + '\n';
+            if (fehlt.length) body += `\n**Fehlt:**\n${fehlt.join('\n')}\n`;
+            try {
+              const c = await github.rest.repos.getCommit({ ...repo, ref: context.sha });
+              body += '\n---\n\n' + c.data.commit.message.slice(0, 3000) + '\n';
+            } catch (err) {
+              core.warning(`Commit-Nachricht nicht gelesen: ${err.message}`);
+            }
+            await github.rest.repos.updateRelease({ ...repo, release_id: rel.id, body });
+            if (nachtrag && fehlt.length) core.warning(`Release ${tag} ohne: ${fehlt.join(' ').replace(/\*\*/g, '')}`);
+
+            // Am Ende: /apps mit allem, was im Release liegt
+            if (nachtrag && e.WF) {
+              await github.rest.actions.createWorkflowDispatch({ ...repo, workflow_id: e.WF, ref: tag });
+              core.info(`${e.WF} fuer ${tag} gestartet`);
+            }
+
+  # Windows/macOS/iOS ins bestehende Release, sobald sie fertig sind - auch wenn
+  # eine davon scheitert (GitHub-Runner: Minuten, Ausgabenlimit). Danach /apps.
+  nachtrag:
+    needs: [version, linux, android, release, windows, macos, ios]
+    if: ${{ always() && needs.release.result == 'success' }}
+    runs-on: [self-hosted, rosenweg]
+    timeout-minutes: 20
+    permissions:
+      contents: write   # Dateien und Text des Release
+      actions: write    # apps.yml fuer den Tag starten
+    env:
+      PHASE: nachtrag
+      TAG: ${{ needs.version.outputs.tag }}
+      VERSION: ${{ needs.version.outputs.version }}
+      TITEL: ${{ inputs.titel }}
+      PLATTFORMEN: ${{ inputs.plattformen }}
+      WF: ${{ inputs.apps_workflow }}
+      ST_LINUX: ${{ needs.linux.result }}
+      ST_ANDROID: ${{ needs.android.result }}
+      ST_WINDOWS: ${{ needs.windows.result }}
+      ST_MACOS: ${{ needs.macos.result }}
+      ST_IOS: ${{ needs.ios.result }}
+    steps:
+      - *leeren
+
+      # alle vorhandenen Artefakte (fuer SHA256SUMS ueber alles); fehlende
+      # Plattformen haben keins
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           pattern: ${{ inputs.app }}-*
           path: ausgabe
           merge-multiple: true
 
-      - name: Dateien und Notiz
-        env:
-          VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          ls -la ausgabe
-          if ls ausgabe/*-debug-signiert.apk >/dev/null 2>&1; then
-            echo "::error::Debug-signierte APK - kein Release."; exit 1
-          fi
-          (cd ausgabe && sha256sum ./* > SHA256SUMS && cat SHA256SUMS)
-          {
-            echo "Version $VERSION, automatisch nach dem Merge auf main gebaut ($GITHUB_SHA)."
-            echo
-            echo "| Datei | Plattform |"
-            echo "|---|---|"
-            for f in ausgabe/*; do
-              n=$(basename "$f")
-              case "$n" in
-                *.apk) p="Android (Rosenweg-Schlüssel)" ;;
-                *.deb) p="Linux, Debian 13 (Stationen über den PXE-Server, sonst /apps)" ;;
-                *.dmg) p="macOS" ;;
-                *-Setup.exe) p="Windows" ;;
-                *.ipa) p="iOS, unsigniert (nur Nachweis, nicht installierbar)" ;;
-                *) continue ;;
-              esac
-              echo "| \`$n\` | $p |"
-            done
-          } > "$RUNNER_TEMP/notiz.md"
+      - *summen
 
-      # Ohne gh (auf dem eigenen Runner gibt es keins): Release, Dateien und der
-      # Start von apps.yml ueber die REST-API, wie rosenweg-salz linux.yml.
-      - name: Release anlegen, an /apps schicken
-        uses: actions/github-script@v7
-        env:
-          TAG: ${{ needs.version.outputs.tag }}
-          TITEL: ${{ inputs.titel }}
-          WF: ${{ inputs.apps_workflow }}
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-            const repo = { owner: context.repo.owner, repo: context.repo.repo };
-            const { TAG, TITEL, WF, APP, RUNNER_TEMP } = process.env;
-            let notiz = fs.readFileSync(path.join(RUNNER_TEMP, 'notiz.md'), 'utf8');
-            try {
-              const c = await github.rest.repos.getCommit({ ...repo, ref: context.sha });
-              notiz += '\n---\n\n' + c.data.commit.message.slice(0, 3000) + '\n';
-            } catch (e) {
-              core.warning(`Commit-Nachricht nicht gelesen: ${e.message}`);
-            }
-            const rel = await github.rest.repos.createRelease({
-              ...repo, tag_name: TAG, target_commitish: context.sha,
-              name: `${TITEL || APP} ${TAG}`, body: notiz,
-            });
-            for (const f of fs.readdirSync('ausgabe').sort()) {
-              await github.rest.repos.uploadReleaseAsset({
-                ...repo, release_id: rel.data.id, name: f,
-                data: fs.readFileSync(path.join('ausgabe', f)),
-              });
-              core.info(`Hochgeladen: ${f}`);
-            }
-            core.notice(`Release ${TAG}: ${rel.data.html_url}`);
-            // Workflow der App fuer den Tag (-> /apps); ein mit GITHUB_TOKEN
-            // angelegtes Release loest "release published" nicht aus.
-            if (WF) {
-              await github.rest.actions.createWorkflowDispatch({ ...repo, workflow_id: WF, ref: TAG });
-              core.info(`${WF} fuer ${TAG} gestartet`);
-            }
+      - *release_schritt
