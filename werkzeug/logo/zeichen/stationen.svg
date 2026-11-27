@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <title>Arbeitsplatz: Bildschirm und Rechner (Rosenweg Stationen-OS)</title>
+  <path fill-rule="evenodd" d="M40 72 H244 A24 24 0 0 1 268 96 V236 A24 24 0 0 1 244 260 H40 A24 24 0 0 1 16 236 V96 A24 24 0 0 1 40 72 Z M54 106 V226 H230 V106 Z"/>
+  <path d="M116 260 H168 L180 302 H104 Z"/>
+  <rect x="68" y="296" width="148" height="36" rx="18"/>
+  <path fill-rule="evenodd" d="M312 40 H364 A22 22 0 0 1 386 62 V338 A22 22 0 0 1 364 360 H312 A22 22 0 0 1 290 338 V62 A22 22 0 0 1 312 40 Z M314 82 H362 V102 H314 Z M314 124 H362 V144 H314 Z M323 300 A15 15 0 1 1 353 300 A15 15 0 1 1 323 300 Z"/>
+</svg>

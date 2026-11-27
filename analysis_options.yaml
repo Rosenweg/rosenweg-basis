@@ -9,6 +9,8 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # App-Vorlage: eigenes Paket mit eigener analysis_options.yaml (geprueft in vorlage.yml)
+    - vorlage/**
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

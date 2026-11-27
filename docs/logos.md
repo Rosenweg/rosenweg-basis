@@ -28,3 +28,31 @@ sh werkzeug/logo/android-apps.sh ../fossify-rosenweg/calculator-rosenweg calcula
 python3 werkzeug/logo/startbildschirm.py --aus ~/Downloads/rosenweg-android-logos.png \
     ../fossify-rosenweg/calculator-rosenweg/assets/logo/rosenweg-rechner …
 ```
+
+## Flutter-Apps (alle Plattformen)
+
+`werkzeug/logo/flutter-apps.txt`: alle 41 Apps aus dem Flutter-Plan mit Zeichen,
+Zielgruppe und Kennung. Die Zielgruppe färbt das Zeichen (`baukasten.py --gruppe`):
+`bewohner` rot (wie bisher), `verwaltung` blau, `technik` grün. Rosenweg Stationen
+nutzt das Zeichen von os-stationen und ergibt genau dessen `docs/logo.svg`.
+
+```sh
+sh werkzeug/logo/app-symbole.sh ../rosenweg-zutritt rosenweg-zutritt "Rosenweg Zutritt" werkzeug/logo/zeichen/zutritt.svg bewohner
+sh werkzeug/logo/kontaktbogen.sh ~/Downloads/rosenweg-app-logos.png        # [--einfarbig]
+```
+
+`app-symbole.sh` schreibt Android (Mipmaps, adaptive, monochrom), iOS-AppIcon
+(vollflächig ohne Alpha), macOS-AppIcon und `.icns` (`icns.py`, auch unter Linux),
+Windows-`.ico`, `assets/logo/<app>-192.png` für /apps, das 512er-PNG und den
+DMG-Hintergrund (`dmg-hintergrund.svg`). Linux-hicolor rechnet das `.deb` selbst.
+
+Neue Zeichen aus Material Symbols (Rounded, gefüllt, Stärke 600, Apache-2.0):
+
+```sh
+python3 werkzeug/logo/zeichen-zusammensetzen.py --laden door_front key
+python3 werkzeug/logo/zeichen-zusammensetzen.py --titel "Tür mit Schlüssel (Rosenweg Zutritt)" \
+    --haupt door_front --zusatz key > werkzeug/logo/zeichen/zutritt.svg
+```
+
+Ein Zusatzsymbol sitzt rechts unten mit weissem Rand (`style="fill:#fff"`, weil der
+Baukasten `fill`-Attribute entfernt; die Plakette ist in allen Fassungen weiss).

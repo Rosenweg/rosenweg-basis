@@ -1,0 +1,38 @@
+name: rosenweg_vorlage
+description: "Rosenweg Vorlage – Gerüst für neue Rosenweg-Apps: Anmeldung, Seiten, Updater."
+publish_to: 'none'
+
+# version: x.y.z+Baunummer. Ein Merge auf main mit einer NEUEN Version (Tag
+# vx.y.z gibt es noch nicht) baut alle Plattformen und veroeffentlicht sie
+# (GitHub-Release, /apps). Unveraenderte Version = nur CI, kein Release.
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  # Gemeinsame Basis der Rosenweg-Apps: Anmeldung (Karte, QR, Konto, still per
+  # Kerberos), API, Gerüst (Handy/Desktop), Updater, Logo-Baukasten. Privates
+  # Repo: in CI mit dem Org-Secret BASIS_TOKEN, lokal mit ../rosenweg-basis
+  # ueber pubspec_overrides.yaml (siehe README, "Entwickeln").
+  rosenweg_basis:
+    git:
+      url: https://github.com/Rosenweg/rosenweg-basis.git
+      # Stand mit Updater (rosenweg-basis#11) und iOS-MainActor-Fix (#12);
+      # nach deren Merge auf den Tag v0.5.0 umstellen
+      ref: 942a355d1a0eb8b6adeb66a1543fb0b448fae355
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  # Logo fuer Anmeldeschirm, "Über" und Titelleiste (assets/logo/erzeugen.sh)
+  assets:
+    - assets/logo/rosenweg-vorlage-512.png
+    - assets/logo/rosenweg-vorlage-klein.png

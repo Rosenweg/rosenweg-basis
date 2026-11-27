@@ -31,3 +31,7 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 /build/
 /coverage/
+
+# App-Vorlage: pubspec.lock entsteht erst in der neuen App (werkzeug/neue-app.sh)
+/vorlage/pubspec.lock
+/vorlage/pubspec_overrides.yaml

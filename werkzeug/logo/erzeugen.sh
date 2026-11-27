@@ -20,6 +20,8 @@
 #                        (R.mipmap.ic_launcher_red …, Aktivitaets-Aliase)
 #                        zeigen alle auf das eine Rosenweg-Icon
 #   ALLE=1, GROESSEN=1   siehe unten
+#   GRUPPE=<gruppe>      Farbe des Zeichens (bewohner, verwaltung, technik; baukasten.py)
+# Flutter-Apps mit allen Plattformen: app-symbole.sh (ruft dieses Skript auf).
 # Die Linux-Symbole (hicolor 16…512) rechnet das Paket selbst aus den SVGs
 # (linux/paket/bauen.sh) nach derselben Regel (logo_quelle unten).
 #
@@ -35,7 +37,8 @@ APP="$(cd "$1" && pwd)"; NAME="$2"; TITEL="$3"; ZEICHEN="${4:-}"
 L="$APP/assets/logo"
 mkdir -p "$L"
 if [ -n "$ZEICHEN" ]; then
-  python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --zeichen "$ZEICHEN" --ziel "$L" ${ALLE:+--alle} >/dev/null
+  python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --zeichen "$ZEICHEN" --ziel "$L" ${ALLE:+--alle} \
+    ${GRUPPE:+--gruppe "$GRUPPE"} >/dev/null
 else
   python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --ziel "$L" ${ALLE:+--alle} >/dev/null
 fi
