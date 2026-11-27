@@ -7,7 +7,7 @@ im Stil "Rounded", gefuellt, Strichstaerke 600, 24 px:
     symbols/web/<name>/materialsymbolsrounded/<name>_wght600fill1_24px.svg
 
     werkzeug/logo/zeichen-zusammensetzen.py --ordner <material-svgs> --titel "Tür mit Schlüssel (Rosenweg Zutritt)" \\
-        --haupt door_front --zusatz key > werkzeug/logo/zeichen/zutritt.svg
+        --haupt door_front --zusatz key > werkzeug/logo/zeichen/<name>.svg
     werkzeug/logo/zeichen-zusammensetzen.py --laden door_front key   # holt die SVGs nach material/ (Netz)
 
 Ergebnis: SVG mit viewBox 0 0 400 400, wie der Baukasten es verlangt. Mit --zusatz sitzt

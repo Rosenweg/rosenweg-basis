@@ -31,13 +31,13 @@ python3 werkzeug/logo/startbildschirm.py --aus ~/Downloads/rosenweg-android-logo
 
 ## Flutter-Apps (alle Plattformen)
 
-`werkzeug/logo/flutter-apps.txt`: alle 41 Apps aus dem Flutter-Plan mit Zeichen,
+`werkzeug/logo/flutter-apps.txt`: alle 39 Apps aus dem Flutter-Plan (Karten ist in Zutritt aufgegangen) mit Zeichen,
 Zielgruppe und Kennung. Die Zielgruppe färbt das Zeichen (`baukasten.py --gruppe`):
 `bewohner` rot (wie bisher), `verwaltung` blau, `technik` grün. Rosenweg Stationen
 nutzt das Zeichen von os-stationen und ergibt genau dessen `docs/logo.svg`.
 
 ```sh
-sh werkzeug/logo/app-symbole.sh ../rosenweg-zutritt rosenweg-zutritt "Rosenweg Zutritt" werkzeug/logo/zeichen/zutritt.svg bewohner
+sh werkzeug/logo/app-symbole.sh ../rosenweg-zutritt rosenweg-zutritt "Rosenweg Zutritt" werkzeug/logo/zeichen/zutritt.svg technik
 sh werkzeug/logo/kontaktbogen.sh ~/Downloads/rosenweg-app-logos.png        # [--einfarbig]
 ```
 
@@ -51,7 +51,7 @@ Neue Zeichen aus Material Symbols (Rounded, gefüllt, Stärke 600, Apache-2.0):
 ```sh
 python3 werkzeug/logo/zeichen-zusammensetzen.py --laden door_front key
 python3 werkzeug/logo/zeichen-zusammensetzen.py --titel "Tür mit Schlüssel (Rosenweg Zutritt)" \
-    --haupt door_front --zusatz key > werkzeug/logo/zeichen/zutritt.svg
+    --haupt door_front --zusatz key > werkzeug/logo/zeichen/<name>.svg
 ```
 
 Ein Zusatzsymbol sitzt rechts unten mit weissem Rand (`style="fill:#fff"`, weil der

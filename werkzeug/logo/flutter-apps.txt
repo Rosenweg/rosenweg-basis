@@ -6,12 +6,13 @@
 #     Entscheid Stefan 27.11.2026, nach der Hauptzielgruppe der App
 #   Rosenweg Stationen: normales Technik-Logo (gruen); das rote Logo von os-stationen gilt nur fuers Betriebssystem
 #   Rosenweg Telefonbuch: gestrichen (Plan 1e, 27.11.2026)
+#   Rosenweg Karten: in Rosenweg Zutritt aufgegangen (Stefan, 27.11.2026); Zutritt ist eine Technik-App (gruen),
+#     Zeichen Schluessel mit Ausweiskarte
 rosenweg-profil|Rosenweg Profil|person|bewohner|profil
 rosenweg-salz|Rosenweg Salz|salz|bewohner|salz
 rosenweg-vm|Rosenweg Virtuelle Computer|monitor|bewohner|vm
-rosenweg-karten|Rosenweg Karten|karten|technik|karten
 rosenweg-mein-telefon|Rosenweg Mein Telefon|mein-telefon|bewohner|meintelefon
-rosenweg-zutritt|Rosenweg Zutritt|zutritt|bewohner|zutritt
+rosenweg-zutritt|Rosenweg Zutritt|zutritt|technik|zutritt
 rosenweg-waschkueche|Rosenweg Waschküche|waschkueche|bewohner|waschkueche
 rosenweg-reparatur|Rosenweg Reparatur|reparatur|bewohner|reparatur
 rosenweg-wetter|Rosenweg Wetter|wetter|bewohner|wetter
