@@ -1,3 +1,19 @@
+## 0.7.0
+
+- **Wochenraster** (Kalender-Raster für Belegungen; zuerst für Rosenweg
+  Waschküche, gebaut nach dem Kalender von `waschkueche.html`):
+  `Wochenraster<T>` zeigt eine Woche mit Stunden (Standard 06–22 Uhr) und
+  Blöcken (`RasterEintrag`: von, bis, Titel, Art `eigen`/`fremd`/`gesperrt`,
+  `daten`). Breiter als 600 px alle sieben Tage, schmaler ein Tag mit den
+  sieben Tagen zum Antippen darüber. Tippen in eine freie Stelle liefert den
+  Zeitpunkt (abgerundet auf 15 Minuten), Tippen auf einen Block den Eintrag.
+  Rote Linie = jetzt (jede Minute nachgeführt), vergangene Tage grau, ein
+  laufender Termin grün umrandet; beim Öffnen steht die aktuelle Stunde
+  oben. Bildschirmleser hören je Block „Titel, Tag, Zeit“.
+- `WochenKopf`: „‹ KW 48 · 23.11.–29.11.2026 › Heute“.
+- Hilfen: `montagVon`, `kalenderwoche` (ISO 8601), `uhrText`, `tagLangText`,
+  `wochentageKurz`, `wochentageLang`.
+
 ## 0.6.3
 
 Bausteine aus Rosenweg Reparatur (Flutter-Plan: Kamera, Upload, Benachrichtigungen):

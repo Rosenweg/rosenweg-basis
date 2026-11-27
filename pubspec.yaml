@@ -1,6 +1,6 @@
 name: rosenweg_basis
 description: "Gemeinsame Basis der Rosenweg-Funktions-Apps: Anmeldung (Authentik rosenweg-apps), API-Client, Haus-Erkennung, Rechte, Listen, Formulare, Scanner, Dateien, PDF, Farben, Bausteine, Logo-Baukasten."
-version: 0.6.3
+version: 0.7.0
 publish_to: 'none'
 repository: https://github.com/Rosenweg/rosenweg-basis
 

@@ -53,6 +53,7 @@ export 'src/oberflaeche/pdf_ansicht.dart';
 export 'src/oberflaeche/rahmen.dart';
 export 'src/oberflaeche/rechte_bausteine.dart';
 export 'src/oberflaeche/scanner.dart';
+export 'src/oberflaeche/wochenraster.dart';
 export 'src/plattform.dart' show RosenwegPlattform;
 export 'src/protokoll.dart';
 export 'src/rechte.dart';

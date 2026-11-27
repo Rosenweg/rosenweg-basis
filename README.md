@@ -102,6 +102,7 @@ Mehr: [docs/bedienung.md](docs/bedienung.md).
 | Karte lesen | `karteLesen`, `KarteLesenSeite`, `KartenleserBereich`, `Kartenleser.fuerApp`, `AndroidKartenleser`, `kartenleserHindernis`, `karteUidNormal`, `uidEintippen` |
 | Dateien | `RosenwegDateien` (`sitzung.dateien`: `hochladen` roh/multipart, `herunterladen`), `DateiDaten`, `dateienWaehlen`, `fotoAufnehmen`, `bildVerkleinern`, `dateiSpeichern`, `dateiTeilen`, `DateiAblage`, `mitFortschritt`, `TransferAnzeige` |
 | PDF | `PdfAnsicht`, `PdfSeite`, `pdfOeffnen` |
+| Kalender | `Wochenraster` (7 Tage × Stunden, Handy: ein Tag mit Tageswahl; Tippen in freie Stelle = Zeitpunkt), `RasterEintrag`, `RasterArt` (eigen/fremd/gesperrt), `WochenKopf` (KW, blättern, Heute), `montagVon`, `kalenderwoche`, `uhrText`, `tagLangText` |
 | Protokoll | `Protokoll.schreiben` – `~/.local/state/<ordner>/app.log`, nie Tokens |
 | Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte, Rosenweg-Konto oder QR-Code, Token aus Kotlin), DNS-Server, Rosenweg Gerät (`ContentResolver.call`), Karte lesen in der App (`NfcKarte`: Reader-Modus mit dem `Kartenleser` aus commons-rosenweg `anmeldeschirm`) |
 
