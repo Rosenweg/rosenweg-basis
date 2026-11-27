@@ -1,12 +1,10 @@
 # Rosenweg-Flutter-Apps (Plan "Alle Portal-Funktionen als Flutter-Apps", Abschnitt 1e) und ihre Logos.
 # Gelesen von kontaktbogen.sh und werkzeug/neue-app.sh (Vorschlag fuer Zeichen und Gruppe).
-# repo | titel | zeichen (zeichen/<name>.svg) | gruppe (bewohner|verwaltung|technik) | kennung (ch.rosenweg4303.<kennung>) [| zielgruppe]
-#   zielgruppe: nur wo sie von der Logofarbe abweicht (Ordnung im Kontaktbogen)
+# repo | titel | zeichen (zeichen/<name>.svg) | gruppe (bewohner|verwaltung|technik) | kennung (ch.rosenweg4303.<kennung>)
 #   gruppe: Farbe des Grundes (baukasten.py --gruppe): bewohner = Rosenweg-Rot (alle Bewohner),
 #     verwaltung = Rosenweg-Blau (Ausschuss, Hausverwaltung), technik = Dunkelgruen (Technik, Admin);
 #     Entscheid Stefan 27.11.2026, nach der Hauptzielgruppe der App
-#   Rosenweg Stationen: Zielgruppe Technik, behaelt aber das Logo von os-stationen (docs/logo.svg, rot),
-#     darum hier "bewohner" (ergibt genau dieses Logo) und Zielgruppe "technik"
+#   Rosenweg Stationen: normales Technik-Logo (gruen); das rote Logo von os-stationen gilt nur fuers Betriebssystem
 #   Rosenweg Telefonbuch: gestrichen (Plan 1e, 27.11.2026)
 rosenweg-profil|Rosenweg Profil|person|bewohner|profil
 rosenweg-salz|Rosenweg Salz|salz|bewohner|salz
@@ -38,7 +36,7 @@ rosenweg-mail-archiv|Rosenweg Mail-Archiv|mail-archiv|verwaltung|mailarchiv
 rosenweg-aushaenge|Rosenweg Aushänge|aushaenge|verwaltung|aushaenge
 rosenweg-anzeigen|Rosenweg Anzeigen|anzeigen|verwaltung|anzeigen
 rosenweg-rechte|Rosenweg Rechte|rechte|technik|rechte
-rosenweg-stationen|Rosenweg Stationen|stationen|bewohner|stationen|technik
+rosenweg-stationen|Rosenweg Stationen|stationen|technik|stationen
 rosenweg-sicherungen|Rosenweg Sicherungen|sicherungen|technik|sicherungen
 rosenweg-ssh|Rosenweg SSH|ssh|technik|ssh
 rosenweg-proxmox|Rosenweg Proxmox|proxmox|technik|proxmox

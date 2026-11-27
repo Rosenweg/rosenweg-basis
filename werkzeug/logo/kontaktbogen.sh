@@ -4,7 +4,7 @@
 # werkzeug/logo/kontaktbogen.sh — alle Logos der Flutter-Apps nebeneinander
 # ============================================================================
 #   sh werkzeug/logo/kontaktbogen.sh [ausgabe.png] [--pdf]
-#   VORHANDEN=../logos sh werkzeug/logo/kontaktbogen.sh ~/Downloads/rosenweg-logos-kontaktbogen.png --pdf
+#   sh werkzeug/logo/kontaktbogen.sh ~/Downloads/rosenweg-logos-kontaktbogen.png --pdf
 #
 # Liest flutter-apps.txt, baut jedes Logo mit baukasten.py (Zeichen und
 # Gruppenfarbe aus der Tabelle) und setzt sie nach Zielgruppe geordnet in ein
@@ -15,9 +15,6 @@
 # nebeneinander (auf /apps, im Launcher, im Startmenue der Stationen)
 # unterscheidbar bleiben.
 #
-#   VORHANDEN=<ordner>  liegt dort <repo>.svg, wird dieses Logo statt des
-#                       Baukastens genommen (Rosenweg Stationen: docs/logo.svg
-#                       aus os-stationen, Repo privat)
 #   --pdf               zusaetzlich <ausgabe>.pdf
 # Benoetigt: python3, rsvg-convert, magick (ImageMagick 7).
 # ============================================================================
@@ -40,19 +37,15 @@ BREITE=$((SPALTEN * (ZB + RAND) + RAND))
 HELL='#F4F5F7' DUNKEL='#1B1C22' TEXT='#202124' GRAU='#5F6368'
 
 # Logos bauen: $T/<repo>.png (256), -48.png, -96.png
-grep -v '^#' "$HIER/flutter-apps.txt" | while IFS='|' read -r repo titel zeichen gruppe _ ziel; do
+grep -v '^#' "$HIER/flutter-apps.txt" | while IFS='|' read -r repo titel zeichen gruppe _; do
   [ -n "$repo" ] || continue
-  if [ -n "${VORHANDEN:-}" ] && [ -f "$VORHANDEN/$repo.svg" ]; then
-    gross="$VORHANDEN/$repo.svg"; klein="$gross"
-  else
-    python3 "$HIER/baukasten.py" --name "$repo" --titel "$titel" --zeichen "$HIER/zeichen/$zeichen.svg" \
-      --gruppe "$gruppe" --ziel "$T/svg" >/dev/null
-    gross="$T/svg/$repo.svg"; klein="$T/svg/$repo-klein.svg"
-  fi
+  python3 "$HIER/baukasten.py" --name "$repo" --titel "$titel" --zeichen "$HIER/zeichen/$zeichen.svg" \
+    --gruppe "$gruppe" --ziel "$T/svg" >/dev/null
+  gross="$T/svg/$repo.svg"; klein="$T/svg/$repo-klein.svg"
   rsvg-convert -w 256 -h 256 "$gross" -o "$T/$repo.png"
   rsvg-convert -w 48 -h 48 "$klein" -o "$T/$repo-48.png"
   rsvg-convert -w 96 -h 96 "$klein" -o "$T/$repo-96.png"
-  echo "${ziel:-$gruppe}|$repo|$titel|$gruppe" >> "$T/liste"
+  echo "$gruppe|$repo|$titel" >> "$T/liste"
 done
 
 teile=""
@@ -74,15 +67,13 @@ for g in bewohner:Alle_Bewohner verwaltung:Ausschuss_/_Hausverwaltung technik:Te
     -font "$SCHRIFT" -pointsize 17 -fill "$GRAU" -gravity northeast \
     -annotate +$RAND+30 "Grund $farbe  ·  $anzahl Apps" "$T/k-$gr.png"
   zellen=""
-  while IFS='|' read -r _ repo titel lgruppe; do
-    zusatz=""
-    [ "$lgruppe" != "$gr" ] && zusatz=" (Logo von os-stationen)"
+  while IFS='|' read -r _ repo titel; do
     magick -size "${ZB}x${ZH}" xc:white \
       "$T/$repo.png" -geometry +14+12 -compose over -composite \
       "$T/$repo-48.png" -geometry +$((14 + 256 + 34))+116 -composite \
       -font "$SCHRIFT" -pointsize 12 -fill "$GRAU" -annotate +$((14 + 256 + 34 + 4))+182 "48 px" \
       -font "$FETT" -pointsize 18 -fill "$TEXT" -annotate +14+292 "$titel" \
-      -font "$SCHRIFT" -pointsize 14 -fill "$GRAU" -annotate +14+316 "$name$zusatz" \
+      -font "$SCHRIFT" -pointsize 14 -fill "$GRAU" -annotate +14+316 "$name" \
       "$T/z-$repo.png"
     zellen="$zellen $T/z-$repo.png"
   done < "$T/l-$gr"
@@ -97,7 +88,7 @@ done
 LZ=140 LSP=$((BREITE / LZ))
 launcher=""
 for gr in bewohner verwaltung technik; do
-  while IFS='|' read -r _ repo titel _; do
+  while IFS='|' read -r _ repo titel; do
     kurz=$(echo "$titel" | sed 's/^Rosenweg //')
     magick -size "${LZ}x150" "xc:$DUNKEL" "$T/$repo-96.png" -geometry +22+10 -composite \
       -font "$SCHRIFT" -pointsize 13 -fill '#FFFFFF' -gravity north -annotate +0+116 "$kurz" "$T/d-$repo.png"
