@@ -3,6 +3,8 @@
 - Wochenraster: `RasterArt.gesperrt` neutral grau mit Rand (vorher blass im
   Thema-Ton, kaum von fremden Terminen zu unterscheiden) – für die Sperrzeiten
   der Waschküche.
+- Logo-Liste (`werkzeug/logo/flutter-apps.txt`): Repo der Mail-Freigabe heisst
+  `rosenweg-mailfreigabe` (wie auf GitHub).
 
 ## 0.8.0 – Benachrichtigungen, Hintergrund, App-Links
 
