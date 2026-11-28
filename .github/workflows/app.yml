@@ -446,7 +446,16 @@ jobs:
           sed -i "s#src=\"flutter_bootstrap.js\"#src=\"flutter_bootstrap.js?v=$VERSION-$GITHUB_RUN_NUMBER\"#" index.html
           sed -i "s#\"mainJsPath\":\"main.dart.js\"#\"mainJsPath\":\"main.dart.js?v=$VERSION-$GITHUB_RUN_NUMBER\"#" flutter_bootstrap.js
           grep -q "flutter_bootstrap.js?v=" index.html && grep -q "main.dart.js?v=" flutter_bootstrap.js
-          printf '{"app":"%s","name":"%s","version":"%s","lauf":"%s","commit":"%s"}\n' "$APP" "$WEB_NAME" "$VERSION" "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" > rosenweg-web.json
+          # CanvasKit (Zeichenmotor, ~14 MB) nur einmal fuer alle Apps: unter
+          # /app/canvaskit/<flutter-version>/, ausgerollt von rw-web-ausrollen.sh
+          # (liegt hier im Archiv, wird dort aus der App herausgenommen). Ohne diese
+          # Angabe holt der Browser es von www.gstatic.com (Google).
+          grep -q '_flutter.loader.load({' flutter_bootstrap.js
+          sed -i "s#_flutter.loader.load({#_flutter.loader.load({\n  config: { canvasKitBaseUrl: \"/app/canvaskit/$FLUTTER_VERSION/\" },#" flutter_bootstrap.js
+          grep -q "canvasKitBaseUrl" flutter_bootstrap.js
+          # nur was der CanvasKit-Renderer laedt (kein skwasm/wimp, keine Symboldateien)
+          rm -rf canvaskit/skwasm* canvaskit/wimp* canvaskit/*.symbols canvaskit/*/*.symbols
+          printf '{"app":"%s","name":"%s","version":"%s","lauf":"%s","commit":"%s","flutter":"%s"}\n' "$APP" "$WEB_NAME" "$VERSION" "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" "$FLUTTER_VERSION" > rosenweg-web.json
 
       - name: Archiv
         run: |

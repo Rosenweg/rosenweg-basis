@@ -67,6 +67,16 @@ hängt `?v=<version>-<laufnummer>` an `flutter_bootstrap.js` und `main.dart.js`
 und legt `rosenweg-web.json` (App, Version, Commit) dazu. Ergebnis:
 `<app>-web.tar.gz` am Release (und in `SHA256SUMS`).
 
+CanvasKit (Zeichenmotor, rund 16 MB) wird nur einmal ausgeliefert: der Job
+setzt `canvasKitBaseUrl` in `flutter_bootstrap.js` auf
+`/app/canvaskit/<flutter-version>/` und lässt nur die Dateien im Archiv, die der
+Renderer lädt. Ohne diese Angabe holte der Browser sie bei Google
+(`www.gstatic.com`). Der Wasm-Renderer (`--wasm`, skwasm) wäre mit gut 3 MB
+kleiner, braucht aber neuere Browser und für volle Geschwindigkeit
+Cross-Origin-Isolation; der HTML-Renderer ist in Flutter nicht mehr enthalten.
+Darum bleibt es bei CanvasKit. Bekannt: Roboto holt die Engine noch von
+`fonts.gstatic.com` (Google Fonts); die Schrift der App mitzuliefern ist offen.
+
 ## Ausrollen (Website-Repo)
 
 ```
