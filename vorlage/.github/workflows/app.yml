@@ -2,18 +2,21 @@
 # Workflow in rosenweg-basis (.github/workflows/app.yml, dort die Einzelheiten).
 #
 #   Pull Request          Linux (analyze, test, .deb) und Android (APK, Debug-
-#                         Signatur); Windows, macOS, iOS dazu, wenn das Repo
-#                         oeffentlich ist
+#                         Signatur); Windows dazu, wenn das Repo oeffentlich
+#                         ist; macOS und iOS NICHT (nur bei Release)
 #   Merge auf main        dasselbe; ist die Version in pubspec.yaml NEU (Tag
 #                         vx.y.z gibt es noch nicht): GitHub-Release vx.y.z mit
 #                         Linux und Android; Windows, macOS, iOS kommen dazu,
 #                         sobald sie durch sind (scheitern sie, bleibt das
 #                         Release, der Text nennt, was fehlt), dann /apps (apps.yml)
-#   von Hand              alle Plattformen, ohne Release
+#   von Hand              Windows; macOS und iOS nur mit Eingabe "mac" (true),
+#                         ohne Release
 #
 # Runner: nur von GitHub gehostete (ubuntu-latest, windows-latest,
 # macos-latest), nie eigene. In einem privaten Repo kosten sie Minuten;
-# Windows, macOS und iOS laufen dort nur fuer ein Release oder von Hand.
+# Windows laeuft dort nur fuer ein Release oder von Hand. macOS und iOS
+# laufen nur fuer ein Release oder von Hand mit mac: true (GitHub Free:
+# nur 5 gleichzeitige macOS-Jobs je Organisation).
 #
 # Secrets: die Org-Secrets ANDROID_KEYSTORE_BASE64/-PASSWORD und
 # ANDROID_KEY_ALIAS/-PASSWORD (fuer dieses Repo freigeben). Weitergereicht
@@ -26,6 +29,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      mac:
+        description: macOS und iOS auch ohne Release bauen
+        type: boolean
+        default: false
 
 concurrency:
   group: app-${{ github.ref }}
@@ -52,6 +60,7 @@ jobs:
       # /api/stations/<id>/apps, z. B. rosenweg-salz). Gesetzt: nach jedem
       # Release ein PR in os-stationen mit pakete/<app>/paket.conf. Leer: keiner.
       stationen_seite: ""
+      mac: ${{ github.event_name == 'workflow_dispatch' && inputs.mac }}
     # nur bei Push auf main; bei pull_request leer (Debug-Signatur)
     secrets:
       ANDROID_KEYSTORE_BASE64: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}

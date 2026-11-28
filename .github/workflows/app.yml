@@ -37,9 +37,14 @@
 # macos-latest), nie eigene - das Repo ist oeffentlich, und ein PR aus einem
 # Fork darf keinen Code im Servernetz ausfuehren. Caches ueber actions/cache
 # (Schluessel = Version + Pruefsumme; ein PR kann den Cache von main nicht
-# ueberschreiben). Windows, macOS und iOS laufen in oeffentlichen Repos immer
-# (Minuten gratis); in einem privaten App-Repo nur fuer ein Release, von Hand
-# (workflow_dispatch) oder mit alle_plattformen: true.
+# ueberschreiben). Windows laeuft in oeffentlichen Repos immer (Minuten
+# gratis), in einem privaten App-Repo nur fuer ein Release, von Hand
+# (workflow_dispatch) oder mit alle_plattformen: true. macOS und iOS laufen
+# NUR bei einem Release (neue Version), mit alle_plattformen: true oder mit
+# mac: true (workflow_dispatch, Eingabe "mac") - GitHub Free erlaubt nur 5
+# gleichzeitige macOS-Jobs je Organisation, PR-Laeufe stauten sich stundenlang.
+# Uebersprungene Jobs zaehlen als "skipped"; die Rulesets verlangen keine
+# Status-Checks, nichts blockiert.
 #
 # Secrets: der Aufrufer reicht sie NUR bei Push auf main bzw. Tag v* weiter
 # (bei pull_request leer, siehe vorlage/.github/workflows/app.yml); hier
@@ -91,6 +96,10 @@ on:
         default: "linux android windows macos ios"
       alle_plattformen:
         description: Windows, macOS und iOS auch ohne Release bauen
+        type: boolean
+        default: false
+      mac:
+        description: macOS und iOS auch ohne Release bauen (von Hand, workflow_dispatch mit mac true)
         type: boolean
         default: false
       veroeffentlichen:
@@ -173,6 +182,7 @@ jobs:
         env:
           VEROEFFENTLICHEN: ${{ inputs.veroeffentlichen }}
           ALLE: ${{ inputs.alle_plattformen }}
+          MAC: ${{ inputs.mac }}
           PLATTFORMEN: ${{ inputs.plattformen }}
           # nur ob sie da sind; die Werte selbst braucht erst der Android-Job
           KS_B64: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
@@ -204,15 +214,20 @@ jobs:
               echo "::notice::Neue Version $version: alle Plattformen bauen, dann Release $tag."
             fi
           fi
-          teuer=false
-          if [ "$los" = true ] || [ "$ALLE" = true ] || [ "$OEFFENTLICH" = true ] || [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then teuer=true; fi
+          # Windows: Release, alle_plattformen, oeffentliches Repo oder von Hand.
+          # macOS/iOS: nur Release, alle_plattformen oder mac: true (GitHub
+          # Free erlaubt nur 5 gleichzeitige macOS-Jobs je Organisation).
+          win=false; mac=false
+          if [ "$los" = true ] || [ "$ALLE" = true ] || [ "$OEFFENTLICH" = true ] || [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then win=true; fi
+          if [ "$los" = true ] || [ "$ALLE" = true ] || [ "$MAC" = true ]; then mac=true; fi
           {
             echo "version=$version"; echo "tag=$tag"; echo "los=$los"
             for p in linux android; do
               [[ " $PLATTFORMEN " == *" $p "* ]] && echo "$p=true" || echo "$p=false"
             done
-            for p in windows macos ios; do
-              [[ " $PLATTFORMEN " == *" $p "* ]] && [ "$teuer" = true ] && echo "$p=true" || echo "$p=false"
+            [[ " $PLATTFORMEN " == *" windows "* ]] && [ "$win" = true ] && echo "windows=true" || echo "windows=false"
+            for p in macos ios; do
+              [[ " $PLATTFORMEN " == *" $p "* ]] && [ "$mac" = true ] && echo "$p=true" || echo "$p=false"
             done
           } >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
