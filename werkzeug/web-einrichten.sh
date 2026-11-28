@@ -50,6 +50,12 @@ else
   echo "web/ angelegt in $APP"
 fi
 
+# Schriften ohne Google (die Engine holt Roboto sonst von fonts.gstatic.com): immer sicherstellen
+if [ ! -f "$APP/web/fonts/roboto/v32/KFOmCnqEu92Fr1Me4GZLCzYlKw.woff2" ] || [ "$ERNEUERN" = 1 ]; then
+  mkdir -p "$APP/web/fonts" && cp -R "$BASIS/vorlage/web/fonts/." "$APP/web/fonts/"
+  echo "web/fonts/ (Roboto, ohne Google) angelegt"
+fi
+
 wf="$APP/.github/workflows/app.yml"
 if [ -f "$wf" ] && ! grep -Eq '^[[:space:]]+web:[[:space:]]*true' "$wf"; then
   # direkt hinter die Zeile "paket:" im with:-Block des Aufrufs

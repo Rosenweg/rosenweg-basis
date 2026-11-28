@@ -476,8 +476,14 @@ jobs:
           # (liegt hier im Archiv, wird dort aus der App herausgenommen). Ohne diese
           # Angabe holt der Browser es von www.gstatic.com (Google).
           grep -q '_flutter.loader.load({' flutter_bootstrap.js
-          sed -i "s#_flutter.loader.load({#_flutter.loader.load({\n  config: { canvasKitBaseUrl: \"/app/canvaskit/$FLUTTER_VERSION/\" },#" flutter_bootstrap.js
-          grep -q "canvasKitBaseUrl" flutter_bootstrap.js
+          # Schriften ebenso von uns, nie von fonts.gstatic.com (Google): die Engine holt
+          # Roboto und Ersatzschriften dort, wenn der Browser sie nicht hat; das wuerde die
+          # IP-Adressen der Bewohner an Google geben. web/fonts/ (vorlage/web/fonts, Roboto,
+          # Apache-Lizenz) liegt in der App; relativ zur Seite, also unter /app/<name>/fonts/.
+          [ -f fonts/roboto/v32/KFOmCnqEu92Fr1Me4GZLCzYlKw.woff2 ] \
+            || { echo "::error::web/fonts/roboto/... fehlt (werkzeug/web-einrichten.sh --erneuern): sonst holt der Browser Roboto bei Google"; exit 1; }
+          sed -i "s#_flutter.loader.load({#_flutter.loader.load({\n  config: { canvasKitBaseUrl: \"/app/canvaskit/$FLUTTER_VERSION/\", fontFallbackBaseUrl: \"fonts/\" },#" flutter_bootstrap.js
+          grep -q "canvasKitBaseUrl" flutter_bootstrap.js && grep -q 'fontFallbackBaseUrl: "fonts/"' flutter_bootstrap.js
           # nur was der CanvasKit-Renderer laedt (kein skwasm/wimp, keine Symboldateien)
           rm -rf canvaskit/skwasm* canvaskit/wimp* canvaskit/*.symbols canvaskit/*/*.symbols
           printf '{"app":"%s","name":"%s","version":"%s","lauf":"%s","commit":"%s","flutter":"%s"}\n' "$APP" "$WEB_NAME" "$VERSION" "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" "$FLUTTER_VERSION" > rosenweg-web.json
