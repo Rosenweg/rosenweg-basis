@@ -26,7 +26,12 @@
     Siehe rosenweg-basis docs/web.md.
   -->
   <script src="/js/authentik-auth.js"></script>
-  <script>try { AuthentikAuth.handleCallback(); } catch (e) { console.warn('Anmeldung der Website nicht geladen', e); }</script>
+  <script>
+    // authentik-auth.js legt `const AuthentikAuth` an: das ist KEINE Eigenschaft
+    // von window, Dart-JS-Interop fände es nicht. Darum hier hineinlegen.
+    try { window.AuthentikAuth = AuthentikAuth; AuthentikAuth.handleCallback(); }
+    catch (e) { console.warn('Anmeldung der Website nicht geladen', e); }
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
