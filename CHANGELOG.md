@@ -1,3 +1,20 @@
+## 0.8.8 – Eingang systempakete für den Linux-Bau
+
+- Workflow `app.yml`: neuer Eingang `systempakete` (Leerzeichen-getrennte
+  Debian-Pakete, Standard leer) für den Linux-Bau. Apps mit `media_kit`
+  (Rosenweg TV) brauchen `libmpv-dev`. Ohne Angabe ändert sich nichts.
+- Logo-Liste: Rosenweg Vollmachten in der Gruppe `bewohner`, Farben
+  `verwaltung,technik`.
+- Logo-Liste: Zeichen Rosenweg Unterlagen (Ordner mit Dokument), Unterlagen
+  und STWEG mit den Farben `verwaltung,technik`.
+- CI (`app.yml`, schon auf main seit #45): macOS und iOS werden nur noch bei
+  einem Release gebaut (neue Version), mit `alle_plattformen: true` oder von
+  Hand mit der Eingabe `mac: true` (`workflow_dispatch`). PR-Läufe bauen nur
+  Linux, Android, Windows. Grund: GitHub Free erlaubt nur 5 gleichzeitige
+  macOS-Jobs je Organisation. Die Vorlage hat die Eingabe `mac`.
+- CI der Basis (`beispiel.yml`): Job `macos-ios` nur noch beim Release-Tag
+  `beispiel-v*` oder von Hand (`workflow_dispatch`).
+
 ## 0.8.7 – Ohne Anmeldung nutzbar, vorAbmelden, MQTT widerrufen
 
 Für Rosenweg Energie (allgemein nutzbar):

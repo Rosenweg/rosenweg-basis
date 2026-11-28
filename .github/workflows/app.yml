@@ -121,6 +121,10 @@ on:
         description: Erwarteter SHA-256 des Signaturzertifikats (Rosenweg-Schluessel)
         type: string
         default: 7b3bac26e82b6103546b96861dcf1bb89b3239424ff11fdf684975cf78c5a5ae
+      systempakete:
+        description: Zusaetzliche Debian-Pakete fuer den Linux-Bau (Leerzeichen-getrennt), z. B. libmpv-dev fuer Apps mit media_kit
+        type: string
+        default: ""
       apps_workflow:
         description: Workflow der App, der ein Release an /apps schickt (leer = keiner)
         type: string
@@ -245,12 +249,17 @@ jobs:
     steps:
       # vor checkout: mit git holt checkout das Repo samt .git (Stand im Paket)
       - name: Systempakete
+        env:
+          # Eingang als Umgebungsvariable (nie ${{ }} in die Shell), nur Paketnamen
+          ZUSATZ: ${{ inputs.systempakete }}
         run: |
+          printf '%s' "$ZUSATZ" | grep -Eq '^[a-z0-9+.: -]*$' || { echo "::error::systempakete: nur Paketnamen"; exit 1; }
           apt-get update -qq
+          # shellcheck disable=SC2086
           DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
             ca-certificates clang cmake ninja-build pkg-config xz-utils curl unzip git zstd \
             libgtk-3-dev liblzma-dev libstdc++-14-dev libsecret-1-dev libjsoncpp-dev \
-            dpkg-dev binutils patchelf librsvg2-bin file lintian >/dev/null
+            dpkg-dev binutils patchelf librsvg2-bin file lintian $ZUSATZ >/dev/null
 
       - uses: actions/checkout@v4
 

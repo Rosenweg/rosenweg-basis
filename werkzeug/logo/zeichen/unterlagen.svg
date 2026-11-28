@@ -1,5 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
-  <title>Ordner mit Blättern (Rosenweg Unterlagen)</title>
-  <!-- Material Symbols Rounded (topic), Apache-2.0, siehe werkzeug/logo/zeichen/LIZENZEN.md -->
-  <g transform="translate(0.0 0.0) scale(0.41667) translate(0 960)"><path d="M166.78-140.78q-44.3 0-75.15-30.85-30.85-30.85-30.85-75.15v-466.44q0-44.3 30.85-75.15 30.85-30.85 75.15-30.85h181q21.23 0 40.46 7.98 19.24 7.98 34.19 22.94L480-730.74h313.22q44.3 0 75.15 30.85 30.85 30.85 30.85 75.15v377.96q0 44.3-30.85 75.15-30.85 30.85-75.15 30.85H166.78ZM280-315.48h240q17 0 28.5-11.5t11.5-28.5q0-17-11.5-28.5t-28.5-11.5H280q-17 0-28.5 11.5t-11.5 28.5q0 17 11.5 28.5t28.5 11.5Zm0-160h400q17 0 28.5-11.5t11.5-28.5q0-17-11.5-28.5t-28.5-11.5H280q-17 0-28.5 11.5t-11.5 28.5q0 17 11.5 28.5t28.5 11.5Z"/></g>
+  <title>Ordner mit Dokument (Rosenweg Unterlagen)</title>
+  <!-- eigene Zeichnung (Rosenweg), 28.11.2026: Blatt mit Eselsohr steckt im Ordner -->
+  <path d="M24 110 A26 26 0 0 1 50 84 H92 A22 22 0 0 1 108 91 L120 103 V194 H24 Z"/>
+  <path d="M316 112 H350 A26 26 0 0 1 376 138 V194 H316 Z"/>
+  <path fill-rule="evenodd" d="M160 30 H244 L300 86 V198 H136 V54 A24 24 0 0 1 160 30 Z M173 64 H219 A9 9 0 0 1 228 73 V73 A9 9 0 0 1 219 82 H173 A9 9 0 0 1 164 73 V73 A9 9 0 0 1 173 64 Z M173 106 H263 A9 9 0 0 1 272 115 V115 A9 9 0 0 1 263 124 H173 A9 9 0 0 1 164 115 V115 A9 9 0 0 1 173 106 Z M173 146 H263 A9 9 0 0 1 272 155 V155 A9 9 0 0 1 263 164 H173 A9 9 0 0 1 164 155 V155 A9 9 0 0 1 173 146 Z"/>
+  <path d="M260 30 L300 70 H276 A16 16 0 0 1 260 54 Z"/>
+  <path d="M24 214 H376 V338 A28 28 0 0 1 348 366 H52 A28 28 0 0 1 24 338 Z"/>
 </svg>
