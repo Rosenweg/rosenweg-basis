@@ -38,7 +38,8 @@ RosenwegGruppe gruppeAusRechten(RosenwegApp app, Rechte? rechte) {
   final r = rechte;
   if (r == null) return standard;
   final f = app.farbGruppen;
-  if (f.contains(RosenwegGruppe.technik) && r.alles) return standard.max(RosenwegGruppe.technik);
+  final gruen = r.alles || r.darfEine(app.farbRechteTechnik);
+  if (f.contains(RosenwegGruppe.technik) && gruen) return standard.max(RosenwegGruppe.technik);
   if (f.contains(RosenwegGruppe.verwaltung)) {
     final blau = app.farbRechte.isEmpty ? r.gruppen.any(istAusschussOderVerwaltung) : r.darfEine(app.farbRechte);
     if (blau) return standard.max(RosenwegGruppe.verwaltung);

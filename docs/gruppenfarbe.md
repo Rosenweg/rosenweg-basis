@@ -7,7 +7,7 @@ Gruppe allein.
 
 | Farbe | Wer | Bedingung in der App |
 |---|---|---|
-| Grün #2E6B4F | Technik, Präsident | `farbGruppen` enthält `technik` und `Rechte.alles` |
+| Grün #2E6B4F | Technik, Präsident | `farbGruppen` enthält `technik` und `Rechte.alles`, oder eines der `farbRechteTechnik` (mind. lesen) |
 | Blau #1E3A8A | Ausschuss, Verwaltung | `farbGruppen` enthält `verwaltung`, dazu: mit `farbRechte` eines dieser Seitenrechte (mind. lesen), ohne `farbRechte` eine Gruppe `stwegN-`/`meg-ausschuss`, `stwegN-`/`meg-verwaltung` oder `verwaltung` |
 | Rot #D62828 | alle anderen | – |
 
@@ -22,6 +22,7 @@ const appAngaben = RosenwegApp(
   gruppe: RosenwegGruppe.bewohner,                                     // Mindestfarbe
   farbGruppen: {RosenwegGruppe.verwaltung, RosenwegGruppe.technik},   // wo die App mehr freischaltet
   farbRechte: {'reklamationen'},                                       // optional: Blau nach Seitenrecht
+  farbRechteTechnik: {'energie-config'},                               // optional: Grün nach Seitenrecht
 );
 
 RosenwegGeruest(logo: FarbLogo(sitzung: sitzung, klein: true), …)     // Logo wechselt live
@@ -97,6 +98,7 @@ Stand 28.11.2026 (Liste und Entscheid: Stefan):
 | Rosenweg Termine | bewohner | verwaltung, technik | – |
 | Rosenweg ZEV | bewohner | verwaltung, technik | – (Ausschuss/Verwaltung einer STWEG mit ZEV) |
 | Rosenweg Waschküche | bewohner | verwaltung, technik | waschküche-admin |
+| Rosenweg Energie | bewohner | verwaltung, technik | `energie-stweg`; Grün: `energie-config` |
 | Rosenweg Mein Telefon | bewohner | technik | – |
 | Rosenweg Salz | bewohner | technik | – |
 | Profil, VM, Wetter | bewohner | – (immer rot) | |
