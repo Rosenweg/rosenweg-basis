@@ -344,6 +344,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # Der Container laeuft als root: ohne diesen Schritt bleiben root-eigene
+      # Dateien (.dart_tool, build, Caches) im Arbeitsordner der eigenen Runner,
+      # und der naechste Job dort (als runner) scheitert mit EACCES.
+      - name: Dateien an den Runner-Benutzer zurueckgeben
+        if: always()
+        run: |
+          ziel=$(stat -c '%u:%g' "$GITHUB_WORKSPACE")
+          chown -R "$ziel" "$GITHUB_WORKSPACE" "$HOME" 2>/dev/null || true
+
   android:
     needs: version
     if: needs.version.outputs.android == 'true'
