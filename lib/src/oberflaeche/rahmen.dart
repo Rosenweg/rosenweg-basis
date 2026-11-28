@@ -33,6 +33,8 @@ class AnmeldeTor extends StatelessWidget {
         builder: (context, _) => switch (sitzung.phase) {
           Phase.pruefen => const Scaffold(body: LadeAnzeige()),
           Phase.abgemeldet when ohneAnmeldung != null && !sitzung.anmeldungGewuenscht => Builder(builder: ohneAnmeldung!),
+          // Browser: die Anmeldung der Website uebernimmt (Weiterleitung), kein eigener Schirm
+          Phase.anmelden when sitzung.web != null => const Scaffold(body: LadeAnzeige()),
           Phase.abgemeldet || Phase.anmelden => Scaffold(
               appBar: ohneAnmeldung == null
                   ? null

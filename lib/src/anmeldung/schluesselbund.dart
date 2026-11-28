@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../protokoll.dart';
@@ -31,7 +32,7 @@ class Schluesselbund {
             ),
         // Nicht unter `flutter test` (dort ersetzt setMockInitialValues den Speicher)
         _systemBereit = systemBereit ??
-            (speicher == null && Platform.isLinux && !Platform.environment.containsKey('FLUTTER_TEST')
+            (speicher == null && !kIsWeb && Platform.isLinux && !Platform.environment.containsKey('FLUTTER_TEST')
                 ? linuxSecretServiceBereit
                 : null);
 

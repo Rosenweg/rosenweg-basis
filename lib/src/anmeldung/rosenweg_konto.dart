@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
@@ -52,7 +53,7 @@ class RosenwegKonto implements Zugangsquelle {
   /// Kerberos nur auf Linux und Windows (Domaene); Telefone und macOS nie.
   static StilleAnmeldung? _standardStill(RosenwegKonfig k) {
     final quelle = k.kerberosQuelle;
-    if (quelle == null || RosenwegPlattform.istAndroid) return null;
+    if (quelle == null || kIsWeb || RosenwegPlattform.istAndroid) return null;
     if (!(Platform.isLinux || Platform.isWindows)) return null;
     return StilleAnmeldung(authentik: Uri.parse(k.authentik).replace(path: '/'), quelle: quelle, dienst: k.kerberosDienst);
   }

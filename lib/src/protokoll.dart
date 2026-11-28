@@ -41,6 +41,7 @@ class Protokoll {
   }
 
   static String? _bestimmen() {
+    if (kIsWeb) return null; // Browser: keine Datei, nur die Konsole
     try {
       final env = Platform.environment;
       final home = env['HOME'] ?? '';
@@ -99,6 +100,8 @@ class Protokoll {
     try {
       if (konsoleFuerTests != null) {
         k = konsoleFuerTests!();
+      } else if (kIsWeb) {
+        k = null;
       } else if (windowsFuerTests ?? Platform.isWindows) {
         final art = stdioType(stderr);
         k = art == StdioType.terminal || art == StdioType.pipe || art == StdioType.file ? stderr : null;
@@ -124,6 +127,7 @@ class Protokoll {
     if (fehler != null) zeile.write(': $fehler');
     if (stapel != null) zeile.write('\n$stapel');
     mithoeren?.call('$zeile');
+    if (kIsWeb) debugPrint('$zeile'); // Konsole des Browsers
     try {
       _konsoleOderNichts?.writeln(zeile);
     } catch (_) {

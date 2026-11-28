@@ -8,6 +8,7 @@ import 'anmeldung/karten_sitzung.dart';
 import 'anmeldung/rosenweg_konto.dart';
 import 'anmeldung/ruecksprung.dart';
 import 'anmeldung/schluesselbund.dart';
+import 'anmeldung/web_konto.dart';
 import 'konfig.dart';
 import 'fehler_fuer_person.dart';
 import 'netz/api.dart';
@@ -47,6 +48,11 @@ enum Phase {
 ///           (USB-Leser bzw. iPhone-NFC), Rosenweg-Konto (Browser), QR
 ///           (iPhone scannt; Desktop zeigt einen, den das Handy bestaetigt)
 ///
+/// Im Browser (Web-Version unter rosenweg4303.ch/app/…) gibt es nur EINE
+/// Anmeldung, die der Website ([WebKonto]): kein eigener Anmeldeschirm, ohne
+/// Sitzung geht es zur Anmeldung der Website und danach zurueck; Abmelden
+/// meldet auf der ganzen Website ab.
+///
 /// Die App liest [api] und baut ihre Seiten; [AnmeldeTor] zeigt davor
 /// Anmeldeschirm, Warten und Fehler.
 class RosenwegSitzung extends ChangeNotifier {
@@ -78,13 +84,17 @@ class RosenwegSitzung extends ChangeNotifier {
       : konto = konto ?? RosenwegKonto(app, speicher: speicher),
         android = android ?? (konto == null && RosenwegPlattform.istAndroid ? AndroidKontoKanal(gruppe: app.gruppe) : null),
         karte = karte ??
-            (konto == null && app.ohneBrowser && !RosenwegPlattform.istAndroid ? KartenSitzung(app, speicher: speicher) : null),
+            (konto == null && app.ohneBrowser && !RosenwegPlattform.istAndroid && !kIsWeb ? KartenSitzung(app, speicher: speicher) : null),
+        web = kIsWeb && konto == null && transport == null ? WebKonto() : null,
         _transport = transport, // ignore: prefer_initializing_formals
         _geraetDa = geraetDa ?? _standardGeraetDa,
         _personWechsel = personWechsel; // ignore: prefer_initializing_formals
 
   final RosenwegApp app;
   final RosenwegKonto konto;
+
+  /// Browser: die Anmeldung der Website. null ausserhalb von Web.
+  final WebKonto? web;
 
   /// Android ohne Rosenweg Geraet: Anmeldung ueber commons-rosenweg (Kotlin).
   /// null auf dem Desktop.
@@ -129,7 +139,7 @@ class RosenwegSitzung extends ChangeNotifier {
   /// Aus dem Teil ohne Anmeldung zum Anmeldeschirm (Android: gleich der
   /// Kotlin-Schirm).
   Future<void> anmeldungZeigen() async {
-    if (android != null) return anmelden();
+    if (android != null || web != null) return anmelden();
     anmeldungGewuenscht = true;
     notifyListeners();
   }
@@ -169,7 +179,7 @@ class RosenwegSitzung extends ChangeNotifier {
   /// Token mitgeben (rosenweg-vm: vm-gateway). Das Token ist ein
   /// Authentik-Token (Konto, Kerberos) oder ein `rw_app_…` (Karte, QR, Handy;
   /// 15 Minuten, wird hier erneuert). Auf geteilten Telefonen gibt es keins.
-  late final Zugangsquelle zugang = android ?? _Zugang(this);
+  late final Zugangsquelle zugang = android ?? web ?? _Zugang(this);
 
   /// Ein anderer Dienst hat das Token trotz Erneuern abgelehnt (401): wie bei
   /// der Haupt-API einmal still neu anmelden, sonst zum Anmeldeschirm.
@@ -187,6 +197,8 @@ class RosenwegSitzung extends ChangeNotifier {
     if (a != null) {
       return Anmeldestand(art: a.mitKarte ? AnmeldeArt.karte : AnmeldeArt.konto, name: a.name, email: a.email);
     }
+    final w = web;
+    if (w != null) return Anmeldestand(art: AnmeldeArt.konto, name: w.name, email: w.email);
     if (_kontoAktiv) {
       return Anmeldestand(
           art: _mitKerberos ? AnmeldeArt.kerberos : AnmeldeArt.konto, name: konto.name, email: konto.email);
@@ -266,6 +278,18 @@ class RosenwegSitzung extends ChangeNotifier {
         _setzen(Phase.bereit);
         return;
       }
+      final w = web;
+      if (w != null) {
+        // Browser: die Sitzung der Website gilt (kein eigener Schirm)
+        if (await w.pruefen()) {
+          _setzen(Phase.bereit);
+        } else if (ohneAnmeldungNutzbar) {
+          _setzen(Phase.abgemeldet);
+        } else {
+          await _webAnmelden(automatisch: true);
+        }
+        return;
+      }
       final a = android;
       if (a != null) {
         // Wie die Kotlin-Apps (RosenwegAnmeldeSchirm.zeigenFallsNoetig): gleich den Schirm zeigen
@@ -309,6 +333,8 @@ class RosenwegSitzung extends ChangeNotifier {
         return true;
       }
       if (await _geraetDa()) return false;
+      final w = web;
+      if (w != null) return false; // im Browser gibt es keine Abfrage im Hintergrund
       final a = android;
       final ok = a != null
           ? await a.angemeldet
@@ -324,6 +350,7 @@ class RosenwegSitzung extends ChangeNotifier {
   /// Knopf "Mit Rosenweg-Konto anmelden". Erst still (Kerberos; z. B. nach
   /// "Abmelden" in der App), sonst im Browser.
   Future<void> anmelden() async {
+    if (web != null) return _webAnmelden();
     final a = android;
     if (a != null) {
       // Anmeldeschirm von commons-rosenweg (Karte oder Rosenweg-Konto)
@@ -354,6 +381,21 @@ class RosenwegSitzung extends ChangeNotifier {
     }
   }
 
+  /// Browser: zur Anmeldung der Website, danach zurueck hierher. Die Seite
+  /// wird dabei verlassen; nur wenn die Sperre der Website die automatische
+  /// Anmeldung anhaelt (mehrere Fehlversuche), geht es hier weiter.
+  Future<void> _webAnmelden({bool automatisch = false, bool erneut = false}) async {
+    try {
+      _setzen(Phase.anmelden);
+      final los = await web!.anmelden(automatisch: automatisch, erneut: erneut);
+      if (!los) {
+        _setzen(Phase.fehler, 'Die automatische Anmeldung hat mehrmals nicht geklappt und wurde angehalten.');
+      }
+    } catch (e) {
+      _fehler(e);
+    }
+  }
+
   /// Knopf "Abbrechen" waehrend die Anmeldeseite offen ist.
   void abbrechen() => konto.abbrechen();
 
@@ -367,6 +409,11 @@ class RosenwegSitzung extends ChangeNotifier {
   /// App bleibt dabei sichtbar; true = bestaetigt.
   Future<bool> bestaetigen() async {
     if (geteiltesTelefon) return false;
+    if (web != null) {
+      // Die Website fragt erneut nach dem Ausweis und kommt hierher zurueck
+      await _webAnmelden(erneut: true);
+      return false;
+    }
     if (android != null) {
       final ok = await android!.bestaetigen();
       if (ok) {
@@ -392,6 +439,12 @@ class RosenwegSitzung extends ChangeNotifier {
     if (geteiltesTelefon) return;
     await _vorAbmeldenAusfuehren();
     anmeldungGewuenscht = false;
+    final w = web;
+    if (w != null) {
+      // Abmelden in der App = Abmelden auf der ganzen Website (Seite wird verlassen)
+      await w.abmelden();
+      return;
+    }
     if (android != null) {
       await android!.abmelden();
       if (ohneAnmeldungNutzbar) {
@@ -418,8 +471,27 @@ class RosenwegSitzung extends ChangeNotifier {
 
   void _nichtMehrAngemeldet() {
     if (geteiltesTelefon) return; // Geraet entscheidet; die App zeigt die Meldung
+    if (web != null) {
+      if (phase == Phase.bereit) _webNeuPruefen();
+      return;
+    }
     if (phase == Phase.bereit) {
       _neuStill();
+    }
+  }
+
+  /// Browser: die API lehnt das Token ab. Die Website prueft es selbst (und
+  /// raeumt die Sitzung auf); ohne Sitzung zur Anmeldung.
+  Future<void> _webNeuPruefen() async {
+    try {
+      if (await web!.pruefen()) return; // war nur ein Aussetzer
+      if (ohneAnmeldungNutzbar) {
+        _setzen(Phase.abgemeldet);
+      } else {
+        await _webAnmelden(automatisch: true);
+      }
+    } catch (e) {
+      _fehler(e);
     }
   }
 

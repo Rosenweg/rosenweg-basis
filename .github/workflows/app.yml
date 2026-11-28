@@ -9,6 +9,13 @@
 #             und der Rosenweg-Signierschluessel da ist.
 #   linux     flutter analyze + test + build linux, Debian-Paket
 #             (linux/paket/bauen.sh) - ubuntu-latest im Container debian:13
+#   web       nur mit web: true. flutter build web --release --base-href
+#             /app/<web_name>/ (web_name: Standard = app ohne "rosenweg-"),
+#             Archiv <app>-web.tar.gz am Release. Ausgerollt wird es von
+#             Hand mit scripts/rw-web-ausrollen.sh --app <web_name> (Website-
+#             Repo); die Web-Version nutzt die Anmeldung der Website
+#             (docs/web.md). Laeuft wie Linux (gleiche Runner, gleiche
+#             Bedingungen); ein Fehlschlag verhindert das Release.
 #   android   APK, signiert mit dem Rosenweg-Schluessel (Org-Secrets
 #             ANDROID_KEYSTORE_BASE64/-PASSWORD, ANDROID_KEY_ALIAS/-PASSWORD;
 #             nur bei Push auf main oder Tag v*, sonst Debug-Signatur und kein
@@ -129,6 +136,14 @@ on:
         description: Workflow der App, der ein Release an /apps schickt (leer = keiner)
         type: string
         default: apps.yml
+      web:
+        description: Zusaetzlich als Web-Version bauen (web/ in der App; werkzeug/web-einrichten.sh)
+        type: boolean
+        default: false
+      web_name:
+        description: Kurzname der Web-Version, Adresse /app/<web_name>/ (leer = app ohne "rosenweg-")
+        type: string
+        default: ""
       stationen_seite:
         description: Web-Seite (Kennung aus /api/stations/<id>/apps), die die App auf den Stationen ersetzt; gesetzt = nach dem Release PR in os-stationen (leer = keiner)
         type: string
@@ -178,6 +193,8 @@ jobs:
       windows: ${{ steps.v.outputs.windows }}
       macos: ${{ steps.v.outputs.macos }}
       ios: ${{ steps.v.outputs.ios }}
+      web: ${{ steps.v.outputs.web }}
+      web_name: ${{ steps.v.outputs.web_name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -188,6 +205,8 @@ jobs:
           ALLE: ${{ inputs.alle_plattformen }}
           MAC: ${{ inputs.mac }}
           PLATTFORMEN: ${{ inputs.plattformen }}
+          WEB: ${{ inputs.web }}
+          WEB_NAME: ${{ inputs.web_name }}
           # nur ob sie da sind; die Werte selbst braucht erst der Android-Job
           KS_B64: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
           KS_PASS: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
@@ -226,6 +245,11 @@ jobs:
           if [ "$los" = true ] || [ "$ALLE" = true ] || [ "$MAC" = true ]; then mac=true; fi
           {
             echo "version=$version"; echo "tag=$tag"; echo "los=$los"
+            # Web-Version: wie Linux (immer, wenn gewollt); Kurzname nur aus [a-z0-9-]
+            kurz=${WEB_NAME:-${APP#rosenweg-}}
+            [[ "$kurz" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "::error::web_name '$kurz': nur a-z, 0-9, -" >&2; exit 1; }
+            echo "web_name=$kurz"
+            [ "$WEB" = true ] && echo "web=true" || echo "web=false"
             for p in linux android; do
               [[ " $PLATTFORMEN " == *" $p "* ]] && echo "$p=true" || echo "$p=false"
             done
@@ -347,6 +371,100 @@ jobs:
       # Der Container laeuft als root: ohne diesen Schritt bleiben root-eigene
       # Dateien (.dart_tool, build, Caches) im Arbeitsordner der eigenen Runner,
       # und der naechste Job dort (als runner) scheitert mit EACCES.
+      - name: Dateien an den Runner-Benutzer zurueckgeben
+        if: always()
+        run: |
+          ziel=$(stat -c '%u:%g' "$GITHUB_WORKSPACE")
+          chown -R "$ziel" "$GITHUB_WORKSPACE" "$HOME" 2>/dev/null || true
+
+  # Web-Version (nur mit web: true): dieselbe App als Seite unter
+  # rosenweg4303.ch/app/<web_name>/. Analyse und Tests macht der Linux-Job; hier
+  # wird nur gebaut. Das Archiv enthaelt build/web mit der Basis-Adresse
+  # /app/<web_name>/ und einer Versionsangabe an main.dart.js und
+  # flutter_bootstrap.js (nach einem Update haengt keine alte Version fest).
+  web:
+    needs: version
+    if: needs.version.outputs.web == 'true'
+    # Wie linux: eigene Runner (ausser Forks), Bau im Container debian:13.
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","Linux","rosenweg"]') || 'ubuntu-latest' }}
+    container: debian:13
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      WEB_NAME: ${{ needs.version.outputs.web_name }}
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Systempakete
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+            ca-certificates curl unzip git xz-utils zstd >/dev/null
+
+      - uses: actions/checkout@v4
+
+      - name: Flutter-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rosenweg-flutter-ci
+          key: flutter-${{ github.job }}-${{ inputs.flutter_version }}-${{ inputs.flutter_sha256 }}-${{ hashFiles(format('{0}/pubspec.lock', inputs.ordner), format('{0}/pubspec.yaml', inputs.ordner)) }}
+          restore-keys: flutter-${{ github.job }}-${{ inputs.flutter_version }}-${{ inputs.flutter_sha256 }}-
+
+      - name: Flutter (feste Version mit Pruefsumme)
+        run: |
+          set -euo pipefail
+          C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
+          if [ ! -x "$C/flutter-$FLUTTER_VERSION/bin/flutter" ]; then
+            curl -fsSL -o "$C/flutter.txz" "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz"
+            echo "$FLUTTER_SHA256  $C/flutter.txz" | sha256sum -c -
+            mkdir -p "$C/flutter-$FLUTTER_VERSION" && tar -xJf "$C/flutter.txz" -C "$C/flutter-$FLUTTER_VERSION" --strip-components=1 && rm "$C/flutter.txz"
+          fi
+          git config --global --add safe.directory "$C/flutter-$FLUTTER_VERSION"
+          echo "$C/flutter-$FLUTTER_VERSION/bin" >> "$GITHUB_PATH"
+          echo "PUB_CACHE=$C/pub-cache" >> "$GITHUB_ENV"
+          rm -rf "$C/pub-cache/git"
+
+      - *basis
+
+      - name: Web bauen
+        run: |
+          set -euo pipefail
+          cd "$ORDNER"
+          [ -f web/index.html ] || { echo "::error::web: true, aber web/index.html fehlt (werkzeug/web-einrichten.sh)"; exit 1; }
+          grep -q 'authentik-auth.js' web/index.html || { echo "::error::web/index.html laedt /js/authentik-auth.js nicht (gemeinsame Anmeldung, docs/web.md)"; exit 1; }
+          flutter config --no-analytics >/dev/null
+          $PUB_GET
+          flutter build web --release --base-href "/app/$WEB_NAME/"
+          # Versionsangabe an den Dateien, die der Browser nicht von selbst neu holt:
+          # index.html -> flutter_bootstrap.js -> main.dart.js. (Der Webserver sagt
+          # zusaetzlich no-cache; das hier haelt auch Zwischenspeicher davon ab,
+          # eine alte Fassung zu behalten.)
+          cd build/web
+          if ! { grep -q 'flutter_bootstrap.js' index.html && grep -q '"mainJsPath":"main.dart.js"' flutter_bootstrap.js; }; then
+            echo "::error::Aufbau von build/web hat sich geaendert (index.html/flutter_bootstrap.js)"; exit 1
+          fi
+          sed -i "s#src=\"flutter_bootstrap.js\"#src=\"flutter_bootstrap.js?v=$VERSION-$GITHUB_RUN_NUMBER\"#" index.html
+          sed -i "s#\"mainJsPath\":\"main.dart.js\"#\"mainJsPath\":\"main.dart.js?v=$VERSION-$GITHUB_RUN_NUMBER\"#" flutter_bootstrap.js
+          grep -q "flutter_bootstrap.js?v=" index.html && grep -q "main.dart.js?v=" flutter_bootstrap.js
+          printf '{"app":"%s","name":"%s","version":"%s","lauf":"%s","commit":"%s"}\n' "$APP" "$WEB_NAME" "$VERSION" "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" > rosenweg-web.json
+
+      - name: Archiv
+        run: |
+          set -euo pipefail
+          cd "$ORDNER"
+          rm -rf ausgabe && mkdir ausgabe
+          tar -czf "ausgabe/$APP-web.tar.gz" --owner=0 --group=0 -C build/web .
+          (cd ausgabe && sha256sum ./*)
+          # Rauchtest: Archiv enthaelt Seite, Start und Programm
+          [ "$(tar -tzf "ausgabe/$APP-web.tar.gz" | grep -cE '^\./(index\.html|flutter_bootstrap\.js|main\.dart\.js|rosenweg-web\.json)$')" = 4 ]
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app }}-web
+          path: ${{ inputs.ordner }}/ausgabe/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Dateien an den Runner-Benutzer zurueckgeben
         if: always()
         run: |
@@ -706,7 +824,7 @@ jobs:
   # Release, sobald Linux und Android durch sind. Windows/macOS/iOS kommen im
   # Job nachtrag dazu.
   release:
-    needs: [version, linux, android]
+    needs: [version, linux, android, web]
     if: ${{ !cancelled() && !failure() && needs.version.outputs.los == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -717,9 +835,10 @@ jobs:
       TAG: ${{ needs.version.outputs.tag }}
       VERSION: ${{ needs.version.outputs.version }}
       TITEL: ${{ inputs.titel }}
-      PLATTFORMEN: ${{ inputs.plattformen }}
+      PLATTFORMEN: ${{ inputs.plattformen }}${{ inputs.web && ' web' || '' }}
       ST_LINUX: ${{ needs.linux.result }}
       ST_ANDROID: ${{ needs.android.result }}
+      ST_WEB: ${{ needs.web.result }}
     steps:
       - uses: actions/download-artifact@v4
         if: needs.linux.result == 'success'
@@ -731,6 +850,12 @@ jobs:
         if: needs.android.result == 'success'
         with:
           name: ${{ inputs.app }}-android
+          path: ausgabe
+
+      - uses: actions/download-artifact@v4
+        if: needs.web.result == 'success'
+        with:
+          name: ${{ inputs.app }}-web
           path: ausgabe
 
       - &summen
@@ -766,6 +891,7 @@ jobs:
               android: { titel: 'Android', passt: (n) => n.endsWith('.apk'), text: 'Android (Rosenweg-Schlüssel)' },
               windows: { titel: 'Windows', passt: (n) => n.endsWith('-Setup.exe'), text: 'Windows' },
               macos: { titel: 'macOS', passt: (n) => n.endsWith('.dmg'), text: 'macOS' },
+              web: { titel: 'Web', passt: (n) => n.endsWith('-web.tar.gz'), text: 'Web (Archiv für rosenweg4303.ch/app/…, ausrollen: scripts/rw-web-ausrollen.sh --app im Website-Repo)' },
               ios: { titel: 'iOS', passt: (n) => n.endsWith('.ipa'), text: 'iOS, unsigniert (nur Nachweis, nicht installierbar)' },
             };
             const lauf = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`;
@@ -1041,7 +1167,7 @@ jobs:
   # Windows/macOS/iOS ins bestehende Release, sobald sie fertig sind - auch wenn
   # eine davon scheitert (GitHub-Runner: Minuten, Ausgabenlimit). Danach /apps.
   nachtrag:
-    needs: [version, linux, android, release, windows, macos, ios]
+    needs: [version, linux, android, web, release, windows, macos, ios]
     if: ${{ always() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -1053,8 +1179,9 @@ jobs:
       TAG: ${{ needs.version.outputs.tag }}
       VERSION: ${{ needs.version.outputs.version }}
       TITEL: ${{ inputs.titel }}
-      PLATTFORMEN: ${{ inputs.plattformen }}
+      PLATTFORMEN: ${{ inputs.plattformen }}${{ inputs.web && ' web' || '' }}
       WF: ${{ inputs.apps_workflow }}
+      ST_WEB: ${{ needs.web.result }}
       ST_LINUX: ${{ needs.linux.result }}
       ST_ANDROID: ${{ needs.android.result }}
       ST_WINDOWS: ${{ needs.windows.result }}

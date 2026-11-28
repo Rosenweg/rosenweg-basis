@@ -587,6 +587,7 @@ Dasselbe läuft bei jedem Push und PR in `.github/workflows/pruefen.yml` auf ein
 | [docs/entwickeln.md](docs/entwickeln.md) | Beispiel, öffentliche API im Detail mit Herkunft |
 | [docs/bedienung.md](docs/bedienung.md) | Bedienung, gleich in allen Apps |
 | [docs/anmeldeschirm.md](docs/anmeldeschirm.md) | Anmeldeschirm je Plattform (Karte, Konto, QR), Karten-Sitzung, was die Apps einrichten |
+| [docs/web.md](docs/web.md) | Web-Version unter rosenweg4303.ch/app/<kurzname>/ mit der Anmeldung der Website; Bau, Ausrollen, weitere Apps umstellen |
 | [docs/authentik.md](docs/authentik.md) | was in Authentik eingetragen sein muss, Kerberos |
 | [docs/geteilte-telefone.md](docs/geteilte-telefone.md) | Schnittstelle zu Rosenweg Gerät, Personenwechsel |
 | [docs/logos.md](docs/logos.md) | Logo-Baukasten |

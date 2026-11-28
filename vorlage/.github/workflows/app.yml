@@ -55,6 +55,10 @@ jobs:
       app: rosenweg-vorlage
       paket: ch.rosenweg4303.vorlage
       titel: Rosenweg Vorlage
+      # Zusaetzlich als Web-Version unter rosenweg4303.ch/app/<Kurzname>/ (web/,
+      # Anmeldung der Website; rosenweg-basis docs/web.md). Kurzname = app ohne
+      # "rosenweg-", sonst web_name: setzen.
+      web: true
       veroeffentlichen: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       # Web-Seite, die die App auf den Stationen ersetzt (Kennung aus
       # /api/stations/<id>/apps, z. B. rosenweg-salz). Gesetzt: nach jedem

@@ -109,6 +109,7 @@ jobs:
       titel: Rosenweg Vorlage
       ordner: vorlage
       basis_lokal: true
+      web: true
     # Signier-Secrets nur bei Push auf main, bei pull_request leer (Debug-Signatur)
     secrets:
       ANDROID_KEYSTORE_BASE64: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
