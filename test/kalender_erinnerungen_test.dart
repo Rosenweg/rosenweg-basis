@@ -114,9 +114,11 @@ void main() {
       expect(Benachrichtigung.attrappe, hasLength(2));
       final vorher = s.personStand.value;
       s.personGewechselt();
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(Benachrichtigung.attrappe, isEmpty);
+      for (var i = 0; i < 100 && s.personStand.value == vorher; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
       expect(s.personStand.value, vorher + 1);
+      expect(Benachrichtigung.attrappe, isEmpty);
     });
   });
 }

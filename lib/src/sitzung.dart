@@ -488,15 +488,21 @@ class RosenwegSitzung extends ChangeNotifier {
     _personAufraeumen().whenComplete(() => personStand.value++);
   }
 
+  /// Jeder Schritt allein abgesichert und mit Frist: ohne Plattform-Plugin (Tests, Desktop)
+  /// laeuft alles still durch, und der Personenwechsel haengt nie am Aufraeumen.
   Future<void> _personAufraeumen() async {
-    try {
-      await HintergrundAbfrage.abmelden(app);
-      await Benachrichtigung.einrichten(app);
-      await Erinnerungen.alleEntfernen();
-      await Benachrichtigung.alleEntfernen();
-    } catch (e) {
-      Protokoll.schreiben('Personenwechsel: aufraeumen', e);
+    Future<void> schritt(String name, Future<void> Function() f) async {
+      try {
+        await f().timeout(const Duration(seconds: 5));
+      } catch (e) {
+        Protokoll.schreiben('Personenwechsel: $name', e);
+      }
     }
+
+    await schritt('Hintergrund', () => HintergrundAbfrage.abmelden(app));
+    await schritt('Einrichten', () => Benachrichtigung.einrichten(app));
+    await schritt('Erinnerungen', Erinnerungen.alleEntfernen);
+    await schritt('Benachrichtigungen', Benachrichtigung.alleEntfernen);
   }
 
   void _nichtMehrAngemeldet() {
