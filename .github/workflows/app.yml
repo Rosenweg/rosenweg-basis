@@ -40,9 +40,10 @@
 #             os-stationen laedt das .deb dann auf den PXE-Server (Label
 #             paket-update). Gemergt wird von Hand.
 #
-# Runner: nur von GitHub gehostete (ubuntu-latest, windows-latest,
-# macos-latest), nie eigene - das Repo ist oeffentlich, und ein PR aus einem
-# Fork darf keinen Code im Servernetz ausfuehren. Caches ueber actions/cache
+# Runner: Job wahl (runner-wahl.yml) entscheidet fuer Linux, Android und
+# Windows zwischen eigenen Runnern und GitHub-gehosteten: privates Repo immer
+# eigene, oeffentliches eigene nur wenn einer frei oder zuschaltbar ist, Forks
+# nie. macOS und iOS laufen immer bei GitHub (macos-latest). Caches ueber actions/cache
 # (Schluessel = Version + Pruefsumme; ein PR kann den Cache von main nicht
 # ueberschreiben). Windows laeuft in oeffentlichen Repos immer (Minuten
 # gratis), in einem privaten App-Repo nur fuer ein Release, von Hand
@@ -174,7 +175,9 @@ env:
   FLUTTER_SHA256: ${{ inputs.flutter_sha256 }}
   # Signieren nur bei Push auf main oder Tag v* (github = Ereignis des
   # Aufrufers), nie bei pull_request: dann Debug-Signatur bzw. unsigniert.
-  SIGNIEREN: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+  # (Release-Warteschlange: auch der vom Runner-Waechter gestartete workflow_dispatch am Zweig main
+  # mit veroeffentlichen=true signiert; Push auf main nur ohne Warteschlange, siehe QUEUE unten.)
+  SIGNIEREN: ${{ (github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) || (github.event_name == 'workflow_dispatch' && inputs.veroeffentlichen && github.ref == 'refs/heads/main') }}
   # Oeffentliches Repo: Windows, macOS und iOS immer bauen (Minuten gratis).
   OEFFENTLICH: ${{ github.event.repository.private == false }}
 
@@ -207,6 +210,11 @@ jobs:
           PLATTFORMEN: ${{ inputs.plattformen }}
           WEB: ${{ inputs.web }}
           WEB_NAME: ${{ inputs.web_name }}
+          # Release-Warteschlange (Org-Variable RELEASE_WARTESCHLANGE=true): ein Push auf main
+          # startet kein Release mehr, der Runner-Waechter (pve2) fuehrt die Reihe und startet
+          # je Release einen workflow_dispatch mit veroeffentlichen=true (docs/runner-waechter.md
+          # im Repo Rosenweg/Website).
+          QUEUE: ${{ vars.RELEASE_WARTESCHLANGE }}
           # nur ob sie da sind; die Werte selbst braucht erst der Android-Job
           KS_B64: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
           KS_PASS: ${{ env.SIGNIEREN == 'true' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
@@ -222,7 +230,9 @@ jobs:
           tag="v$version"
           echo "Version $zeile, Tag $tag"
           los=false
-          if [ "$VEROEFFENTLICHEN" = true ] && [ "$SIGNIEREN" != true ]; then
+          if [ "$VEROEFFENTLICHEN" = true ] && [ "$QUEUE" = true ] && [ "$GITHUB_EVENT_NAME" = push ]; then
+            echo "::notice::Release-Warteschlange: ein Release fuer $tag wird nicht hier, sondern vom Runner-Waechter gestartet, sobald er an der Reihe ist (nur Pruefung)."
+          elif [ "$VEROEFFENTLICHEN" = true ] && [ "$SIGNIEREN" != true ]; then
             echo "::warning::veroeffentlichen nur bei Push auf main oder Tag v* (dieser Lauf: $GITHUB_EVENT_NAME $GITHUB_REF) - kein Release."
           elif [ "$VEROEFFENTLICHEN" = true ]; then
             # Tag ueber git, checkout hat den Zugang hinterlegt; scheitert
@@ -260,12 +270,21 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
 
+  # Runner-Wahl: eigene oder GitHub-gehostete (Regeln im Kopf von
+  # runner-wahl.yml). Privat: immer eigene; oeffentlich: eigene, wenn einer frei
+  # ist oder zuschaltbar; Forks nie. macOS/iOS bleiben bei GitHub.
+  wahl:
+    uses: Rosenweg/rosenweg-basis/.github/workflows/runner-wahl.yml@main
+    secrets:
+      PAKETE_APP_ID: ${{ secrets.PAKETE_APP_ID }}
+      PAKETE_APP_KEY: ${{ secrets.PAKETE_APP_KEY }}
+
   linux:
-    needs: version
+    needs: [version, wahl]
     if: needs.version.outputs.linux == 'true'
     # Eigene Runner wie bei Android (ausser Forks); der Bau laeuft im Container
     # debian:13, apt dort als root – auf den Runnern braucht es nur Docker.
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","Linux","rosenweg"]') || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(needs.wahl.outputs.linux) }}
     # Debian 13 wie die Stationen: bauen.sh rechnet die Abhaengigkeiten des
     # .deb mit dpkg-shlibdeps gegen dieses System.
     container: debian:13
@@ -287,6 +306,10 @@ jobs:
             ca-certificates clang cmake ninja-build pkg-config xz-utils curl unzip git zstd \
             libgtk-3-dev liblzma-dev libstdc++-14-dev libsecret-1-dev libjsoncpp-dev \
             dpkg-dev binutils patchelf librsvg2-bin file lintian $ZUSATZ >/dev/null
+          # Im Container als root, die Caches auf den eigenen Runnern gehoeren
+          # aber dem Benutzer runner (Rueckgabe am Ende des Jobs): sonst lehnt
+          # git den pub-Cache als "dubious ownership" ab (mein-telefon, 28.11.2026).
+          git config --global --add safe.directory '*'
 
       - uses: actions/checkout@v4
 
@@ -383,10 +406,10 @@ jobs:
   # /app/<web_name>/ und einer Versionsangabe an main.dart.js und
   # flutter_bootstrap.js (nach einem Update haengt keine alte Version fest).
   web:
-    needs: version
+    needs: [version, wahl]
     if: needs.version.outputs.web == 'true'
-    # Wie linux: eigene Runner (ausser Forks), Bau im Container debian:13.
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","Linux","rosenweg"]') || 'ubuntu-latest' }}
+    # Wie linux: dieselbe Runner-Wahl (Job wahl), Bau im Container debian:13.
+    runs-on: ${{ fromJSON(needs.wahl.outputs.linux) }}
     container: debian:13
     timeout-minutes: 30
     permissions:
@@ -400,6 +423,8 @@ jobs:
           apt-get update -qq
           DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
             ca-certificates curl unzip git xz-utils zstd >/dev/null
+          # Wie im Linux-Job: Caches auf den eigenen Runnern gehoeren dem Benutzer runner
+          git config --global --add safe.directory '*'
 
       - uses: actions/checkout@v4
 
@@ -481,13 +506,13 @@ jobs:
           chown -R "$ziel" "$GITHUB_WORKSPACE" "$HOME" 2>/dev/null || true
 
   android:
-    needs: version
+    needs: [version, wahl]
     if: needs.version.outputs.android == 'true'
     # Eigene Runner (CT 140/145, [self-hosted, Linux, rosenweg]) und GitHub-
     # Runner teilen sich die Arbeit: Android auf den eigenen, Linux auf
     # ubuntu-latest. Ereignisse aus Forks nie auf eigene Runner (Entscheid
     # Stefan 28.11.2026; Fork-PRs brauchen ausserdem eine Genehmigung).
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","Linux","rosenweg"]') || 'ubuntu-latest' }}
+    runs-on: ${{ fromJSON(needs.wahl.outputs.linux) }}
     timeout-minutes: 60
     permissions:
       contents: read
@@ -625,12 +650,12 @@ jobs:
           retention-days: 14
 
   windows:
-    needs: version
+    needs: [version, wahl]
     if: needs.version.outputs.windows == 'true'
     # Windows auf dem eigenen Runner win-runner (VM 142, [self-hosted, Windows,
     # rosenweg-windows]), ausser bei Ereignissen aus Forks: die laufen weiter
     # auf windows-latest (Entscheid Stefan 28.11.2026).
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","Windows","rosenweg-windows"]') || 'windows-latest' }}
+    runs-on: ${{ fromJSON(needs.wahl.outputs.windows) }}
     timeout-minutes: 60
     permissions:
       contents: read
