@@ -6,6 +6,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' show Random;
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -14,6 +15,7 @@ import 'package:http_parser/http_parser.dart' show MediaType;
 import '../protokoll.dart';
 import 'api.dart';
 import 'fehler.dart';
+import 'json_anfrage.dart' show ApiAntwort;
 
 /// Eine Datei im Speicher (gewaehlt, fotografiert oder heruntergeladen).
 class DateiDaten {
@@ -111,6 +113,7 @@ class RosenwegDateien {
     this.nichtAngemeldet,
     bool Function()? geteiltesTelefon,
     this.stueckweiseApi,
+    this.geteiltHochladen,
     this.zeit = const Duration(minutes: 10),
     this.kopfzeilen = const {},
   })  : _zugang = zugang, // ignore: prefer_initializing_formals
@@ -127,6 +130,9 @@ class RosenwegDateien {
   /// es dort kein Herunterladen).
   final RosenwegApi? Function()? stueckweiseApi;
 
+  /// Geteiltes Telefon: das Stueck `teil` (base64) senden; null = Hochladen geht dort nicht.
+  final Future<ApiAntwort> Function(String methode, String pfad, Map<String, Object?> teil, String stueck)? geteiltHochladen;
+
   /// Hoechstdauer je Transfer.
   final Duration zeit;
 
@@ -138,7 +144,10 @@ class RosenwegDateien {
 
   /// Hoechstgroesse einer Datei am geteilten Telefon. Gleicher Wert wie
   /// `PORTAL_BINAER_MAX` der Telefonanlage (pbx/api/app.py): beide zusammen aendern.
-  static const geteiltHoechstens = 20 * 1024 * 1024;
+  static const geteiltHoechstens = 64 * 1024 * 1024;
+
+  /// Stueck beim Hochladen (base64 ~240 KB, unter der Grenze von 256 KB).
+  static const hochStueck = 180 * 1024;
 
   static const geteiltText = 'Dateien hoch- oder herunterladen geht auf geteilten Rosenweg-Telefonen noch nicht. '
       'Bitte an einem eigenen Gerät oder an einer Station erledigen.';
@@ -159,6 +168,11 @@ class RosenwegDateien {
     Map<String, String> kopf = const {},
     Fortschritt? fortschritt,
   }) async {
+    if (_geteilt()) {
+      final senden = geteiltHochladen;
+      if (senden == null) throw GeraetFehler(geteiltText);
+      return _stueckweiseHoch(senden, pfad, datei, methode, inhaltstyp, multipart, feld, felder, kopf, fortschritt);
+    }
     final a = await _mitToken('Hochladen $methode $pfad', (token) async {
       final uri = Uri.parse('$basis$pfad');
       final http.BaseRequest r;
@@ -232,6 +246,53 @@ class RosenwegDateien {
     final n = dateinameAusKopf(h['content-disposition']) ?? name ?? Uri.parse(pfad).pathSegments.lastOrNull ?? 'datei';
     final typ = h['content-type']?.split(';').first.trim();
     return DateiDaten(name: n, bytes: a.$3!, typ: typ == null || typ.isEmpty || typ == 'application/octet-stream' ? null : typ);
+  }
+
+  /// Hochladen am geteilten Telefon: die Datei in Stuecken (`teil`), die Telefonanlage
+  /// setzt zusammen und stellt eine Anfrage an die Haupt-API. Antwort wie sonst.
+  Future<Object?> _stueckweiseHoch(
+    Future<ApiAntwort> Function(String, String, Map<String, Object?>, String) senden,
+    String pfad,
+    DateiDaten datei,
+    String methode,
+    String? inhaltstyp,
+    bool multipart,
+    String feld,
+    Map<String, String> felder,
+    Map<String, String> kopf,
+    Fortschritt? fortschritt,
+  ) async {
+    if (datei.groesse > geteiltHoechstens) {
+      throw GeraetFehler('Die Datei ist zu gross für ein geteiltes Telefon (höchstens ${geteiltHoechstens ~/ (1024 * 1024)} MB). '
+          'Bitte an einem eigenen Gerät oder an einer Station erledigen.');
+    }
+    final z = Random.secure();
+    final id = List.generate(32, (_) => z.nextInt(16).toRadixString(16)).join();
+    final anzahl = datei.groesse == 0 ? 1 : (datei.groesse + hochStueck - 1) ~/ hochStueck;
+    final kopfAngaben = <String, Object?>{
+      'name': datei.name,
+      'typ': datei.typ,
+      if (multipart) ...{'multipart': true, 'feld': feld, 'felder': felder} else ...{
+        'inhaltstyp': inhaltstyp ?? datei.typ,
+        'x_filename': kopfDateiname(datei.name),
+      },
+      'kopf': kopf,
+    };
+    fortschritt?.call(0, datei.groesse);
+    ApiAntwort? letzte;
+    for (var nr = 0; nr < anzahl; nr++) {
+      final von = nr * hochStueck;
+      final bis = von + hochStueck < datei.groesse ? von + hochStueck : datei.groesse;
+      letzte = await senden(methode, pfad, {
+        'id': id,
+        'nr': nr,
+        'anzahl': anzahl,
+        'gesamt': datei.groesse == 0 ? 1 : datei.groesse,
+        if (nr == 0) 'kopf': kopfAngaben,
+      }, base64Encode(datei.bytes.sublist(von, bis)));
+      fortschritt?.call(bis, datei.groesse);
+    }
+    return apiAntwortPruefen(letzte!, nichtAngemeldet: nichtAngemeldet);
   }
 
   /// Datei in Stuecken ueber den JSON-Weg (Rosenweg Geraet, `portal_bereich`):

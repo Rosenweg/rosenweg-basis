@@ -16,6 +16,7 @@ import 'konfig.dart';
 import 'fehler_fuer_person.dart';
 import 'netz/api.dart';
 import 'netz/dateien.dart';
+import 'netz/fehler.dart' show GeraetFehler;
 import 'netz/geraet_person.dart';
 import 'plattform.dart';
 import 'protokoll.dart';
@@ -231,6 +232,11 @@ class RosenwegSitzung extends ChangeNotifier {
     nichtAngemeldet: _nichtMehrAngemeldet,
     geteiltesTelefon: () => geteiltesTelefon,
     stueckweiseApi: () => api,
+    geteiltHochladen: (m, p, t, s) async {
+      final g = _geraetTransport;
+      if (g == null) throw GeraetFehler(RosenwegDateien.geteiltText);
+      return g.sendenTeil(m, p, t, s);
+    },
   );
 
   /// Rechte der angemeldeten Person (`GET /api/auth/me`), nach jedem Wechsel
@@ -254,6 +260,8 @@ class RosenwegSitzung extends ChangeNotifier {
   /// Anmeldung? Sonst die Karten-Sitzung.
   bool _kontoAktiv = false;
   bool _mitKerberos = false;
+
+  GeraetTransport? _geraetTransport;
 
   RosenwegApi _apiFuer(Transport t) => RosenwegApi(t, nichtAngemeldet: _nichtMehrAngemeldet);
 
@@ -282,7 +290,7 @@ class RosenwegSitzung extends ChangeNotifier {
       }
       if (await _geraetDa()) {
         geteiltesTelefon = true;
-        api = _apiFuer(GeraetTransport(app.kennung, personGewechselt: personGewechselt));
+        api = _apiFuer(_geraetTransport = GeraetTransport(app.kennung, personGewechselt: personGewechselt));
         _personAbo ??= (_personWechsel ?? GeraetPerson.wechsel).listen((_) => personGewechselt());
         _setzen(Phase.bereit);
         return;
@@ -346,7 +354,7 @@ class RosenwegSitzung extends ChangeNotifier {
         // (niemand angemeldet: NichtAngemeldet, die Abfrage tut dann nichts). Kein
         // personGewechselt: der Hintergrund darf seine eigene Aufgabe nicht abbrechen.
         geteiltesTelefon = true;
-        api = _apiFuer(GeraetTransport(app.kennung));
+        api = _apiFuer(_geraetTransport = GeraetTransport(app.kennung));
         _setzen(Phase.bereit);
         return true;
       }
