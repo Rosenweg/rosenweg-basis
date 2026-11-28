@@ -74,8 +74,19 @@ Renderer lädt. Ohne diese Angabe holte der Browser sie bei Google
 (`www.gstatic.com`). Der Wasm-Renderer (`--wasm`, skwasm) wäre mit gut 3 MB
 kleiner, braucht aber neuere Browser und für volle Geschwindigkeit
 Cross-Origin-Isolation; der HTML-Renderer ist in Flutter nicht mehr enthalten.
-Darum bleibt es bei CanvasKit. Bekannt: Roboto holt die Engine noch von
-`fonts.gstatic.com` (Google Fonts); die Schrift der App mitzuliefern ist offen.
+Darum bleibt es bei CanvasKit.
+
+**Schriften ohne Google:** Die Engine holt Roboto und Ersatzschriften (Symbole,
+Emoji, andere Schriften) sonst von `fonts.gstatic.com`; das gäbe die
+IP-Adressen der Bewohner an Google. Darum setzt der Job `fontFallbackBaseUrl:
+"fonts/"` (relativ zur Seite, also `/app/<name>/fonts/`), und die App liefert
+`web/fonts/roboto/v32/KFOmCnqEu92Fr1Me4GZLCzYlKw.woff2` selbst mit (Roboto,
+Apache-Lizenz, `web/fonts/roboto/LICENSE.txt`; kommt mit
+`werkzeug/web-einrichten.sh` aus `vorlage/web/fonts`). Der Job bricht ab, wenn die
+Datei fehlt. Was nicht mitgeliefert ist (seltene Zeichen, Emoji), erscheint als
+leeres Kästchen statt von Google geladen zu werden: kommt so ein Zeichen vor,
+die passende Datei (Pfad steht in der Fehlermeldung der Konsole, `404 …/fonts/…`)
+nach `vorlage/web/fonts` legen.
 
 ## Ausrollen (Website-Repo)
 
