@@ -26,7 +26,7 @@ rosenweg-stweg|Rosenweg STWEG|stweg|bewohner|stweg
 rosenweg-internet|Rosenweg Internet|internet|bewohner|internet
 rosenweg-tv|Rosenweg TV|tv|bewohner|tv
 rosenweg-anlagen|Rosenweg Anlagen|anlagen|bewohner|anlagen
-rosenweg-mail-freigabe|Rosenweg Mail-Freigabe|mail-freigabe|technik|mailfreigabe
+rosenweg-mailfreigabe|Rosenweg Mail-Freigabe|mail-freigabe|technik|mailfreigabe
 rosenweg-auslagen|Rosenweg Auslagen|auslagen|verwaltung|auslagen
 rosenweg-handwerker|Rosenweg Handwerker|handwerker|verwaltung|handwerker
 rosenweg-briefe|Rosenweg Briefe|briefe|verwaltung|briefe

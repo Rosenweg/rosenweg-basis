@@ -444,7 +444,10 @@ class _Block<T> extends StatelessWidget {
     final (grund, schrift) = switch (eintrag.art) {
       RasterArt.eigen => (f.primary, f.onPrimary),
       RasterArt.fremd => (f.secondaryContainer, f.onSecondaryContainer),
-      RasterArt.gesperrt => (f.surfaceContainerHighest, f.onSurfaceVariant),
+      // neutral grau, auch auf rotem Thema klar von „fremd“ zu unterscheiden
+      RasterArt.gesperrt => Theme.of(context).brightness == Brightness.dark
+          ? (const Color(0xFF4A4A4A), const Color(0xFFEEEEEE))
+          : (const Color(0xFFDDDDDD), const Color(0xFF333333)),
     };
     final zeit = '${uhrText(eintrag.von)}–${uhrText(eintrag.bis)}';
     return Semantics(
@@ -455,7 +458,11 @@ class _Block<T> extends StatelessWidget {
         color: grund,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(6),
-          side: laeuft ? const BorderSide(color: RosenwegFarben.gut, width: 2) : BorderSide.none,
+          side: laeuft
+              ? const BorderSide(color: RosenwegFarben.gut, width: 2)
+              : eintrag.art == RasterArt.gesperrt
+                  ? BorderSide(color: schrift.withValues(alpha: 0.5))
+                  : BorderSide.none,
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(6),
