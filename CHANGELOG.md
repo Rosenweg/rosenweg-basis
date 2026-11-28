@@ -1,4 +1,4 @@
-## 0.9.1 – Web: Schriften ohne Google
+## 0.9.2 – Web: Schriften ohne Google
 
 - `app.yml` (Job `web`): `fontFallbackBaseUrl: "fonts/"`; die App liefert Roboto
   selbst unter `web/fonts/` (Vorlage, `werkzeug/web-einrichten.sh`). Der Browser
