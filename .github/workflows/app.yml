@@ -239,7 +239,9 @@ jobs:
   linux:
     needs: version
     if: needs.version.outputs.linux == 'true'
-    runs-on: ubuntu-latest
+    # Eigene Runner wie bei Android (ausser Forks); der Bau laeuft im Container
+    # debian:13, apt dort als root – auf den Runnern braucht es nur Docker.
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","Linux","rosenweg"]') || 'ubuntu-latest' }}
     # Debian 13 wie die Stationen: bauen.sh rechnet die Abhaengigkeiten des
     # .deb mit dpkg-shlibdeps gegen dieses System.
     container: debian:13
@@ -345,7 +347,11 @@ jobs:
   android:
     needs: version
     if: needs.version.outputs.android == 'true'
-    runs-on: ubuntu-latest
+    # Eigene Runner (CT 140/145, [self-hosted, Linux, rosenweg]) und GitHub-
+    # Runner teilen sich die Arbeit: Android auf den eigenen, Linux auf
+    # ubuntu-latest. Ereignisse aus Forks nie auf eigene Runner (Entscheid
+    # Stefan 28.11.2026; Fork-PRs brauchen ausserdem eine Genehmigung).
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","Linux","rosenweg"]') || 'ubuntu-latest' }}
     timeout-minutes: 60
     permissions:
       contents: read
