@@ -48,6 +48,22 @@ void main() {
     expect(e.zustand.value.stand, EchtzeitStand.geschlossen);
   });
 
+  test('MqttZugang.ueberApi: Laufzeit vom Server, widerrufen beim Abmelden', () async {
+    final t = _Merker();
+    final z = MqttZugang.ueberApi(RosenwegApi(t));
+    final a = await z.holen();
+    expect(a.passwort, 'rwmqtt_1');
+    await z.holen();
+    expect(t.anfragen.where((x) => x.startsWith('POST')), hasLength(1)); // zwischengespeichert
+    await z.widerrufen();
+    expect(t.anfragen.last, 'DELETE /api/mqtt/token {token: rwmqtt_1}');
+    await z.holen();
+    expect(t.anfragen.where((x) => x.startsWith('POST')), hasLength(2)); // nach Widerruf neu
+    await z.holen(neu: true); // abgelehnt: neu holen, danach wieder zwischengespeichert
+    await z.holen();
+    expect(t.anfragen.where((x) => x.startsWith('POST')), hasLength(3));
+  });
+
   test('MqttZugang.fest liefert den festen Benutzer', () async {
     final a = await const MqttZugang.fest('leser', 'geheim').holen();
     expect(a.benutzer, 'leser');
@@ -79,4 +95,18 @@ void main() {
     unawaited(sub.cancel());
     unawaited(e.schliessen());
   });
+}
+
+class _Merker implements Transport {
+  final anfragen = <String>[];
+  var n = 0;
+  @override
+  Future<ApiAntwort> senden(String methode, String pfad, {Object? koerper}) async {
+    anfragen.add('$methode $pfad${koerper != null ? ' $koerper' : ''}');
+    if (methode == 'POST') {
+      n++;
+      return (status: 200, json: {'username': 'u', 'password': 'rwmqtt_$n', 'expires_in': 1800});
+    }
+    return (status: 200, json: {'ok': true, 'widerrufen': 1});
+  }
 }

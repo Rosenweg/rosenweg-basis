@@ -1,5 +1,19 @@
 ## Nächste Fassung (Version: vom Integrator)
 
+Für Rosenweg Energie (allgemein nutzbar):
+
+- **Ohne Anmeldung nutzbar:** `rosenwegStarten(…, ohneAnmeldung: (s) => …)`
+  zeigt ohne Anmeldung diesen Teil statt des Anmeldeschirms;
+  `sitzung.anmeldungZeigen()` öffnet den Anmeldeschirm (mit „Zurück“,
+  `ohneAnmeldungWeiter`). Android öffnet den Kotlin-Schirm dann nicht von
+  selbst, Abmelden führt zurück in den offenen Teil.
+- **`sitzung.vorAbmelden(aufgabe)`:** läuft beim Abmelden, solange die
+  Anmeldung noch gilt (höchstens 5 s, Fehler nur im Protokoll).
+- **MQTT-Zugang widerrufen:** `MqttZugang.widerrufen()`; über die API
+  `DELETE /api/mqtt/token` mit dem zuletzt geholten Token. Die Laufzeit
+  kommt aus `expires_in` (Karte/geteiltes Telefon kürzer), erneuert wird
+  nach 90 %.
+
 Bausteine Diagramme und Echtzeit (Flutter-Plan Welle 2, Priorität B; Pilot
 Rosenweg Wetter, danach Energie, ZEV, NOC, Anzeigen):
 
