@@ -8,7 +8,7 @@
 /// | Android | WorkManager, periodisch (Minimum des Systems 15 min), nur mit Netz | Energiesparen kann es strecken |
 /// | iOS | BGAppRefreshTask (`<kennung>.abfrage`, AppDelegate + Info.plist) | iOS entscheidet, wann – oft seltener, nach „App beenden“ gar nicht |
 /// | macOS, Windows, Linux | nur solange die App laeuft ([BeimOeffnen] mit `alle:`) | – |
-/// | geteilte Telefone | nie (wechselnde Personen) | – |
+/// | geteilte Telefone | wie Android, mit der Person am Telefon (ueber Rosenweg Geraet); beim Personenwechsel und Abmelden raeumt [RosenwegSitzung] Aufgaben, Erinnerungen und Benachrichtigungen weg, Rosenweg Geraet loescht danach die App-Daten | – |
 ///
 /// Einbau in eine App (main.dart):
 ///
@@ -116,10 +116,9 @@ class HintergrundAbfrage {
       await Benachrichtigung.einrichten(app);
       final s = sitzung ?? RosenwegSitzung(app);
       if (sitzung == null && !await s.hintergrundStarten()) {
-        Protokoll.schreiben('Hintergrund: nicht angemeldet oder geteiltes Telefon – keine Abfrage');
+        Protokoll.schreiben('Hintergrund: nicht angemeldet – keine Abfrage');
         return false;
       }
-      if (s.geteiltesTelefon) return false;
       await abfrage(HintergrundKontext(sitzung: s, speicher: await AppSpeicher.app('hintergrund'), imHintergrund: imHintergrund));
       return true;
     } catch (e) {

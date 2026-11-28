@@ -4,6 +4,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'anmeldung/android_konto.dart';
+import 'benachrichtigung.dart';
+import 'erinnerungen.dart';
+import 'hintergrund.dart';
 import 'anmeldung/karten_sitzung.dart';
 import 'anmeldung/rosenweg_konto.dart';
 import 'anmeldung/ruecksprung.dart';
@@ -227,6 +230,7 @@ class RosenwegSitzung extends ChangeNotifier {
     zugang: zugang,
     nichtAngemeldet: _nichtMehrAngemeldet,
     geteiltesTelefon: () => geteiltesTelefon,
+    stueckweiseApi: () => api,
   );
 
   /// Rechte der angemeldeten Person (`GET /api/auth/me`), nach jedem Wechsel
@@ -329,15 +333,23 @@ class RosenwegSitzung extends ChangeNotifier {
   /// nur eine schon bestehende Anmeldung, nie ein Anmeldeschirm oder Browser.
   /// true = [api] ist benutzbar.
   ///
-  /// Geteilte Telefone: immer false – die Person am Telefon wechselt, eine
-  /// Benachrichtigung fuer die vorige Person waere ein Datenleck.
+  /// Geteilte Telefone: mit der Person am Telefon (ueber Rosenweg Geraet); beim
+  /// Personenwechsel raeumt [personGewechselt] alles Geplante weg.
   Future<bool> hintergrundStarten() async {
     try {
       if (_transport != null) {
         _setzen(Phase.bereit);
         return true;
       }
-      if (await _geraetDa()) return false;
+      if (await _geraetDa()) {
+        // Geteiltes Telefon: die Anfrage geht ueber Rosenweg Geraet an die Person am Telefon
+        // (niemand angemeldet: NichtAngemeldet, die Abfrage tut dann nichts). Kein
+        // personGewechselt: der Hintergrund darf seine eigene Aufgabe nicht abbrechen.
+        geteiltesTelefon = true;
+        api = _apiFuer(GeraetTransport(app.kennung));
+        _setzen(Phase.bereit);
+        return true;
+      }
       final w = web;
       if (w != null) return false; // im Browser gibt es keine Abfrage im Hintergrund
       final a = android;
@@ -471,7 +483,26 @@ class RosenwegSitzung extends ChangeNotifier {
   void personGewechselt() {
     if (!geteiltesTelefon) return;
     Protokoll.schreiben('Personenwechsel am Telefon — neu laden');
-    personStand.value++;
+    // Zuerst alles der vorigen Person weg (Hintergrund-Aufgabe, Erinnerungen, Benachrichtigungen),
+    // dann baut sich die App fuer die neue Person neu auf und meldet ihre Aufgaben wieder an.
+    _personAufraeumen().whenComplete(() => personStand.value++);
+  }
+
+  /// Jeder Schritt allein abgesichert und mit Frist: ohne Plattform-Plugin (Tests, Desktop)
+  /// laeuft alles still durch, und der Personenwechsel haengt nie am Aufraeumen.
+  Future<void> _personAufraeumen() async {
+    Future<void> schritt(String name, Future<void> Function() f) async {
+      try {
+        await f().timeout(const Duration(seconds: 5));
+      } catch (e) {
+        Protokoll.schreiben('Personenwechsel: $name', e);
+      }
+    }
+
+    await schritt('Hintergrund', () => HintergrundAbfrage.abmelden(app));
+    await schritt('Einrichten', () => Benachrichtigung.einrichten(app));
+    await schritt('Erinnerungen', Erinnerungen.alleEntfernen);
+    await schritt('Benachrichtigungen', Benachrichtigung.alleEntfernen);
   }
 
   void _nichtMehrAngemeldet() {

@@ -3,6 +3,7 @@ package ch.rosenweg4303.basis
 
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.app.NotificationManager
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
@@ -25,6 +26,12 @@ internal class GeraetPerson(private val kontext: Context) : EventChannel.StreamH
         onCancel(null)
         val e = object : BroadcastReceiver() {
             override fun onReceive(c: Context, i: Intent) {
+                // Alles Gezeigte der vorigen Person sofort weg; Aufgaben und geplante Erinnerungen
+                // raeumt Dart auf (Sitzung.personGewechselt), die Daten Rosenweg Geraet.
+                try {
+                    (c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
+                } catch (_: Exception) {
+                }
                 events.success(if (i.action == ABGEMELDET) "abgemeldet" else "angemeldet")
             }
         }
