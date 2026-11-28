@@ -1,3 +1,11 @@
+## 0.9.2 – Geteilte Telefone: Hochladen, 64 MB
+
+- `RosenwegDateien.hochladen` geht auch am geteilten Telefon: die Datei in Stuecken zu
+  180 KB (`GeraetTransport.sendenTeil`, Rosenweg Geraet ab .85), die Telefonanlage setzt
+  zusammen und stellt eine Anfrage an die Haupt-API (Rosenweg/Website#255). Bei 429 wartet
+  die Basis kurz und sendet nochmals.
+- Grenze am geteilten Telefon 64 MB (`geteiltHoechstens`, wie `PORTAL_BINAER_MAX`).
+
 ## 0.9.1 – Geteilte Telefone: Hintergrund, Erinnerungen, Dateien laden
 
 - **Hintergrund-Abfrage und Erinnerungen gehen auch auf geteilten Telefonen**

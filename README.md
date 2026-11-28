@@ -407,7 +407,7 @@ Ohne die Einträge stürzt nichts ab: Scanner und Dateiauswahl zeigen einen vers
 - **Linux, Windows: keine Kamera.** `mobile_scanner` gibt es dort nicht. Ersatz: USB-Hand-Scanner (wie eine Tastatur), Eintippen, QR aus einem Bild (nur QR, keine Strichcodes). Stationen haben ohnehin keine Kamera.
 - **Linux: kein Teilen-Menü** – `dateiTeilen` speichert dort.
 - **Telefone: kein „Speichern unter“** – `dateiSpeichern` öffnet das Teilen-Menü (Android: z. B. in „Dateien“ ablegen; iOS: „In Dateien sichern“).
-- **Geteilte Telefone: Herunterladen stückweise, Hochladen noch nicht.** Rosenweg Gerät reicht nur JSON weiter; `sitzung.dateien.herunterladen` holt Dateien dort in Stücken (`portal_bereich`, bis 20 MB), Hochladen meldet „… geht auf geteilten Rosenweg-Telefonen noch nicht“. Für Fotos der Reparatur braucht Rosenweg Gerät noch einen Upload-Weg (offen).
+- **Geteilte Telefone: Herunterladen stückweise, Hochladen noch nicht.** Rosenweg Gerät reicht nur JSON weiter; `sitzung.dateien.herunterladen` holt Dateien dort in Stücken (`portal_bereich`, bis 64 MB), Hochladen geht dort ebenfalls in Stücken (ab Rosenweg Gerät .85, bis 64 MB).
 - **Drag & Drop** nur am Computer (Linux, macOS, Windows).
 - **Grösse:** pdfrx (PDFium) und mobile_scanner (ML Kit auf Android, ohne Google-Dienste) machen jede App einige MB grösser, auch wenn sie PDF/Scanner nicht nutzt.
 

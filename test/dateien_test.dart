@@ -139,6 +139,42 @@ void main() {
     expect(n, 0);
   });
 
+  test('geteiltes Telefon: Hochladen in Stuecken, Kopf nur im ersten', () async {
+    final stuecke = <Map<String, Object?>>[];
+    final bytes = <int>[];
+    final d = RosenwegDateien(
+      basis: 'https://api',
+      zugang: _Zugang(['t']),
+      geteiltesTelefon: () => true,
+      geteiltHochladen: (m, p, teil, stueck) async {
+        stuecke.add({'m': m, 'p': p, ...teil});
+        bytes.addAll(base64Decode(stueck));
+        final letzt = teil['nr'] == (teil['anzahl'] as int) - 1;
+        return (status: letzt ? 201 : 202, json: letzt ? {'ok': true} : {'teil': teil['nr']});
+      },
+    );
+    final gross = DateiDaten(name: 'Rechnung März.pdf', bytes: Uint8List.fromList(List.generate(RosenwegDateien.hochStueck * 2 + 5, (i) => i % 251)));
+    final fort = <int>[];
+    final r = await d.hochladen('/api/documents/x/a.pdf', gross, fortschritt: (f, g) => fort.add(f));
+    expect(r, {'ok': true});
+    expect(stuecke.map((e) => e['nr']), [0, 1, 2]);
+    expect(stuecke.every((e) => e['m'] == 'POST' && e['anzahl'] == 3 && e['gesamt'] == gross.groesse && e['id'] == stuecke.first['id']), isTrue);
+    expect(stuecke.first['kopf'], containsPair('x_filename', 'Rechnung%20M%C3%A4rz.pdf'));
+    expect(stuecke[1].containsKey('kopf'), isFalse);
+    expect(bytes, gross.bytes);
+    expect(fort.last, gross.groesse);
+  });
+
+  test('geteiltes Telefon: zu gross zum Hochladen', () async {
+    final d = RosenwegDateien(basis: 'https://api', zugang: _Zugang(['t']), geteiltesTelefon: () => true, geteiltHochladen: (m, p, t, s) async => (status: 200, json: null));
+    final x = DateiDaten(name: 'a.bin', bytes: Uint8List(1));
+    expect(RosenwegDateien.geteiltHoechstens, 64 * 1024 * 1024);
+    // ohne Rueckruf: verstaendlicher Fehler
+    final o = RosenwegDateien(basis: 'https://api', zugang: _Zugang(['t']), geteiltesTelefon: () => true);
+    await expectLater(o.hochladen('/api/x', x), throwsA(predicate((e) => e is GeraetFehler && e.text == RosenwegDateien.geteiltText)));
+    await d.hochladen('/api/x', x);
+  });
+
   test('ohne Anmeldung: NichtAngemeldet', () async {
     final d = RosenwegDateien(basis: 'https://api', zugang: _Zugang([]), client: MockClient((_) async => http.Response('', 200)));
     await expectLater(d.herunterladen('/api/x'), throwsA(isA<NichtAngemeldet>()));

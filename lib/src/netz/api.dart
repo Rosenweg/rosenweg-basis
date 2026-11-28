@@ -105,6 +105,26 @@ class GeraetTransport implements Transport {
     }
     return geraetAntwortLesen(b);
   }
+
+  /// Ein Stueck einer Datei hochladen (Rosenweg Geraet `portal_anfrage` mit `teil`; die
+  /// Telefonanlage setzt zusammen). [stueck] als base64; Antwort 202, beim letzten die der
+  /// Haupt-API. Bei 429 (Takt von Rosenweg Geraet) kurz warten und nochmals.
+  Future<ApiAntwort> sendenTeil(String methode, String pfad, Map<String, Object?> teil, String stueck) async {
+    for (var versuch = 0;; versuch++) {
+      try {
+        final b = await _rufen(pfad, {
+          'methode': methode,
+          'koerper': stueck,
+          'teil': jsonEncode(teil),
+          'paket': paket,
+        });
+        return geraetAntwortLesen(b);
+      } on ZuVieleAnfragen {
+        if (versuch >= 12) rethrow;
+        await Future<void>.delayed(const Duration(seconds: 5));
+      }
+    }
+  }
 }
 
 /// `portal_anfrage` an Rosenweg Geraet (in Tests eine Attrappe).
