@@ -95,6 +95,7 @@ Stand 28.11.2026 (Liste und Entscheid: Stefan):
 |---|---|---|---|
 | Rosenweg Reparatur | bewohner | verwaltung, technik | reklamationen |
 | Rosenweg Termine | bewohner | verwaltung, technik | – |
+| Rosenweg ZEV | bewohner | verwaltung, technik | – (Ausschuss/Verwaltung einer STWEG mit ZEV) |
 | Rosenweg Waschküche | bewohner | verwaltung, technik | waschküche-admin |
 | Rosenweg Mein Telefon | bewohner | technik | – |
 | Rosenweg Salz | bewohner | technik | – |
