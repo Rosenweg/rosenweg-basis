@@ -345,11 +345,11 @@ jobs:
   android:
     needs: version
     if: needs.version.outputs.android == 'true'
-    # Eigene Runner (CT 140/145, [self-hosted, rosenweg]) entlasten die GitHub-
-    # Warteschlange: Android dort bei Push, Release und von Hand, in privaten
-    # Repos auch bei PRs. PRs oeffentlicher Repos (moegliche Forks) nie auf
-    # eigenen Runnern. Linux bleibt auf ubuntu-latest (Entscheid Stefan 28.11.2026).
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.repository.private) && fromJSON('["self-hosted","rosenweg"]') || 'ubuntu-latest' }}
+    # Eigene Runner (CT 140/145, [self-hosted, Linux, rosenweg]) und GitHub-
+    # Runner teilen sich die Arbeit: Android auf den eigenen, Linux auf
+    # ubuntu-latest. Ereignisse aus Forks nie auf eigene Runner (Entscheid
+    # Stefan 28.11.2026; Fork-PRs brauchen ausserdem eine Genehmigung).
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","Linux","rosenweg"]') || 'ubuntu-latest' }}
     timeout-minutes: 60
     permissions:
       contents: read
