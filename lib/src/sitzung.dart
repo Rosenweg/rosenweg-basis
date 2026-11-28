@@ -117,6 +117,50 @@ class RosenwegSitzung extends ChangeNotifier {
   /// die ganze App (auch geoeffnete Seiten) neu, sobald er sich aendert.
   final personStand = ValueNotifier<int>(0);
 
+  /// Die App ist auch ohne Anmeldung nutzbar (`rosenwegStarten(…,
+  /// ohneAnmeldung: …)`): ohne Anmeldung zeigt [AnmeldeTor] diesen Teil statt
+  /// des Anmeldeschirms; Android oeffnet den Kotlin-Schirm nicht von selbst.
+  bool ohneAnmeldungNutzbar = false;
+
+  /// Die Person hat im Teil ohne Anmeldung "Anmelden" gewaehlt: [AnmeldeTor]
+  /// zeigt den Anmeldeschirm (mit "Zurueck").
+  bool anmeldungGewuenscht = false;
+
+  /// Aus dem Teil ohne Anmeldung zum Anmeldeschirm (Android: gleich der
+  /// Kotlin-Schirm).
+  Future<void> anmeldungZeigen() async {
+    if (android != null) return anmelden();
+    anmeldungGewuenscht = true;
+    notifyListeners();
+  }
+
+  /// Vom Anmeldeschirm zurueck in den Teil ohne Anmeldung.
+  void ohneAnmeldungWeiter() {
+    if (phase == Phase.anmelden) abbrechen();
+    anmeldungGewuenscht = false;
+    notifyListeners();
+  }
+
+  final _vorAbmelden = <Future<void> Function()>[];
+
+  /// [aufgabe] laeuft beim Abmelden, solange die Anmeldung noch gilt (z. B.
+  /// den MQTT-Zugang widerrufen, [MqttZugang.widerrufen]). Hoechstens 5 s,
+  /// Fehler werden nur protokolliert. Rueckgabe: zum Austragen aufrufen.
+  void Function() vorAbmelden(Future<void> Function() aufgabe) {
+    _vorAbmelden.add(aufgabe);
+    return () => _vorAbmelden.remove(aufgabe);
+  }
+
+  Future<void> _vorAbmeldenAusfuehren() async {
+    for (final a in List.of(_vorAbmelden)) {
+      try {
+        await a().timeout(const Duration(seconds: 5));
+      } catch (e) {
+        Protokoll.schreiben('Vor dem Abmelden: Aufgabe ging nicht', e);
+      }
+    }
+  }
+
   late RosenwegApi api = _apiFuer(_transport ?? HttpTransport(basis: app.konfig.api, zugang: zugang));
 
   /// Woher das Token der aktiven Anmeldung kommt (Android: commons-rosenweg;
@@ -227,6 +271,8 @@ class RosenwegSitzung extends ChangeNotifier {
         // Wie die Kotlin-Apps (RosenwegAnmeldeSchirm.zeigenFallsNoetig): gleich den Schirm zeigen
         if (await a.angemeldet) {
           _setzen(Phase.bereit);
+        } else if (ohneAnmeldungNutzbar) {
+          _setzen(Phase.abgemeldet);
         } else {
           await anmelden();
         }
@@ -344,9 +390,15 @@ class RosenwegSitzung extends ChangeNotifier {
 
   Future<void> abmelden() async {
     if (geteiltesTelefon) return;
+    await _vorAbmeldenAusfuehren();
+    anmeldungGewuenscht = false;
     if (android != null) {
       await android!.abmelden();
-      await anmelden(); // Anmeldeschirm, wie nach dem Start
+      if (ohneAnmeldungNutzbar) {
+        _setzen(Phase.abgemeldet);
+      } else {
+        await anmelden(); // Anmeldeschirm, wie nach dem Start
+      }
       return;
     }
     await konto.abmelden();

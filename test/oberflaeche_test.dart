@@ -46,6 +46,45 @@ void main() {
     expect(find.text('INHALT'), findsNothing);
   });
 
+  testWidgets('ohneAnmeldung: offener Teil statt Anmeldeschirm, Anmelden und zurueck', (t) async {
+    Kartenleser.ersatz = () => null;
+    addTearDown(() => Kartenleser.ersatz = null);
+    final s = RosenwegSitzung(app, geraetDa: () async => false)..ohneAnmeldungNutzbar = true;
+    await t.pumpWidget(
+      RosenwegRahmen(
+        sitzung: s,
+        inhalt: (_) => const Text('INHALT'),
+        ohneAnmeldung: (_) => Scaffold(
+          body: TextButton(onPressed: s.anmeldungZeigen, child: const Text('OFFEN')),
+        ),
+      ),
+    );
+    await t.runAsync(s.starten);
+    await t.pump();
+    expect(s.phase, Phase.abgemeldet);
+    expect(find.text('OFFEN'), findsOneWidget);
+    expect(find.text('Mit Rosenweg-Konto anmelden'), findsNothing);
+    await t.tap(find.text('OFFEN'));
+    await t.pump();
+    expect(find.text('Mit Rosenweg-Konto anmelden'), findsOneWidget);
+    await t.tap(find.byType(BackButton));
+    await t.pump();
+    expect(find.text('OFFEN'), findsOneWidget);
+  });
+
+  testWidgets('vorAbmelden laeuft vor dem Abmelden, Fehler halten nicht auf', (t) async {
+    final s = RosenwegSitzung(app, transport: _Transport());
+    final lauf = <String>[];
+    s.vorAbmelden(() async => lauf.add('a:${s.phase.name}'));
+    s.vorAbmelden(() async => throw StateError('kaputt'));
+    final weg = s.vorAbmelden(() async => lauf.add('nie'));
+    weg();
+    await t.runAsync(s.starten);
+    await t.runAsync(s.abmelden);
+    expect(lauf, ['a:bereit']);
+    expect(s.phase, Phase.abgemeldet);
+  });
+
   testWidgets('geteiltes Telefon: direkt bereit, keine eigene Anmeldung', (t) async {
     final s = RosenwegSitzung(app, geraetDa: () async => true);
     await t.pumpWidget(RosenwegRahmen(sitzung: s, inhalt: (_) => const Text('INHALT')));
@@ -151,6 +190,20 @@ void main() {
       expect(s.phase, Phase.abgemeldet);
       expect(find.text('Anmelden'), findsOneWidget);
       expect(find.text('Mit Rosenweg-Konto anmelden'), findsNothing);
+    });
+
+    testWidgets('ohneAnmeldung: kein Schirm von selbst, Abmelden zurueck in den offenen Teil', (t) async {
+      final a = _Android(angemeldetAm: false, schirmMeldetAn: true);
+      final s = RosenwegSitzung(app, android: a, geraetDa: () async => false)..ohneAnmeldungNutzbar = true;
+      await t.runAsync(s.starten);
+      expect(a.schirmGeoeffnet, 0);
+      expect(s.phase, Phase.abgemeldet);
+      await t.runAsync(s.anmeldungZeigen);
+      expect(a.schirmGeoeffnet, 1);
+      expect(s.phase, Phase.bereit);
+      await t.runAsync(s.abmelden);
+      expect(a.schirmGeoeffnet, 1);
+      expect(s.phase, Phase.abgemeldet);
     });
 
     testWidgets('Abmelden: nur diese App, Schirm wieder offen', (t) async {
