@@ -378,7 +378,11 @@ jobs:
       # Pruefsumme (nicht das vorinstallierte SDK des Runners), im actions/cache;
       # Plattform, Build-Tools und NDK laedt das Android-Gradle-Plugin beim
       # ersten Bau selbst. Gradle-Cache dazu (Schluessel: Gradle-Dateien).
+      # Nur auf GitHub-Runnern: auf den eigenen Runnern liegt der Cache ohnehin
+      # auf der Platte, und zwei Runner-Instanzen je CT entpackten sonst
+      # gleichzeitig in denselben Ordner (Gradle-Cache kaputt, reparatur#4).
       - name: Werkzeug-Cache
+        if: runner.environment == 'github-hosted'
         uses: actions/cache@v4
         with:
           path: |
@@ -389,7 +393,10 @@ jobs:
       - name: Flutter, JDK, Android-SDK (feste Versionen mit Pruefsumme)
         run: |
           set -euo pipefail
-          C="$HOME/.cache/rosenweg-flutter-ci"; mkdir -p "$C"
+          C="$HOME/.cache/rosenweg-flutter-ci"
+          # eigene Runner: ein Ordner je Runner-Instanz (mehrere Instanzen je CT)
+          if [ "${RUNNER_ENVIRONMENT:-}" = self-hosted ]; then C="$C-$RUNNER_NAME"; fi
+          mkdir -p "$C"
           if [ ! -x "$C/flutter-$FLUTTER_VERSION/bin/flutter" ]; then
             curl -fsSL -o "$C/flutter.txz" "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_$FLUTTER_VERSION-stable.tar.xz"
             echo "$FLUTTER_SHA256  $C/flutter.txz" | sha256sum -c -
