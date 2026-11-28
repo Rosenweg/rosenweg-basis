@@ -3,6 +3,8 @@
 - Workflow `app.yml`: neuer Eingang `systempakete` (Leerzeichen-getrennte
   Debian-Pakete, Standard leer) für den Linux-Bau. Apps mit `media_kit`
   (Rosenweg TV) brauchen `libmpv-dev`. Ohne Angabe ändert sich nichts.
+- Logo-Liste: Rosenweg Vollmachten in der Gruppe `bewohner`, Farben
+  `verwaltung,technik`.
 
 ## 0.8.7 – Ohne Anmeldung nutzbar, vorAbmelden, MQTT widerrufen
 
