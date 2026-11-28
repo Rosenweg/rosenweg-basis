@@ -253,7 +253,8 @@ jobs:
           # Eingang als Umgebungsvariable (nie ${{ }} in die Shell), nur Paketnamen
           ZUSATZ: ${{ inputs.systempakete }}
         run: |
-          printf '%s' "$ZUSATZ" | grep -Eq '^[a-z0-9+.: -]*$' || { echo "::error::systempakete: nur Paketnamen"; exit 1; }
+          # leer ist erlaubt (grep findet in leerer Eingabe keine Zeile)
+          case "$ZUSATZ" in *[!a-z0-9+.:\ -]*) echo "::error::systempakete: nur Paketnamen"; exit 1 ;; esac
           apt-get update -qq
           # shellcheck disable=SC2086
           DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
