@@ -92,4 +92,6 @@ dependencies {
     // "Start: IllegalStateException"), ab 0.1.6 "Nach Updates suchen" (jetztPruefen) und eigene
     // Meldungsnummer. Startet von selbst (ContentProvider UpdaterStart).
     implementation("ch.rosenweg4303:updater:0.1.8")
+    // dateiOeffnen: FileProvider (Datei mit der passenden App oeffnen, z. B. .ics im Kalender)
+    implementation("androidx.core:core:1.16.0")
 }
