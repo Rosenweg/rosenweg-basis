@@ -273,6 +273,10 @@ jobs:
             ca-certificates clang cmake ninja-build pkg-config xz-utils curl unzip git zstd \
             libgtk-3-dev liblzma-dev libstdc++-14-dev libsecret-1-dev libjsoncpp-dev \
             dpkg-dev binutils patchelf librsvg2-bin file lintian $ZUSATZ >/dev/null
+          # Im Container als root, die Caches auf den eigenen Runnern gehoeren
+          # aber dem Benutzer runner (Rueckgabe am Ende des Jobs): sonst lehnt
+          # git den pub-Cache als "dubious ownership" ab (mein-telefon, 28.11.2026).
+          git config --global --add safe.directory '*'
 
       - uses: actions/checkout@v4
 
