@@ -2,7 +2,9 @@
 // Beispiel-App fuer rosenweg_basis: jede Seite zeigt einen Baustein so, wie
 // eine echte App ihn benutzt. Laeuft ohne Anmeldung mit Vorfuehrdaten
 // (attrappe.dart) auf Linux, macOS, Windows, Android und iOS.
+import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:rosenweg_basis/rosenweg_basis.dart';
@@ -51,6 +53,7 @@ class BeispielApp extends StatelessWidget {
           GeruestZiel(titel: 'Scannen', symbol: Icons.qr_code_scanner, seite: (_) => const ScannerBeispiel()),
           GeruestZiel(titel: 'Dateien', symbol: Icons.upload_file, seite: (_) => DateienBeispiel(sitzung: sitzung, v: v)),
           GeruestZiel(titel: 'PDF', symbol: Icons.picture_as_pdf_outlined, seite: (_) => PdfAnsicht(laden: () => sitzung.dateien.herunterladen('/api/beispiel.pdf'))),
+          GeruestZiel(titel: 'Diagramm', symbol: Icons.show_chart, seite: (_) => const DiagrammBeispiel()),
         ],
       );
 }
@@ -439,4 +442,90 @@ class _DateienBeispielState extends State<DateienBeispiel> {
           ],
         ]),
       );
+}
+
+
+/// Diagramme und Echtzeit: eine erfundene Temperatur kommt alle 2 s „live“
+/// (EchtzeitAttrappe statt Broker), dazu 7 Tage Verlauf mit Zeitraum-Wahl.
+class DiagrammBeispiel extends StatefulWidget {
+  const DiagrammBeispiel({super.key});
+  @override
+  State<DiagrammBeispiel> createState() => _DiagrammBeispielState();
+}
+
+class _DiagrammBeispielState extends State<DiagrammBeispiel> {
+  final _live = EchtzeitAttrappe({'beispiel/temperatur': '4.0'});
+  late final StreamSubscription<MqttNachricht> _abo;
+  Timer? _uhr;
+  final _r = Random(3);
+  final _jetzt = DateTime.now();
+  late final _punkte = <Messpunkt>[
+    for (var m = 7 * 24 * 60; m >= 0; m -= 15)
+      Messpunkt(
+        _jetzt.subtract(Duration(minutes: m)),
+        // eine Luecke vor zwei Tagen (Station kurz aus)
+        m > 2 * 24 * 60 && m < 2 * 24 * 60 + 180 ? null : 4 + 3 * sin(m / 60 / 24 * 2 * pi) + _r.nextDouble() * 0.5,
+      ),
+  ];
+  Zeitraum _zeitraum = Zeitraum.kurz[2];
+  String _wert = '–';
+
+  @override
+  void initState() {
+    super.initState();
+    _abo = _live.abonnieren('beispiel/#').listen((n) => setState(() => _wert = n.text));
+    _uhr = Timer.periodic(const Duration(seconds: 2), (_) => _live.senden('beispiel/temperatur', (4 + _r.nextDouble()).toStringAsFixed(1)));
+  }
+
+  @override
+  void dispose() {
+    _uhr?.cancel();
+    _abo.cancel();
+    _live.schliessen();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reihe = Messreihe(titel: 'Temperatur', einheit: '°C', punkte: _punkte);
+    final von = _jetzt.subtract(_zeitraum.dauer);
+    return ListView(padding: const EdgeInsets.all(16), children: [
+      Abschnitt(
+        titel: 'Echtzeit',
+        symbol: Icons.sensors,
+        erklaerung: 'In einer App: RosenwegMqtt(MqttZugang.ueberApi(sitzung.api)) statt der Attrappe.',
+        kind: Row(children: [
+          Text('$_wert °C', style: Theme.of(context).textTheme.headlineMedium),
+          const Spacer(),
+          EchtzeitAnzeige(quelle: _live),
+        ]),
+      ),
+      const SizedBox(height: 12),
+      Abschnitt(
+        titel: 'Verlauf',
+        symbol: Icons.show_chart,
+        kind: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Center(child: ZeitraumWahl(gewaehlt: _zeitraum, geaendert: (z) => setState(() => _zeitraum = z))),
+          const SizedBox(height: 12),
+          Verlaufsdiagramm(reihe: reihe.ausschnitt(von, _jetzt), von: von, bis: _jetzt),
+          const SizedBox(height: 12),
+          Text('Balken, Wertachse ab 0:', style: Theme.of(context).textTheme.labelLarge),
+          Verlaufsdiagramm(
+            reihe: Messreihe(titel: 'Regen', einheit: 'mm', farbe: diagrammFarben[1], punkte: [
+              for (var d = 13; d >= 0; d--) Messpunkt(_jetzt.subtract(Duration(days: d)), (_r.nextDouble() * 8).roundToDouble()),
+            ]),
+            art: DiagrammArt.balken,
+            nullLinie: true,
+            hoehe: 180,
+          ),
+          const SizedBox(height: 12),
+          Text('Kleinverlauf für Kacheln:', style: Theme.of(context).textTheme.labelLarge),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(width: 200, child: Kleinverlauf(reihe: reihe.ausschnitt(_jetzt.subtract(const Duration(hours: 24)), _jetzt))),
+          ),
+        ]),
+      ),
+    ]);
+  }
 }
