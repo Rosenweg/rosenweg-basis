@@ -22,7 +22,7 @@ dependencies:
     git:
       url: https://github.com/Rosenweg/rosenweg-basis.git
       # fester Tag (mit Updater und iOS-MainActor-Fix); neue Basis = neuer Tag
-      ref: v0.8.7
+      ref: v0.8.8
 
 dev_dependencies:
   flutter_test:

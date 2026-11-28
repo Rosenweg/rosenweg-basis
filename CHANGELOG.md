@@ -1,3 +1,9 @@
+## 0.8.8 – Eingang systempakete für den Linux-Bau
+
+- Workflow `app.yml`: neuer Eingang `systempakete` (Leerzeichen-getrennte
+  Debian-Pakete, Standard leer) für den Linux-Bau. Apps mit `media_kit`
+  (Rosenweg TV) brauchen `libmpv-dev`. Ohne Angabe ändert sich nichts.
+
 ## 0.8.7 – Ohne Anmeldung nutzbar, vorAbmelden, MQTT widerrufen
 
 Für Rosenweg Energie (allgemein nutzbar):
