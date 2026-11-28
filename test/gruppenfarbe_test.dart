@@ -83,6 +83,38 @@ void main() {
       expect(gruppeAusRechten(_nurTechnik, _r(g: ['technik'])), RosenwegGruppe.technik);
     });
 
+    test('mit farbRechteTechnik gruen nach Seitenrecht (Rosenweg Energie)', () {
+      const energie = RosenwegApp(
+        kennung: 'e',
+        name: 'E',
+        ordner: 'e',
+        beschreibung: '',
+        gruppe: RosenwegGruppe.bewohner,
+        farbGruppen: {RosenwegGruppe.verwaltung, RosenwegGruppe.technik},
+        farbRechte: {'energie-stweg'},
+        farbRechteTechnik: {'energie-config'},
+      );
+      // energie-config lesen genuegt fuer Gruen
+      expect(gruppeAusRechten(energie, _r(g: ['x'], p: {'energie-config': 'read'})), RosenwegGruppe.technik);
+      // gruen schlaegt blau
+      expect(
+        gruppeAusRechten(energie, _r(g: ['stweg3-verwaltung'], p: {'energie-stweg': 'read', 'energie-config': 'read'})),
+        RosenwegGruppe.technik,
+      );
+      expect(
+        gruppeAusRechten(energie, _r(g: ['stweg3-verwaltung'], p: {'energie-stweg': 'read'})),
+        RosenwegGruppe.verwaltung,
+      );
+      // automatisches energie-monitor (jeder mit Zaehler) bleibt rot, ebenso Zaehler-Technik
+      expect(
+        gruppeAusRechten(energie, _r(g: ['r9-eigentuemer'], p: {'energie-monitor': 'read', 'zaehler-technik': 'read'})),
+        RosenwegGruppe.bewohner,
+      );
+      expect(gruppeAusRechten(energie, _r(g: ['technik'])), RosenwegGruppe.technik);
+      // ohne farbGruppen technik nuetzt das Recht nichts
+      expect(gruppeAusRechten(_mitRecht, _r(g: ['x'], p: {'energie-config': 'read'})), RosenwegGruppe.bewohner);
+    });
+
     test('nie unter die Mindestfarbe', () {
       const gruen = RosenwegApp(
         kennung: 'x',

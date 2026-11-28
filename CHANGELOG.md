@@ -1,3 +1,9 @@
+## 0.8.6 – Gruppenfarbe: farbRechteTechnik
+
+- Gruppenfarbe: `RosenwegApp.farbRechteTechnik` – Grün auch nach
+  Seitenrecht (mindestens lesen), nicht nur für Technik/Präsident
+  (`Rechte.alles`). Rosenweg Energie: `{'energie-config'}`.
+
 ## 0.8.5 – Stationen-PR nach jedem Release
 
 Entscheid Stefan 28.11.2026.
