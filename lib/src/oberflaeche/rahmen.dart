@@ -17,17 +17,28 @@ import 'rechte_bausteine.dart';
 
 /// Zeigt je nach Phase der Sitzung Warten, Anmeldeschirm, Fehler — oder,
 /// sobald angemeldet, den Inhalt der App ([inhalt]).
+///
+/// Mit [ohneAnmeldung] ist die App auch ohne Anmeldung nutzbar: statt des
+/// Anmeldeschirms kommt dieser Teil; er ruft [RosenwegSitzung.anmeldungZeigen]
+/// fuer den Anmeldeschirm (mit "Zurück").
 class AnmeldeTor extends StatelessWidget {
-  const AnmeldeTor({super.key, required this.sitzung, required this.inhalt});
+  const AnmeldeTor({super.key, required this.sitzung, required this.inhalt, this.ohneAnmeldung});
   final RosenwegSitzung sitzung;
   final WidgetBuilder inhalt;
+  final WidgetBuilder? ohneAnmeldung;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: sitzung,
         builder: (context, _) => switch (sitzung.phase) {
           Phase.pruefen => const Scaffold(body: LadeAnzeige()),
-          Phase.abgemeldet || Phase.anmelden => Scaffold(body: RosenwegAnmeldeSchirm(sitzung: sitzung)),
+          Phase.abgemeldet when ohneAnmeldung != null && !sitzung.anmeldungGewuenscht => Builder(builder: ohneAnmeldung!),
+          Phase.abgemeldet || Phase.anmelden => Scaffold(
+              appBar: ohneAnmeldung == null
+                  ? null
+                  : AppBar(leading: BackButton(onPressed: sitzung.ohneAnmeldungWeiter), title: const Text('Anmelden')),
+              body: RosenwegAnmeldeSchirm(sitzung: sitzung),
+            ),
           Phase.fehler => Scaffold(body: FehlerAnzeige(text: sitzung.fehler ?? '', details: sitzung.fehlerDetails, nochmals: sitzung.starten)),
           Phase.bereit => RechteBereich(rechte: sitzung.rechte, child: Builder(builder: inhalt)),
         },
@@ -39,9 +50,12 @@ class AnmeldeTor extends StatelessWidget {
 /// ([AktualisierungsLeiste], nur Linux ausserhalb der Stationen, macOS,
 /// Windows; siehe [RosenwegAktualisierung]).
 class RosenwegRahmen extends StatelessWidget {
-  const RosenwegRahmen({super.key, required this.sitzung, required this.inhalt, this.aktualisierung});
+  const RosenwegRahmen({super.key, required this.sitzung, required this.inhalt, this.aktualisierung, this.ohneAnmeldung});
   final RosenwegSitzung sitzung;
   final WidgetBuilder inhalt;
+
+  /// Teil der App ohne Anmeldung ([AnmeldeTor.ohneAnmeldung]).
+  final WidgetBuilder? ohneAnmeldung;
   final RosenwegAktualisierung? aktualisierung;
 
   // Personenwechsel am geteilten Telefon: neuer Schluessel = neue App (auch
@@ -66,7 +80,7 @@ class RosenwegRahmen extends StatelessWidget {
         builder: aktualisierung == null || !aktualisierung!.aktiv
             ? null
             : (context, kind) => AktualisierungsLeiste(aktualisierung: aktualisierung!, child: kind ?? const SizedBox()),
-        home: AnmeldeTor(sitzung: sitzung, inhalt: inhalt),
+        home: AnmeldeTor(sitzung: sitzung, inhalt: inhalt, ohneAnmeldung: ohneAnmeldung),
       );
 }
 
@@ -80,8 +94,14 @@ class RosenwegRahmen extends StatelessWidget {
 /// und sichtbar in der App, nie still beenden), prueft die Anmeldung, startet
 /// den Updater ([RosenwegAktualisierung]; aus auf Stationen, Android, iOS)
 /// und zeigt den Rahmen.
+///
+/// [ohneAnmeldung]: Teil der App, den man ohne Anmeldung sieht (z. B. offene
+/// Daten wie die Solaranlage in Rosenweg Energie); ohne Angabe muss man sich
+/// zuerst anmelden.
 void rosenwegStarten(RosenwegApp app, Widget Function(RosenwegSitzung sitzung) inhalt,
-    {RosenwegSitzung? sitzung, RosenwegAktualisierung? aktualisierung}) {
+    {RosenwegSitzung? sitzung,
+    RosenwegAktualisierung? aktualisierung,
+    Widget Function(RosenwegSitzung sitzung)? ohneAnmeldung}) {
   Protokoll.einrichten(app.ordner);
   RosenwegSitzung? s;
   runZonedGuarded(
@@ -98,10 +118,16 @@ void rosenwegStarten(RosenwegApp app, Widget Function(RosenwegSitzung sitzung) i
         return true;
       };
       s = sitzung ?? RosenwegSitzung(app);
+      s!.ohneAnmeldungNutzbar = ohneAnmeldung != null;
       s!.starten();
       final a = aktualisierung ?? RosenwegAktualisierung(app);
       a.starten();
-      runApp(RosenwegRahmen(sitzung: s!, inhalt: (_) => inhalt(s!), aktualisierung: a));
+      runApp(RosenwegRahmen(
+        sitzung: s!,
+        inhalt: (_) => inhalt(s!),
+        aktualisierung: a,
+        ohneAnmeldung: ohneAnmeldung == null ? null : (_) => ohneAnmeldung(s!),
+      ));
     },
     (e, st) {
       Protokoll.schreiben('Unerwarteter Fehler', e, st);
