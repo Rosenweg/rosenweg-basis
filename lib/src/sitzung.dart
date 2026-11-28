@@ -171,7 +171,12 @@ class RosenwegSitzung extends ChangeNotifier {
     }
   }
 
-  late RosenwegApi api = _apiFuer(_transport ?? HttpTransport(basis: app.konfig.api, zugang: zugang));
+  /// Adresse der Haupt-API. Im Browser immer die der Seite selbst
+  /// (rosenweg4303.ch, isp.rosenweg4303.ch): dieselbe Herkunft, kein CORS, das
+  /// Cookie der Website-Sitzung gilt.
+  String get _apiBasis => kIsWeb && web != null ? Uri.base.origin : app.konfig.api;
+
+  late RosenwegApi api = _apiFuer(_transport ?? HttpTransport(basis: _apiBasis, zugang: zugang));
 
   /// Woher das Token der aktiven Anmeldung kommt (Android: commons-rosenweg;
   /// sonst Rosenweg-Konto oder Karten-/QR-/Handy-Sitzung). Fuer Apps, die
@@ -218,7 +223,7 @@ class RosenwegSitzung extends ChangeNotifier {
   /// (Fortschritt, roh oder multipart). Austauschbar fuer Tests und
   /// Vorfuehrdaten.
   late RosenwegDateien dateien = RosenwegDateien(
-    basis: app.konfig.api,
+    basis: _apiBasis,
     zugang: zugang,
     nichtAngemeldet: _nichtMehrAngemeldet,
     geteiltesTelefon: () => geteiltesTelefon,

@@ -326,7 +326,7 @@ class RosenwegMqtt extends _Verteiler {
     _stand(EchtzeitStand.verbinde);
     try {
       final a = await zugang.holen(neu: _abgelehnt);
-      final kennung = '${kennungVorsilbe}_${Random().nextInt(1 << 32).toRadixString(16).padLeft(8, '0')}';
+      final kennung = '${kennungVorsilbe}_${Random().nextInt(0x100000000).toRadixString(16).padLeft(8, '0')}';
       final c = mqttClientErzeugen(adresse, kennung, port);
       c.setProtocolV311();
       c.logging(on: false);
