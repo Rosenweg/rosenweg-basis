@@ -1,3 +1,9 @@
+## Unveröffentlicht (Version vergibt der Integrator)
+
+- Gruppenfarbe: `RosenwegApp.farbRechteTechnik` – Grün auch nach
+  Seitenrecht (mindestens lesen), nicht nur für Technik/Präsident
+  (`Rechte.alles`). Rosenweg Energie: `{'energie-config'}`.
+
 ## 0.8.2
 
 - **Gruppenfarbe nach der angemeldeten Person** (Entscheid Stefan

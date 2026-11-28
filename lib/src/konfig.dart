@@ -103,6 +103,7 @@ class RosenwegApp {
     this.gruppe,
     this.farbGruppen = const {},
     this.farbRechte = const {},
+    this.farbRechteTechnik = const {},
   });
 
   /// applicationId (Android) = APPLICATION_ID (GTK) = Schema des Ruecksprungs
@@ -145,7 +146,8 @@ class RosenwegApp {
   /// (Entscheid Stefan 28.11.2026: Farbe nach freigeschalteter Funktion,
   /// nicht nach Gruppe). Leer = immer [gruppe].
   ///
-  /// * [RosenwegGruppe.technik]: Technik und Praesident (`Rechte.alles`).
+  /// * [RosenwegGruppe.technik]: Technik und Praesident (`Rechte.alles`),
+  ///   dazu wer eines der [farbRechteTechnik] hat (mindestens lesen).
   /// * [RosenwegGruppe.verwaltung]: mit [farbRechte] wer eines dieser
   ///   Seitenrechte hat (mindestens lesen), ohne: Ausschuss oder Verwaltung
   ///   (`stwegN-ausschuss`, `meg-ausschuss`, `stwegN-verwaltung`,
@@ -158,6 +160,11 @@ class RosenwegApp {
   /// Seitenrechte, die bei dieser App Blau freischalten, z. B.
   /// `{'reklamationen'}`. Leer = nach Gruppe (siehe [farbGruppen]).
   final Set<String> farbRechte;
+
+  /// Seitenrechte, die bei dieser App zusaetzlich zu Technik/Praesident
+  /// Gruen freischalten, z. B. `{'energie-config'}` (Rosenweg Energie:
+  /// schon Lesen zeigt Technikfelder). Leer = nur `Rechte.alles`.
+  final Set<String> farbRechteTechnik;
 
   /// Mindestfarbe, ohne Angabe blau (wie bisher).
   RosenwegGruppe get standardGruppe => gruppe ?? RosenwegGruppe.verwaltung;
@@ -175,6 +182,5 @@ class RosenwegApp {
   /// eingetragen (docs/authentik.md).
   String get telefonRuecksprung => '$kennung:/anmeldung';
 
-  ImageProvider get logoOderTurm =>
-      logo ?? const AssetImage('assets/logo/rosenweg-512.png', package: 'rosenweg_basis');
+  ImageProvider get logoOderTurm => logo ?? const AssetImage('assets/logo/rosenweg-512.png', package: 'rosenweg_basis');
 }
