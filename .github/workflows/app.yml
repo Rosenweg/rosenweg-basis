@@ -26,6 +26,12 @@
 #             ein von GITHUB_TOKEN angelegtes Release loest "release
 #             published" nicht aus).
 #             Ein Fehlschlag bei Windows/macOS/iOS verhindert das Release nie.
+#   stationen nur mit stationen_seite: nach dem Release ein Pull Request in
+#             Rosenweg/os-stationen mit pakete/<app>/paket.conf (VERSION,
+#             SHA256_amd64 aus SHA256SUMS, SEITE, STARTER aus dem .deb), ueber
+#             die GitHub App "Rosenweg Pakete" (PAKETE_APP_ID/PAKETE_APP_KEY).
+#             os-stationen laedt das .deb dann auf den PXE-Server (Label
+#             paket-update). Gemergt wird von Hand.
 #
 # Runner: nur von GitHub gehostete (ubuntu-latest, windows-latest,
 # macos-latest), nie eigene - das Repo ist oeffentlich, und ein PR aus einem
@@ -44,6 +50,8 @@
 #   NOTAR_ISSUER                          optional: Developer ID + Notarisierung
 #   WINDOWS_ZERTIFIKAT_PFX, WINDOWS_ZERTIFIKAT_PASSWORT
 #                                         optional: Code-Signing (sonst SmartScreen)
+#   PAKETE_APP_ID, PAKETE_APP_KEY         optional: GitHub App "Rosenweg Pakete"
+#                                         (nur os-stationen) fuer den Job stationen
 # rosenweg-basis ist oeffentlich: pub holt sie ohne Token.
 #
 # Aufrufer (vorlage/.github/workflows/app.yml):
@@ -108,6 +116,10 @@ on:
         description: Workflow der App, der ein Release an /apps schickt (leer = keiner)
         type: string
         default: apps.yml
+      stationen_seite:
+        description: Web-Seite (Kennung aus /api/stations/<id>/apps), die die App auf den Stationen ersetzt; gesetzt = nach dem Release PR in os-stationen (leer = keiner)
+        type: string
+        default: ""
     secrets:
       ANDROID_KEYSTORE_BASE64: { required: false }
       ANDROID_KEYSTORE_PASSWORD: { required: false }
@@ -120,6 +132,8 @@ on:
       NOTAR_ISSUER: { required: false }
       WINDOWS_ZERTIFIKAT_PFX: { required: false }
       WINDOWS_ZERTIFIKAT_PASSWORT: { required: false }
+      PAKETE_APP_ID: { required: false }
+      PAKETE_APP_KEY: { required: false }
 
 # Nur zum Lesen; Jobs, die mehr brauchen (release, nachtrag), sagen es selbst.
 permissions:
@@ -677,6 +691,11 @@ jobs:
           ls -la ausgabe
           (cd ausgabe && sha256sum ./* > "$RUNNER_TEMP/SHA256SUMS") && mv "$RUNNER_TEMP/SHA256SUMS" ausgabe/
           cat ausgabe/SHA256SUMS
+          # Das .deb gehoert immer dazu: os-stationen (Job stationen, paket.conf)
+          # vergleicht seine Pruefsumme mit dieser Datei.
+          if [ "${ST_LINUX:-}" = success ] && ! grep -q '_amd64\.deb$' ausgabe/SHA256SUMS; then
+            echo "::error::Linux ist gebaut, aber kein .deb in SHA256SUMS"; exit 1
+          fi
 
       # Release, Dateien, Text und der Start von apps.yml ueber die REST-API
       # (github-script). Derselbe Schritt in release und nachtrag
@@ -766,6 +785,208 @@ jobs:
               await github.rest.actions.createWorkflowDispatch({ ...repo, workflow_id: e.WF, ref: tag });
               core.info(`${e.WF} fuer ${tag} gestartet`);
             }
+
+  # Neues Release -> Pull Request in Rosenweg/os-stationen mit der neuen
+  # pakete/<app>/paket.conf (VERSION, SHA256_amd64, beim ersten Mal auch SEITE
+  # und STARTER). Nur mit stationen_seite (die Web-Seite, die die App auf den
+  # Stationen ersetzt) und nur, wenn der Aufrufer PAKETE_APP_ID/PAKETE_APP_KEY
+  # weiterreicht (GitHub App "Rosenweg Pakete", schreibt nur in os-stationen).
+  # Gemergt wird nie hier: os-stationen laedt das .deb auf den PXE-Server
+  # (Label paket-update, Workflow paket-hochladen.yml) und meldet das im PR.
+  stationen:
+    needs: [version, linux, release]
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.linux.result == 'success' && inputs.stationen_seite != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read   # Release-Dateien lesen; geschrieben wird mit dem App-Token
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
+      TITEL: ${{ inputs.titel }}
+      SEITE: ${{ inputs.stationen_seite }}
+      HAT_APP: ${{ secrets.PAKETE_APP_ID != '' && secrets.PAKETE_APP_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: app
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.app }}-linux
+          path: ausgabe
+
+      # Was die Stationen pruefen, muss genau das sein, was im Release liegt:
+      # Pruefsumme gegen SHA256SUMS des Release, Name gegen VERSION.
+      - name: Paket lesen
+        id: deb
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          debs=(ausgabe/*.deb)
+          [ "${#debs[@]}" -eq 1 ] || { echo "::error::Genau ein .deb erwartet, gefunden: ${#debs[@]}"; exit 1; }
+          deb="${debs[0]}"; datei="$(basename "$deb")"
+          name="$(dpkg-deb -f "$deb" Package)"; ver="$(dpkg-deb -f "$deb" Version)"
+          [ "$name" = "$APP" ] || { echo "::error::Paket heisst $name, erwartet $APP"; exit 1; }
+          [ "$datei" = "${name}_${ver}_amd64.deb" ] || { echo "::error::Dateiname $datei passt nicht zu $name $ver"; exit 1; }
+          [[ "$ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]] || { echo "::error::Version $ver nicht x.y.z-n"; exit 1; }
+          [[ "$SEITE" =~ ^rosenweg-[a-z0-9-]+$ ]] || { echo "::error::stationen_seite '$SEITE' ist keine Kennung rosenweg-…"; exit 1; }
+          summe="$(sha256sum "$deb" | cut -d' ' -f1)"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -p SHA256SUMS -D release
+          grep -Eq "^$summe  (\./)?$datei\$" release/SHA256SUMS \
+            || { echo "::error::$datei ($summe) steht nicht so in SHA256SUMS von $TAG"; cat release/SHA256SUMS; exit 1; }
+          starter=()
+          while IFS= read -r p; do starter+=("$(basename "$p")"); done \
+            < <(dpkg-deb -c "$deb" | awk '{print $NF}' | grep -E '^\./usr/share/applications/[^/]+\.desktop$')
+          [ "${#starter[@]}" -eq 1 ] || { echo "::error::Genau ein Starter in /usr/share/applications erwartet: ${starter[*]:-keiner}"; exit 1; }
+          {
+            echo "version=$ver"; echo "summe=$summe"; echo "datei=$datei"; echo "starter=${starter[0]}"
+          } >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+      - name: Ohne GitHub App kein Pull Request
+        if: env.HAT_APP != 'true'
+        env:
+          VER: ${{ steps.deb.outputs.version }}
+          SUMME: ${{ steps.deb.outputs.summe }}
+        run: |
+          echo "::warning::PAKETE_APP_ID/PAKETE_APP_KEY nicht weitergereicht - kein PR in os-stationen. Von Hand: pakete/$APP/paket.conf auf $VER (SHA256 $SUMME)."
+
+      - name: Zugang zu os-stationen
+        id: zugang
+        if: env.HAT_APP == 'true'
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PAKETE_APP_ID }}
+          private-key: ${{ secrets.PAKETE_APP_KEY }}
+          owner: Rosenweg
+          repositories: os-stationen
+
+      - uses: actions/checkout@v4
+        if: env.HAT_APP == 'true'
+        with:
+          repository: Rosenweg/os-stationen
+          token: ${{ steps.zugang.outputs.token }}
+          path: os-stationen
+
+      # Bestehende paket.conf: nur VERSION, SHA256_amd64, STARTER und die
+      # Release-Nummer in den Kommentaren; SEITE bleibt, wie os-stationen sie
+      # hat (dort wird sie entschieden). Neue: aus linux/paket/paket.conf der
+      # App (Vorlage aus rosenweg-basis), sonst aus der kurzen Vorlage hier.
+      - name: Pull Request in os-stationen
+        if: env.HAT_APP == 'true'
+        env:
+          GH_TOKEN: ${{ steps.zugang.outputs.token }}
+          SLUG: ${{ steps.zugang.outputs.app-slug }}
+          VER: ${{ steps.deb.outputs.version }}
+          SUMME: ${{ steps.deb.outputs.summe }}
+          DATEI: ${{ steps.deb.outputs.datei }}
+          STARTER: ${{ steps.deb.outputs.starter }}
+        run: |
+          set -euo pipefail
+          heute="$(TZ=Europe/Zurich date +%d.%m.%Y)"
+          rel_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          cd os-stationen
+          ordner="pakete/$APP"; conf="$ordner/paket.conf"
+          neu=false; hinweis=""
+          if [ -f "$conf" ]; then
+            alt_seite="$(sed -n 's/^SEITE=//p' "$conf" | head -1)"
+            if [ -n "$alt_seite" ] && [ "$alt_seite" != "$SEITE" ]; then
+              hinweis="SEITE bleibt \`$alt_seite\` (os-stationen); stationen_seite der App sagt \`$SEITE\` - bitte klaeren."
+              echo "::warning::$hinweis"
+            fi
+            sed -i -E \
+              -e "s/^VERSION=.*/VERSION=$VER/" \
+              -e "s/^SHA256_amd64=.*/SHA256_amd64=$SUMME/" \
+              -e "/^# .*Release/ s/v[0-9]+\.[0-9]+\.[0-9]+/$TAG/g" \
+              -e "/^# .*(berechnet|Pruefsumme|Prüfsumme)/ s/[0-9]{1,2}\.[0-9]{1,2}\.20[0-9]{2}/$heute/g" \
+              "$conf"
+            if grep -q '^STARTER=' "$conf"; then sed -i "s/^STARTER=.*/STARTER=$STARTER/" "$conf"; fi
+          else
+            neu=true
+            mkdir -p "$ordner"
+            vorlage="$GITHUB_WORKSPACE/app/$ORDNER/linux/paket/paket.conf"
+            if [ -f "$vorlage" ]; then
+              sed -E \
+                -e "s/^VERSION=.*/VERSION=$VER/" \
+                -e "s/^SHA256_amd64=.*/SHA256_amd64=$SUMME/" \
+                -e "s/^SEITE=.*/SEITE=$SEITE/" \
+                -e "s/^STARTER=.*/STARTER=$STARTER/" \
+                -e "s|^# Pruefsumme des .deb aus dem Release \(noch keines\)\.|# Release $TAG ($GITHUB_REPOSITORY), Pruefsumme aus SHA256SUMS ($heute).|" \
+                -e '/^# VORLAGE fuer Rosenweg\/os-stationen/d' \
+                -e 's/^# Aus pubspec\.yaml: .*/# Aus pubspec.yaml: x.y.z+n -> x.y.z-n./' \
+                -e '/^# \(dorthin kopieren, zusammen mit hochladen\.sh/d' \
+                "$vorlage" > "$conf"
+            else
+              cat > "$conf" <<EOF
+          # shellcheck shell=bash
+          # ============================================================================
+          # ${TITEL:-$APP} — welches Paket, wo es liegt, woran man es erkennt
+          # ============================================================================
+          # Gelesen von hochladen.sh, lib/common.sh (rosenweg_paket_einspielen) und
+          # roles/desktop/parts/60-programme.sh (SEITE, STARTER). Angelegt von
+          # rosenweg-basis app.yml (Job stationen) nach dem Release $TAG von
+          # $GITHUB_REPOSITORY; das .deb kommt aus diesem Release.
+          # ============================================================================
+
+          VERSION=$VER
+
+          # Release $TAG, Pruefsumme aus SHA256SUMS des Releases ($heute).
+          SHA256_amd64=$SUMME
+
+          PFAD_AUF_PXE=/pxe/pakete
+
+          # Die Web-Seite (/api/stations/<id>/apps), die die App auf der Station
+          # ersetzt; sichtbar fuer dieselben Gruppen.
+          SEITE=$SEITE
+          STARTER=$STARTER
+          EOF
+            fi
+            # alle App-Pakete teilen ein Skript; der Ordnername ist der Paketname
+            ln -sfn ../rosenweg-vm/hochladen.sh "$ordner/hochladen.sh"
+          fi
+          for p in VERSION SHA256_amd64 SEITE STARTER; do
+            grep -q "^$p=." "$conf" || { echo "::error::$conf ohne $p"; cat "$conf"; exit 1; }
+          done
+          git diff --stat; git status --short
+          if git diff --quiet && [ "$neu" = false ]; then
+            echo "::notice::os-stationen hat $APP $VER schon."; exit 0
+          fi
+
+          zweig="paket/$APP-$VER"
+          id="$(gh api "/users/${SLUG}%5Bbot%5D" -q .id)"
+          git config user.name "${SLUG}[bot]"
+          git config user.email "${id}+${SLUG}[bot]@users.noreply.github.com"
+          git switch -C "$zweig"
+          git add "$ordner"
+          if [ "$neu" = true ]; then betreff="${TITEL:-$APP} $VER neu auf den Stationen"; else betreff="${TITEL:-$APP} $VER"; fi
+          git commit -q -m "$betreff" -m "Release $TAG ($rel_url), Datei $DATEI, SHA256 $SUMME. Automatisch von rosenweg-basis app.yml (Job stationen)."
+          git push -f origin "$zweig"
+
+          text="$(printf '%s\n' \
+            "Automatisch nach dem Release [$TAG]($rel_url) von \`$GITHUB_REPOSITORY\`." \
+            "" \
+            "| | |" "|---|---|" \
+            "| Paket | \`$APP\` $( [ "$neu" = true ] && echo '(neu)' ) |" \
+            "| VERSION | \`$VER\` |" \
+            "| Datei | \`$DATEI\` |" \
+            "| SHA256_amd64 | \`$SUMME\` (gleich wie SHA256SUMS des Release) |" \
+            "| SEITE | \`$(sed -n 's/^SEITE=//p' "$conf" | head -1)\` |" \
+            "| STARTER | \`$STARTER\` |" \
+            "" \
+            "${hinweis:+**Achtung:** $hinweis}" \
+            "" \
+            "Mit dem Label \`paket-update\` laedt \`paket-hochladen.yml\` das .deb auf den PXE-Server (CT 135) und meldet das hier. **Erst danach mergen**, dann wie gewohnt ausrollen (erst test, dann main)." \
+            "" \
+            "Lauf: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID")"
+          nummer="$(gh pr list --repo Rosenweg/os-stationen --head "$zweig" --state open --json number -q '.[].number' | head -1)"
+          if [ -n "$nummer" ]; then
+            gh pr edit "$nummer" --repo Rosenweg/os-stationen --title "$betreff" --body "$text" --add-label paket-update
+            echo "::notice::PR #$nummer in os-stationen aktualisiert"
+          else
+            gh pr create --repo Rosenweg/os-stationen --base main --head "$zweig" --title "$betreff" --body "$text" --label paket-update
+          fi
 
   # Windows/macOS/iOS ins bestehende Release, sobald sie fertig sind - auch wenn
   # eine davon scheitert (GitHub-Runner: Minuten, Ausgabenlimit). Danach /apps.

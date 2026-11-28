@@ -48,6 +48,10 @@ jobs:
       paket: ch.rosenweg4303.vorlage
       titel: Rosenweg Vorlage
       veroeffentlichen: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      # Web-Seite, die die App auf den Stationen ersetzt (Kennung aus
+      # /api/stations/<id>/apps, z. B. rosenweg-salz). Gesetzt: nach jedem
+      # Release ein PR in os-stationen mit pakete/<app>/paket.conf. Leer: keiner.
+      stationen_seite: ""
     # nur bei Push auf main; bei pull_request leer (Debug-Signatur)
     secrets:
       ANDROID_KEYSTORE_BASE64: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_BASE64 || '' }}
@@ -61,3 +65,6 @@ jobs:
       NOTAR_ISSUER: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.NOTAR_ISSUER || '' }}
       WINDOWS_ZERTIFIKAT_PFX: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.WINDOWS_ZERTIFIKAT_PFX || '' }}
       WINDOWS_ZERTIFIKAT_PASSWORT: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.WINDOWS_ZERTIFIKAT_PASSWORT || '' }}
+      # GitHub App "Rosenweg Pakete" (nur os-stationen), fuer stationen_seite
+      PAKETE_APP_ID: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.PAKETE_APP_ID || '' }}
+      PAKETE_APP_KEY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.PAKETE_APP_KEY || '' }}
