@@ -8,26 +8,34 @@
 /// Windows `%APPDATA%\…`, macOS/iOS `Application Support`, Android
 /// `files`). Geht die Datei nicht (Tests, schreibgeschuetzt), bleibt alles im
 /// Speicher – die App laeuft weiter, sie vergisst nur beim Beenden.
+///
+/// Im Browser (Web-Version) ist es der localStorage der Seite.
 library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 
 import 'protokoll.dart';
+import 'speicher_browser.dart';
 
 class AppSpeicher {
-  AppSpeicher._(this._datei);
+  AppSpeicher._(this._datei, [this._browserName]);
 
   /// Nur im Speicher (Tests, Attrappe).
-  AppSpeicher.imSpeicher() : _datei = null {
+  AppSpeicher.imSpeicher()
+      : _datei = null,
+        _browserName = null {
     _werte = {};
   }
 
   /// Datei in einem bestimmten Ordner (Tests).
-  AppSpeicher.inOrdner(Directory ordner) : _datei = File('${ordner.path}${Platform.pathSeparator}speicher.json');
+  AppSpeicher.inOrdner(Directory ordner)
+      : _datei = File('${ordner.path}${Platform.pathSeparator}speicher.json'),
+        _browserName = null;
 
   static final _app = <String, AppSpeicher>{};
 
@@ -40,6 +48,8 @@ class AppSpeicher {
   static Future<AppSpeicher> app([String name = 'speicher']) async {
     final a = _app[name];
     if (a != null) return a;
+    // Browser: localStorage der Seite statt einer Datei
+    if (kIsWeb) return _app[name] = AppSpeicher._(null, 'rosenweg-app:$name');
     File? datei;
     try {
       final d = await getApplicationSupportDirectory();
@@ -52,6 +62,7 @@ class AppSpeicher {
   }
 
   final File? _datei;
+  final String? _browserName;
   Map<String, Object?>? _werte;
   Future<void> _schreibt = Future.value();
 
@@ -60,6 +71,12 @@ class AppSpeicher {
     if (w != null) return w;
     var neu = <String, Object?>{};
     try {
+      final b = _browserName;
+      if (b != null) {
+        final t = browserLesen(b);
+        final j = t == null ? null : jsonDecode(t);
+        if (j is Map) neu = j.cast<String, Object?>();
+      }
       final d = _datei;
       if (d != null && await d.exists()) {
         final j = jsonDecode(await d.readAsString());
@@ -81,6 +98,11 @@ class AppSpeicher {
       w.remove(schluessel);
     } else {
       w[schluessel] = wert;
+    }
+    final b = _browserName;
+    if (b != null) {
+      browserSchreiben(b, jsonEncode(w));
+      return;
     }
     final d = _datei;
     if (d == null) return;

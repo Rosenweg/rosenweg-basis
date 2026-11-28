@@ -9,6 +9,7 @@
 /// | macOS | Finder-Dialog | Bild waehlen | "Speichern unter" | Teilen-Menue | Standard-App |
 /// | Android | Dateiauswahl des Systems | Kamera | – (Teilen) | Teilen | passende App (sonst Teilen) |
 /// | iOS | Dateien-App | Kamera | – (Teilen → "In Dateien sichern") | Teilen | – (Teilen) |
+/// | Web | Dateiauswahl des Browsers | Bild waehlen | Download | Download | PDF/Bild im neuen Tab, sonst Download |
 library;
 
 import 'dart:io';
@@ -23,6 +24,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../netz/browser_datei.dart';
 import '../netz/dateien.dart';
 import '../plattform.dart';
 import '../protokoll.dart';
@@ -161,6 +163,7 @@ Uint8List? _verkleinern((Uint8List, int, int) a) {
 /// (dort "In Dateien sichern" bzw. eine App waehlen). true = gespeichert
 /// oder geteilt.
 Future<bool> dateiSpeichern(BuildContext context, DateiDaten d) async {
+  if (kIsWeb) return browserDatei(d.name, d.bytes, d.typ);
   if (!RosenwegPlattform.istDesktop) return dateiTeilen(context, d);
   try {
     final ziel = await getSaveLocation(suggestedName: d.name, confirmButtonText: 'Speichern');
@@ -178,6 +181,7 @@ Future<bool> dateiSpeichern(BuildContext context, DateiDaten d) async {
 /// Teilen-Menue des Systems (Android, iOS, macOS, Windows). Linux hat keins:
 /// dort "Speichern unter".
 Future<bool> dateiTeilen(BuildContext context, DateiDaten d, {String? text}) async {
+  if (kIsWeb) return browserDatei(d.name, d.bytes, d.typ);
   if (Platform.isLinux) return dateiSpeichern(context, d);
   final box = context.findRenderObject() as RenderBox?;
   try {
@@ -205,6 +209,8 @@ Future<bool> dateiTeilen(BuildContext context, DateiDaten d, {String? text}) asy
 /// Dateien: dort das Teilen-Menue. Desktop: Standard-App des Systems.
 /// true = geoeffnet (bzw. geteilt).
 Future<bool> dateiOeffnen(BuildContext context, DateiDaten d) async {
+  // Browser: PDF und Bilder im neuen Tab, sonst Download
+  if (kIsWeb) return browserDatei(d.name, d.bytes, d.typ, imTab: d.typ == 'application/pdf' || d.typ.startsWith('image/'));
   if (Platform.isIOS) return dateiTeilen(context, d);
   try {
     final datei = await _zumOeffnen(d);

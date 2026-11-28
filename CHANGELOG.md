@@ -1,3 +1,18 @@
+## 0.9.0 – Web-Version der Apps
+
+- Alle Apps gibt es auch als Seite: `flutter build web` unter
+  `rosenweg4303.ch/app/<kurzname>/`, **mit der Anmeldung der Website** (eine
+  Anmeldung für alles, Abmelden gilt für die ganze Website). `WebKonto` ruft
+  `js/authentik-auth.js` der Website auf; `RosenwegSitzung` nimmt im Browser
+  diesen Weg und hat keinen eigenen Anmeldeschirm. Siehe `docs/web.md`.
+- Web-fähig: Kerberos, PC/SC und Windows-Registry hinter bedingten Importen
+  , MQTT über `MqttBrowserClient`, `kIsWeb`-Weichen in
+  Station, Schlüsselbund, Protokoll, Konto. Der Updater ist im Web aus.
+- `app.yml`: Eingaben `web` und `web_name`, Job `web` (läuft wie Linux),
+  Archiv `<app>-web.tar.gz` am Release.
+- Vorlage: `web/`, `web: true`; `werkzeug/web-einrichten.sh` stellt bestehende
+  Apps um.
+
 ## 0.8.8 – Eingang systempakete für den Linux-Bau
 
 - Workflow `app.yml`: neuer Eingang `systempakete` (Leerzeichen-getrennte

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// Laeuft die App auf einer Rosenweg-Station (os-stationen)?
 ///
 /// Die EINE Stelle dafuer in der Basis. Auf Stationen bringt os-stationen
@@ -46,7 +48,7 @@ class RosenwegStation {
   static void vergessen() => _gemerkt = null;
 
   static bool _bestimmen() {
-    if (!(linuxFuerTests ?? Platform.isLinux)) return false;
+    if (!(linuxFuerTests ?? (!kIsWeb && Platform.isLinux))) return false;
     final id = _lesen(kennungDatei);
     if (id == null || !_kennung.hasMatch(id)) return false;
     try {

@@ -25,10 +25,10 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:mqtt_client/mqtt_client.dart';
-import 'package:mqtt_client/mqtt_server_client.dart';
 
 import '../protokoll.dart';
 import 'api.dart';
+import 'mqtt_fabrik.dart';
 
 /// Eine empfangene Nachricht.
 @immutable
@@ -295,7 +295,7 @@ class RosenwegMqtt extends _Verteiler {
   final String kennungVorsilbe;
   final Duration lebenszeichen;
 
-  MqttServerClient? _client;
+  MqttClient? _client;
   StreamSubscription<List<MqttReceivedMessage<MqttMessage>>>? _empfang;
   Timer? _wieder;
   var _versuch = 0;
@@ -326,14 +326,8 @@ class RosenwegMqtt extends _Verteiler {
     _stand(EchtzeitStand.verbinde);
     try {
       final a = await zugang.holen(neu: _abgelehnt);
-      final kennung = '${kennungVorsilbe}_${Random().nextInt(1 << 32).toRadixString(16).padLeft(8, '0')}';
-      final c = MqttServerClient.withPort(adresse, kennung, port);
-      if (adresse.startsWith('ws')) {
-        c.useWebSocket = true;
-        c.websocketProtocols = MqttClientConstants.protocolsSingleDefault;
-      } else {
-        c.secure = true;
-      }
+      final kennung = '${kennungVorsilbe}_${Random().nextInt(0x100000000).toRadixString(16).padLeft(8, '0')}';
+      final c = mqttClientErzeugen(adresse, kennung, port);
       c.setProtocolV311();
       c.logging(on: false);
       c.keepAlivePeriod = lebenszeichen.inSeconds;
