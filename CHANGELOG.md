@@ -1,4 +1,4 @@
-## 0.9.2 – Geteilte Telefone: Hochladen, 64 MB
+## 0.9.3 – Geteilte Telefone: Hochladen, 64 MB
 
 - `RosenwegDateien.hochladen` geht auch am geteilten Telefon: die Datei in Stuecken zu
   180 KB (`GeraetTransport.sendenTeil`, Rosenweg Geraet ab .85), die Telefonanlage setzt
