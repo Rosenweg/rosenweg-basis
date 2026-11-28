@@ -239,7 +239,9 @@ jobs:
   linux:
     needs: version
     if: needs.version.outputs.linux == 'true'
-    runs-on: ubuntu-latest
+    # Eigene Runner wie bei Android (ausser Forks); der Bau laeuft im Container
+    # debian:13, apt dort als root – auf den Runnern braucht es nur Docker.
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","Linux","rosenweg"]') || 'ubuntu-latest' }}
     # Debian 13 wie die Stationen: bauen.sh rechnet die Abhaengigkeiten des
     # .deb mit dpkg-shlibdeps gegen dieses System.
     container: debian:13
