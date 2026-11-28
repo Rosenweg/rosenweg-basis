@@ -58,9 +58,13 @@ class RosenwegKonfig {
   static const standard = RosenwegKonfig();
 }
 
-/// Zielgruppe einer App = Farbe ihres Logo-Grundes (werkzeug/logo/baukasten.py
-/// `--gruppe`, Spalte 4 von werkzeug/logo/flutter-apps.txt) und ihres
-/// Anmeldeschirms. Entscheid Stefan 27.11.2026.
+/// Gruppenfarbe: Farbe des Logo-Grundes (werkzeug/logo/baukasten.py
+/// `--gruppe`, Spalte 4 von werkzeug/logo/flutter-apps.txt), des
+/// Anmeldeschirms und des Themas. Entscheid Stefan 27.11.2026.
+///
+/// Seit 28.11.2026 richtet sie sich nach der angemeldeten Person
+/// ([RosenwegApp.farbGruppen], docs/gruppenfarbe.md). Die Reihenfolge ist
+/// die Rangfolge: die hoehere gilt.
 enum RosenwegGruppe {
   /// Rosenweg-Rot #D62828: alle Bewohner.
   bewohner,
@@ -68,8 +72,11 @@ enum RosenwegGruppe {
   /// Rosenweg-Blau #1E3A8A: Ausschuss, Hausverwaltung (bisher fuer alle).
   verwaltung,
 
-  /// Dunkelgruen #2E6B4F: Technik, Admin.
+  /// Dunkelgruen #2E6B4F: Technik, Praesident.
   technik;
+
+  /// Die hoehere von beiden (Rangfolge technik > verwaltung > bewohner).
+  RosenwegGruppe max(RosenwegGruppe? andere) => andere != null && andere.index > index ? andere : this;
 
   /// Aus dem Namen (`bewohner`, `verwaltung`, `technik`); sonst null.
   static RosenwegGruppe? ausName(String? name) {
@@ -94,6 +101,8 @@ class RosenwegApp {
     this.konfig = RosenwegKonfig.standard,
     this.ohneBrowser = true,
     this.gruppe,
+    this.farbGruppen = const {},
+    this.farbRechte = const {},
   });
 
   /// applicationId (Android) = APPLICATION_ID (GTK) = Schema des Ruecksprungs
@@ -126,10 +135,41 @@ class RosenwegApp {
   /// der Anmeldeschirm nur das Rosenweg-Konto.
   final bool ohneBrowser;
 
-  /// Zielgruppe wie das Logo (`--gruppe`): Farbe des Anmeldeschirms, auch des
-  /// nativen auf Android (commons-rosenweg ab cloud 0.13.6). null = blau wie
-  /// bisher.
+  /// Mindestfarbe (Standardfarbe) wie das Logo (`--gruppe`): gilt ohne
+  /// Anmeldung, nach dem Abmelden und fuer alle, denen die App nichts
+  /// Zusaetzliches freischaltet; auch fuer den nativen Anmeldeschirm auf
+  /// Android (commons-rosenweg ab cloud 0.13.6). null = blau wie bisher.
   final RosenwegGruppe? gruppe;
+
+  /// Hoehere Farben, die diese App vergibt, weil sie dort etwas freischaltet
+  /// (Entscheid Stefan 28.11.2026: Farbe nach freigeschalteter Funktion,
+  /// nicht nach Gruppe). Leer = immer [gruppe].
+  ///
+  /// * [RosenwegGruppe.technik]: Technik und Praesident (`Rechte.alles`).
+  /// * [RosenwegGruppe.verwaltung]: mit [farbRechte] wer eines dieser
+  ///   Seitenrechte hat (mindestens lesen), ohne: Ausschuss oder Verwaltung
+  ///   (`stwegN-ausschuss`, `meg-ausschuss`, `stwegN-verwaltung`,
+  ///   `meg-verwaltung`, `verwaltung`).
+  ///
+  /// Quelle sind die echten Rechte aus `/api/auth/me` ([GruppenFarbe]).
+  /// Die Logos der Farben erzeugt `assets/logo/erzeugen.sh` mit `FARBEN=…`.
+  final Set<RosenwegGruppe> farbGruppen;
+
+  /// Seitenrechte, die bei dieser App Blau freischalten, z. B.
+  /// `{'reklamationen'}`. Leer = nach Gruppe (siehe [farbGruppen]).
+  final Set<String> farbRechte;
+
+  /// Mindestfarbe, ohne Angabe blau (wie bisher).
+  RosenwegGruppe get standardGruppe => gruppe ?? RosenwegGruppe.verwaltung;
+
+  /// Logo in der Farbe [farbe]: `assets/logo/<ordner>-<farbe>-512.png`
+  /// (`-klein.png` fuer die Titelleiste); die Standardfarbe und Apps ohne
+  /// [farbGruppen] behalten die bisherigen Namen.
+  ImageProvider logoFuer(RosenwegGruppe? farbe, {bool klein = false}) {
+    final eigene = farbe != null && farbe != standardGruppe && farbGruppen.contains(farbe);
+    if (!eigene) return klein ? AssetImage('assets/logo/$ordner-klein.png') : logoOderTurm;
+    return AssetImage('assets/logo/$ordner-${farbe.name}-${klein ? 'klein' : '512'}.png');
+  }
 
   /// Ruecksprung auf Telefonen; in Authentik bei rosenweg-apps als "strikt"
   /// eingetragen (docs/authentik.md).

@@ -24,7 +24,8 @@ class Haupt extends StatelessWidget {
       titel: Text(app.name),
       logo: Padding(
         padding: const EdgeInsets.all(10),
-        child: Image.asset('assets/logo/rosenweg-vorlage-klein.png', semanticLabel: 'Logo'),
+        // Logo in der Gruppenfarbe der Person, wechselt live (docs/gruppenfarbe.md)
+        child: FarbLogo(sitzung: sitzung, klein: true),
       ),
       aktionen: [_Menue(sitzung: sitzung)],
       ziele: [

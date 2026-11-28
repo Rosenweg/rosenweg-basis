@@ -1,5 +1,8 @@
 # Rosenweg-Android-Apps und ihre Logos (gelesen von android-apps.sh und startbildschirm.py)
-# repo | logo-name | titel (wie auf dem Startbildschirm) | zeichen (zeichen/<name>.svg) | art | gruppe
+# repo | logo-name | titel (wie auf dem Startbildschirm) | zeichen (zeichen/<name>.svg) | art | gruppe | farben
+#   farben (optional, mit Komma): weitere Gruppenfarben nach der Person (docs/gruppenfarbe.md):
+#     ic_launcher_<farbe> fuer die Fossify-Aliasse .Blue (verwaltung) / .Teal (technik),
+#     dazu rosenweg_farb_gruppen in der App (commons RosenwegGruppenFarbe)
 #   art fossify: Fossify-Fork, res unter app/src/main/res, waehlbare Icon-Farben zeigen aufs Rosenweg-Icon
 #   art kotlin:  eigene Kotlin/Java-App, res unter app/src/main/res
 #   art flutter: Flutter-App, res unter android/app/src/main/res
@@ -14,7 +17,7 @@ documents-rosenweg|rosenweg-dokumente|Rosenweg Dokumente|dokumente|fossify|bewoh
 file-manager-rosenweg|rosenweg-dateimanager|Rosenweg Files|dateien|fossify|bewohner
 gallery-rosenweg|rosenweg-galerie|Rosenweg Galerie|galerie|fossify|bewohner
 launcher-rosenweg|rosenweg-launcher|Rosenweg Launcher|startbildschirm|fossify|bewohner
-messages-rosenweg|rosenweg-messenger|Rosenweg Messenger|messenger|fossify|bewohner
+messages-rosenweg|rosenweg-messenger|Rosenweg Messenger|messenger|fossify|bewohner|verwaltung,technik
 notes-rosenweg|rosenweg-notizen|Rosenweg Notizen|notizen|fossify|bewohner
 paint-rosenweg|rosenweg-paint|Rosenweg Paint|malen|fossify|bewohner
 phone-rosenweg|rosenweg-telefon|Rosenweg Telefon|telefon|fossify|bewohner

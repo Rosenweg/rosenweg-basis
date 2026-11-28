@@ -107,6 +107,23 @@ class RosenwegPlattform {
   /// ersten QR-Codes, null = abgebrochen.
   static Future<String?> iosQrScannen() => _rufen<String>('qrScannen');
 
+  /// Startsymbol in der Gruppenfarbe [gruppe] (`bewohner`/`verwaltung`/
+  /// `technik`, [GruppenFarbe]). Android: schaltet die activity-alias
+  /// `.Symbol<Gruppe>` der App um (docs/gruppenfarbe.md); iOS: alternate
+  /// icon `AppIcon-<gruppe>`, [standard] = das Haupt-Symbol. true = gewechselt;
+  /// false = schon so, nicht vorhanden oder Desktop.
+  static Future<bool> startsymbolSetzen(String gruppe, {required String standard}) async {
+    if (!istAndroid && !istIos) return false;
+    try {
+      return await kanal.invokeMethod<bool>('startsymbolSetzen', {'gruppe': gruppe, 'standard': standard}) ?? false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException catch (e) {
+      debugPrint('Startsymbol: ${e.message}');
+      return false;
+    }
+  }
+
   static Future<T?> _rufen<T>(String methode) async {
     try {
       return await kanal.invokeMethod<T>(methode);

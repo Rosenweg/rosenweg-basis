@@ -529,7 +529,7 @@ werkzeug/neue-app.sh mail-freigabe "Rosenweg Mail-Freigabe" mail-freigabe \
 | `--gruppe` | Farbe des Zeichens: `bewohner` rot, `verwaltung` blau, `technik` grün; Vorgabe aus `flutter-apps.txt` |
 | `--beschreibung` | ein Satz für „Über“, Paketbeschreibung, Startmenü, /apps |
 | `--ziel <ordner>` | Standard: neben der Basis (`../rosenweg-<name>`) |
-| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`, derzeit `v0.7.1`) und der Workflows (Standard `main`) |
+| `--basis-ref`, `--workflow-ref` | Stand von `rosenweg_basis` in `pubspec.yaml` (Standard wie in `vorlage/`, derzeit `v0.8.4`) und der Workflows (Standard `main`) |
 | `--basis-lokal <pfad>` | `pubspec_overrides.yaml` auf eine lokale Basis (dann wird `pubspec.lock` nicht committet) |
 | `--ohne-pub`, `--ohne-git` | kein `flutter pub get` / kein erster Commit |
 | `--repo` | **zusätzlich** `Rosenweg/rosenweg-<name>` auf GitHub anlegen (privat) und `main` pushen – ohne den Schalter geschieht nichts auf GitHub |
@@ -590,6 +590,7 @@ Dasselbe läuft bei jedem Push und PR in `.github/workflows/pruefen.yml` auf ein
 | [docs/authentik.md](docs/authentik.md) | was in Authentik eingetragen sein muss, Kerberos |
 | [docs/geteilte-telefone.md](docs/geteilte-telefone.md) | Schnittstelle zu Rosenweg Gerät, Personenwechsel |
 | [docs/logos.md](docs/logos.md) | Logo-Baukasten |
+| [docs/gruppenfarbe.md](docs/gruppenfarbe.md) | Farbe nach der angemeldeten Person: Thema, Logo, Startsymbol |
 | [docs/rosenweg-vm-umstellen.md](docs/rosenweg-vm-umstellen.md) | was rosenweg-vm für die Umstellung auf die Basis ändern müsste |
 
 ## Lizenz

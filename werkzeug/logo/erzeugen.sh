@@ -22,6 +22,10 @@
 #   ALLE=1, GROESSEN=1   siehe unten
 #   GRUPPE=<gruppe>      Farbe des Grundes (bewohner rot, verwaltung blau, technik gruen;
 #                        baukasten.py), auch Hintergrund des Android adaptive icon
+#   FARBEN="<gruppe> …"  weitere Gruppenfarben der App (RosenwegApp.farbGruppen, docs/gruppenfarbe.md):
+#                        je Farbe assets/logo/<name>-<farbe>-512.png und -klein.png (96 px) und
+#                        Android ic_launcher_<farbe> (+ _foreground, adaptive, Farbe
+#                        rosenweg_icon_<farbe>) fuer die activity-alias .Symbol<Farbe>
 # Flutter-Apps mit allen Plattformen: app-symbole.sh (ruft dieses Skript auf).
 # Die Linux-Symbole (hicolor 16…512) rechnet das Paket selbst aus den SVGs
 # (linux/paket/bauen.sh) nach derselben Regel (logo_quelle unten).
@@ -89,6 +93,49 @@ EOF
     fi
     echo '</resources>'
   } > "$A/values/rosenweg_icon.xml"
+fi
+
+# Weitere Gruppenfarben (FARBEN): Logos und Android-Startsymbole je Farbe
+if [ -n "${FARBEN:-}" ]; then
+  [ -n "$ZEICHEN" ] || { echo "FARBEN braucht ein Zeichen" >&2; exit 1; }
+  FT="$(mktemp -d)"
+  FARBWERTE=""
+  for g in $FARBEN; do
+    [ "$g" = "${GRUPPE:-bewohner}" ] && continue
+    FG="$(python3 "$HIER/baukasten.py" --grundfarbe "$g")"
+    mkdir -p "$FT/$g"
+    python3 "$HIER/baukasten.py" --name "$NAME" --titel "$TITEL" --zeichen "$ZEICHEN" --ziel "$FT/$g" ${ALLE:+--alle} --gruppe "$g" >/dev/null
+    r "$FT/$g/$NAME" 512 "$L/$NAME-$g-512.png"
+    r "$FT/$g/$NAME" 96 "$L/$NAME-$g-klein.png"
+    if [ -n "${ANDROID_RES:-}" ] || [ -d "$APP/android/app" ]; then
+      for d in mdpi:1 hdpi:1.5 xhdpi:2 xxhdpi:3 xxxhdpi:4; do
+        n=${d%%:*}; f=${d##*:}
+        r "$FT/$g/$NAME" "$(awk "BEGIN{print int(48*$f)}")" "$A/mipmap-$n/ic_launcher_$g.png"
+        r "$FT/$g/$NAME-vordergrund" "$(awk "BEGIN{print int(108*$f)}")" "$A/mipmap-$n/ic_launcher_${g}_foreground.png"
+      done
+      cat > "$A/mipmap-anydpi-v26/ic_launcher_$g.xml" <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Erzeugt von rosenweg-basis werkzeug/logo/erzeugen.sh (FARBEN, Gruppenfarbe $g) -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/rosenweg_icon_$g"/>
+    <foreground android:drawable="@mipmap/ic_launcher_${g}_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome"/>
+</adaptive-icon>
+EOF
+      FARBWERTE="$FARBWERTE    <color name=\"rosenweg_icon_$g\">$FG</color>
+"
+    fi
+  done
+  if [ -n "$FARBWERTE" ]; then
+    {
+      echo '<?xml version="1.0" encoding="utf-8"?>'
+      echo '<!-- Erzeugt von rosenweg-basis werkzeug/logo/erzeugen.sh (FARBEN) -->'
+      echo '<resources>'
+      printf '%s' "$FARBWERTE"
+      echo '</resources>'
+    } > "$A/values/rosenweg_icon_farben.xml"
+  fi
+  rm -rf "$FT"
 fi
 
 # Alle ueblichen Groessen als PNG (fuer Ablage/Vorschau): GROESSEN=1 erzeugen.sh …
