@@ -82,6 +82,9 @@ abstract class MqttZugang {
 
   /// Zugang holen; [neu] = der letzte wurde abgelehnt, nicht zwischengespeichert nehmen.
   Future<MqttAnmeldung> holen({bool neu = false});
+
+  /// Zugang beim Server widerrufen (Abmelden). Fester Zugang: nichts.
+  Future<void> widerrufen() async {}
 }
 
 class _FesterZugang extends MqttZugang {
@@ -98,18 +101,35 @@ class _ApiZugang extends MqttZugang {
   final String pfad;
   MqttAnmeldung? _zuletzt;
   DateTime? _seit;
+  Duration _gilt = const Duration(hours: 12);
 
   @override
   Future<MqttAnmeldung> holen({bool neu = false}) async {
     final z = _zuletzt, s = _seit;
-    // Der Server gibt 12 h; nach 11 h vorsorglich neu holen.
-    if (!neu && z != null && s != null && DateTime.now().difference(s) < const Duration(hours: 11)) return z;
+    // Der Server gibt 12 h (Karte/geteiltes Telefon kuerzer, `expires_in`);
+    // nach 90 % der Laufzeit vorsorglich neu holen.
+    if (!neu && z != null && s != null && DateTime.now().difference(s) < _gilt * 0.9) return z;
     final j = await api.anfrage('POST', pfad);
     if (j is! Map || j['username'] is! String || j['password'] is! String) {
       throw StateError('MQTT-Zugang: unerwartete Antwort');
     }
+    final sek = j['expires_in'];
+    _gilt = sek is num && sek > 0 ? Duration(seconds: sek.round()) : const Duration(hours: 12);
     _seit = DateTime.now();
     return _zuletzt = (benutzer: j['username'] as String, passwort: j['password'] as String);
+  }
+
+  /// `DELETE /api/mqtt/token` mit dem zuletzt geholten Token.
+  @override
+  Future<void> widerrufen() async {
+    final z = _zuletzt;
+    _zuletzt = _seit = null;
+    if (z == null) return;
+    try {
+      await api.anfrage('DELETE', pfad, koerper: {'token': z.passwort});
+    } catch (e) {
+      Protokoll.schreiben('MQTT-Zugang: widerrufen ging nicht', e);
+    }
   }
 }
 
