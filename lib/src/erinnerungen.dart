@@ -14,9 +14,9 @@
 /// await Erinnerungen.alleEntfernen();   // z. B. beim Abmelden
 /// ```
 ///
-/// Geteilte Telefone: nie – die Person am Telefon wechselt, eine Erinnerung
-/// fuer die vorige Person waere ein Datenleck (wie [HintergrundAbfrage]).
-/// [abgleichen] entfernt dort alles und plant nichts.
+/// Geteilte Telefone: wie am eigenen Geraet. Beim Personenwechsel und Abmelden
+/// entfernt [RosenwegSitzung] alle geplanten Erinnerungen ([alleEntfernen]), Rosenweg
+/// Geraet loescht danach die App-Daten: keine Erinnerung der vorigen Person bleibt.
 ///
 /// Gilt fuer alle *geplanten* Benachrichtigungen der App; sofort gezeigte
 /// ([Benachrichtigung.zeigen]) bleiben unberuehrt. Linux: nur solange die
@@ -51,12 +51,8 @@ class Erinnerungen {
 
   /// Plant [soll] (nur die in der Zukunft) und entfernt alle anderen
   /// geplanten Benachrichtigungen der App. Rueckgabe: Zahl der geplanten.
-  /// [sitzung] (oder [geteilt]) sagt, ob es ein geteiltes Telefon ist.
-  static Future<int> abgleichen(RosenwegSitzung? sitzung, Iterable<Erinnerung> soll, {bool? geteilt}) async {
-    if (geteilt ?? sitzung?.geteiltesTelefon ?? false) {
-      await alleEntfernen();
-      return 0;
-    }
+  /// [geteilt] wird nicht mehr gebraucht (geteilte Telefone planen wie alle).
+  static Future<int> abgleichen(RosenwegSitzung? sitzung, Iterable<Erinnerung> soll, {@Deprecated('ohne Wirkung') bool? geteilt}) async {
     if (sitzung != null) await Benachrichtigung.einrichten(sitzung.app);
     final jetzt = DateTime.now();
     final kommend = {for (final e in soll) if (e.wann.isAfter(jetzt)) e.id: e};
@@ -70,7 +66,7 @@ class Erinnerungen {
     return kommend.length;
   }
 
-  /// Alle geplanten Erinnerungen der App entfernen (Abmelden).
+  /// Alle geplanten Erinnerungen der App entfernen (Abmelden, Personenwechsel).
   static Future<void> alleEntfernen() async {
     for (final id in await Benachrichtigung.geplant()) {
       await Benachrichtigung.entfernen(id);

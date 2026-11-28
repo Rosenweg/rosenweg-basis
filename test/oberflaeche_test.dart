@@ -110,6 +110,12 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('SEITE'), findsOneWidget);
     wechsel.add('angemeldet');
+    // erst raeumt die Sitzung auf (echte Futures), dann baut sich die App neu
+    await t.runAsync(() async {
+      for (var i = 0; i < 100 && s.personStand.value < 1; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+    });
     await t.pumpAndSettle();
     expect(s.personStand.value, 1);
     expect(find.text('SEITE'), findsNothing);

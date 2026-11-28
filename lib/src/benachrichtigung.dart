@@ -238,6 +238,22 @@ class Benachrichtigung {
     }
   }
 
+  /// Alle gezeigten und geplanten Benachrichtigungen der App entfernen
+  /// (Personenwechsel und Abmelden am geteilten Telefon).
+  static Future<void> alleEntfernen() async {
+    attrappe?.clear();
+    for (final u in _linuxUhren.values) {
+      u.cancel();
+    }
+    _linuxUhren.clear();
+    if (attrappe != null || kIsWeb) return;
+    try {
+      await _plugin.cancelAll();
+    } catch (e) {
+      Protokoll.schreiben('Benachrichtigung alle entfernen', e);
+    }
+  }
+
   /// Feste GUID je App fuer Windows (aus der Kennung, damit sie bei jedem
   /// Start gleich bleibt).
   static String windowsGuid(String kennung) {

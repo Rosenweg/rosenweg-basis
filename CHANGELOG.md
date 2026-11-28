@@ -5,6 +5,21 @@
   holt nichts mehr von `fonts.gstatic.com`. Der Job bricht ab, wenn
   `web/fonts/roboto/v32/…woff2` fehlt. Siehe `docs/web.md`.
 
+## 0.9.1 – Geteilte Telefone: Hintergrund, Erinnerungen, Dateien laden
+
+- **Hintergrund-Abfrage und Erinnerungen gehen auch auf geteilten Telefonen**
+  (`HintergrundAbfrage`, `Erinnerungen.abgleichen`). `hintergrundStarten` richtet dort
+  den Weg ueber Rosenweg Geraet ein (die Person am Telefon). Beim Personenwechsel und
+  Abmelden raeumt `RosenwegSitzung.personGewechselt` weg: Hintergrund-Aufgabe,
+  geplante Erinnerungen, alle Benachrichtigungen (neu: `Benachrichtigung.alleEntfernen`);
+  `GeraetPerson.kt` loescht die gezeigten sofort. Danach loescht Rosenweg Geraet die
+  App-Daten (Katalog `persoenlich`). `Erinnerungen.abgleichen(geteilt:)` ohne Wirkung.
+- **Dateien herunterladen am geteilten Telefon**: `RosenwegDateien.herunterladen`
+  holt sie stueckweise ueber `portal_bereich` (`RosenwegDateien.stueckweise`, bis
+  `geteiltHoechstens` = 20 MB, gleicher Wert wie `PORTAL_BINAER_MAX` der Anlage).
+  Hochladen geht dort weiter nicht (`GeraetFehler`). Apps koennen ihre eigene
+  Stueck-Logik (Unterlagen) streichen.
+
 ## 0.9.0 – Web-Version der Apps
 
 - Alle Apps gibt es auch als Seite: `flutter build web` unter
