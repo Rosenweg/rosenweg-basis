@@ -1,8 +1,7 @@
 ## 0.8.3 – Kalenderdatei, Erinnerungen, dateiOeffnen
 
 Für Rosenweg Termine; allgemein für jede App mit Terminen (Waschküche,
-Projekte, Handwerker). Baut auf 0.8.0 (Benachrichtigungen) auf. Version
-setzt der Integrations-Merge.
+Projekte, Handwerker). Baut auf 0.8.0 (Benachrichtigungen) auf.
 
 - **`Kalenderdatei`** / **`KalenderTermin`**: Termine als .ics (RFC 5545)
   zum Teilen oder Öffnen in jedem Kalender – UTC, ganztags, Maskierung,
