@@ -1,0 +1,107 @@
+# Wiederverwendbar: waehlt die Runner fuer die folgenden Jobs - eigene
+# (self-hosted, CT 140/145 und VM 142) oder von GitHub gehostete.
+#
+# Regeln (Entscheid Stefan 28.11.2026):
+#   * Ereignis aus einem Fork (pull_request mit fremdem Head-Repo): immer
+#     GitHub-gehostet. Fork-Code laeuft nie auf den eigenen Runnern.
+#   * Privates Repo: immer eigene Runner.
+#   * Oeffentliches Repo: eigene Runner, wenn einer frei ist (online, nicht
+#     busy) oder ein ausgeschalteter Runner da ist, den der Runner-Waechter
+#     (docs/runner-waechter.md in Rosenweg/Website) zuschalten kann. Sind alle
+#     belegt, GitHub-gehostet: beide arbeiten die Warteschlange gemeinsam ab.
+#     Ohne Zugang zur API (kein Secret, Fehler) ebenfalls GitHub-gehostet.
+#   * macOS und iOS bleiben immer bei GitHub (dafuer ist dieser Workflow nicht
+#     da).
+#
+# Der Job laeuft auf ubuntu-latest und dauert Sekunden. Die Runner-Liste liest
+# er mit der GitHub App "Rosenweg Pakete" (App ID 5960072, Org-Secrets
+# PAKETE_APP_ID/PAKETE_APP_KEY; Berechtigung Organisation > Self-hosted
+# runners: Read). Ein Fork-PR bekommt die Secrets nie - dort braucht es sie
+# auch nicht.
+#
+# Aufruf (im Aufrufer: needs: wahl, dann
+#   runs-on: ${{ fromJSON(needs.wahl.outputs.linux) }}   bzw. .windows):
+#   jobs:
+#     wahl:
+#       uses: Rosenweg/rosenweg-basis/.github/workflows/runner-wahl.yml@main
+#       secrets:
+#         PAKETE_APP_ID: ${{ secrets.PAKETE_APP_ID }}
+#         PAKETE_APP_KEY: ${{ secrets.PAKETE_APP_KEY }}
+name: Runner-Wahl
+
+on:
+  workflow_call:
+    secrets:
+      PAKETE_APP_ID: { required: false }
+      PAKETE_APP_KEY: { required: false }
+    outputs:
+      linux:
+        description: runs-on fuer Linux-Jobs als JSON (mit fromJSON lesen)
+        value: ${{ jobs.wahl.outputs.linux }}
+      windows:
+        description: runs-on fuer Windows-Jobs als JSON (mit fromJSON lesen)
+        value: ${{ jobs.wahl.outputs.windows }}
+
+permissions: {}
+
+jobs:
+  wahl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      linux: ${{ steps.w.outputs.linux }}
+      windows: ${{ steps.w.outputs.windows }}
+    env:
+      HAT_APP: ${{ secrets.PAKETE_APP_ID != '' && secrets.PAKETE_APP_KEY != '' }}
+      # Fork: Ereignis aus einem anderen Repo als dem des Aufrufers
+      FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      PRIVAT: ${{ github.event.repository.private }}
+    steps:
+      - name: Zugang zur Runner-Liste
+        id: zugang
+        if: env.FORK != 'true' && env.PRIVAT != 'true' && env.HAT_APP == 'true'
+        continue-on-error: true
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PAKETE_APP_ID }}
+          private-key: ${{ secrets.PAKETE_APP_KEY }}
+          owner: Rosenweg
+
+      - name: Runner waehlen
+        id: w
+        uses: actions/github-script@v7
+        env:
+          TOKEN: ${{ steps.zugang.outputs.token }}
+        with:
+          github-token: ${{ steps.zugang.outputs.token || github.token }}
+          script: |
+            const LINUX_EIGEN = ['self-hosted', 'Linux', 'rosenweg'];
+            const WIN_EIGEN = ['self-hosted', 'Windows', 'rosenweg-windows'];
+            const LINUX_GH = 'ubuntu-latest', WIN_GH = 'windows-latest';
+            const setze = (linux, windows, grund) => {
+              core.info(grund);
+              core.setOutput('linux', JSON.stringify(linux));
+              core.setOutput('windows', JSON.stringify(windows));
+              core.summary.addRaw(`Runner: Linux ${JSON.stringify(linux)}, Windows ${JSON.stringify(windows)} (${grund})`, true).write();
+            };
+            if (process.env.FORK === 'true')
+              return setze(LINUX_GH, WIN_GH, 'Fork: GitHub-gehostet');
+            if (process.env.PRIVAT === 'true')
+              return setze(LINUX_EIGEN, WIN_EIGEN, 'privates Repo: eigene Runner');
+            if (!process.env.TOKEN)
+              return setze(LINUX_GH, WIN_GH, 'kein Zugang zur Runner-Liste: GitHub-gehostet');
+            try {
+              const runner = await github.paginate('GET /orgs/{org}/actions/runners', { org: 'Rosenweg', per_page: 100 });
+              const mit = (label) => runner.filter(r => r.labels.some(l => l.name === label));
+              // Linux: frei = online und nicht busy; zuschaltbar = offline (der Waechter startet ihn)
+              const lin = mit('rosenweg').filter(r => r.labels.some(l => l.name === 'Linux'));
+              const linFrei = lin.some(r => r.status === 'online' && !r.busy);
+              const linZuschaltbar = lin.some(r => r.status !== 'online');
+              // Windows: eine VM, dauernd an; nur frei zaehlt
+              const winFrei = mit('rosenweg-windows').some(r => r.status === 'online' && !r.busy);
+              setze(linFrei || linZuschaltbar ? LINUX_EIGEN : LINUX_GH,
+                    winFrei ? WIN_EIGEN : WIN_GH,
+                    `Linux frei=${linFrei} zuschaltbar=${linZuschaltbar}, Windows frei=${winFrei}`);
+            } catch (e) {
+              setze(LINUX_GH, WIN_GH, `Runner-Liste nicht lesbar (${e.status || e.message}): GitHub-gehostet`);
+            }
