@@ -44,6 +44,8 @@ und zeigt bis dahin Warten, Anmeldeschirm oder Fehler. Die App sieht erst
 | Aussehen | `rosenwegThema`, `RosenwegFarben` (Rot `#D32F2F`, Dunkelrot, Grundton `#8B1E3F`), deutsche Flutter-Texte (de-CH) | |
 | Gerüst | `RosenwegGeruest` (AppBar; mit ≥ 2 `GeruestZiel`: Handy NavigationBar unten, ab 840 px NavigationRail links, ab 1200 px beschriftet; Inhalt mit `maxBreite` mittig), `RosenwegSpalten` (ab 840 px zwei Spalten, sonst das Handy-Layout), `RosenwegInhalt`, `Fensterklasse` (Breiten 600/840/1200 nach Material 3) | neu in 0.4.0 |
 | Bausteine | `AnmeldeSchirm`, `FehlerAnzeige`, `LadeAnzeige`, `Abschnitt` (Karte mit Titel), `Hinweis`, `zeigeMeldung`, `frage`, `fehlerText`, `zeigeUeber` (GPL, Quelltext, Lizenzen), `RosenwegLogo` | |
+| Diagramme | `Verlaufsdiagramm` (Linie/Balken, Zeitachse, Lücken, Leer-Satz), `Kleinverlauf`, `ZeitraumWahl` + `Zeitraum.kurz/kalender`, `Messreihe`, `Messpunkt`, `diagrammFarben` | neu (Rosenweg Wetter), `fl_chart` |
+| Echtzeit | `RosenwegMqtt` (Broker der Anlage, WebSocket/TLS, Wiederverbinden), `MqttZugang.fest/ueberApi`, `EchtzeitQuelle`, `EchtzeitAttrappe`, `EchtzeitAnzeige` (live/veraltet), `mqttThemaPasst` | neu (Rosenweg Wetter), `mqtt_client`, wie `wetter.html`/`energie.html` |
 | Protokoll | `Protokoll.schreiben` — `~/.local/state/<ordner>/app.log`, nie Tokens | rosenweg-vm `protokoll.dart` |
 | Android | Plugin `ch.rosenweg4303.basis`: Anmeldung über commons-rosenweg (`AndroidKonto`: Anmeldeschirm mit Karte, Rosenweg-Konto oder QR-Code, Token aus Kotlin; braucht `ch.rosenweg4303:cloud` aus GitHub Packages oder mavenLocal, minSdk 26), DNS-Server, Rosenweg Gerät (`ContentResolver.call`) | commons-rosenweg `cloud` |
 

@@ -9,7 +9,7 @@
 - [Läuft auf](#läuft-auf)
 - [Eine App in wenigen Zeilen](#eine-app-in-wenigen-zeilen)
 - [Bedienung – gleich in allen Apps](#bedienung--gleich-in-allen-apps)
-- [Bausteine für Apps (Rechte, Listen, Formulare, Scannen, Karte lesen, Dateien, PDF)](#bausteine-für-apps)
+- [Bausteine für Apps (Rechte, Listen, Formulare, Scannen, Karte lesen, Dateien, PDF, Diagramme, Echtzeit)](#bausteine-für-apps)
 - [Beispiel-App](#beispiel-app)
 - [Was jede App einrichten muss](#was-jede-app-einrichten-muss)
 - [Grenzen je Plattform](#grenzen-je-plattform)
@@ -321,6 +321,38 @@ PdfAnsicht(laden: …)     // eingebettet in eine eigene Seite
 
 `pdfrx` (PDFium) auf allen fünf Plattformen: Blättern mit Wischen/Rad, Zoom (zwei Finger, Strg+Rad, Knöpfe, Strg/Cmd +/−), „Seite 2 von 5“ mit Vor/Zurück, Bild auf/ab, Pos1/Ende; in `PdfSeite` dazu Speichern und Teilen. Laden mit dem Token der Anmeldung, Fehler mit „Nochmals“.
 
+### Diagramme
+
+```dart
+final reihe = Messreihe(titel: 'Temperatur', einheit: '°C', punkte: [Messpunkt(zeit, 4.2), …]);
+ZeitraumWahl(gewaehlt: z, geaendert: (neu) => …)                 // 1 h … 7 T (Zeitraum.kurz) oder Tag/Monat/Jahr (Zeitraum.kalender)
+Verlaufsdiagramm(reihe: reihe, von: jetzt.subtract(z.dauer), bis: jetzt)
+Verlaufsdiagramm(reihe: verbrauch, art: DiagrammArt.balken, nullLinie: true)
+Kleinverlauf(reihe: reihe)                                       // ohne Achsen, für Kacheln
+```
+
+- `fl_chart` auf allen fünf Plattformen. Zeitachse bis 36 h mit Uhrzeit, darüber mit Datum; Wertachse mit runden Schritten (1, 2, 5, 10 …).
+- Antippen bzw. Darüberfahren zeigt „27.11. 14:32 · 4.2 °C“. Bildschirmleser hören „Temperatur: 4.2 °C, zwischen 1.8 °C und 6.0 °C“.
+- `null`-Werte und grosse Abstände (dreifacher üblicher Abstand, mindestens 15 min) bleiben Lücken statt gerader Linien.
+- Weniger als zwei Werte: ein Satz (`leerText`) statt eines leeren Rasters.
+- Farben `diagrammFarben` (in hell und dunkel lesbar); `Messreihe` rechnet kleinster/grösster/letzter Wert und Text mit Einheit.
+
+### Echtzeit (MQTT)
+
+```dart
+final mqtt = RosenwegMqtt(MqttZugang.ueberApi(sitzung.api));          // Zugang der Person (POST /api/mqtt/token)
+final mqtt = RosenwegMqtt(MqttZugang.fest('wetter-public', '…'));      // öffentlicher Lese-Benutzer aus dem Web-Code
+mqtt.abonnieren('wetter/r9/#').listen((n) => werte[n.feld] = n.text); // n.zahl, n.json, n.behalten
+EchtzeitAnzeige(quelle: mqtt, veraltetNach: const Duration(minutes: 5))
+mqtt.schliessen();                                                     // in dispose
+```
+
+- Derselbe Broker und Weg wie die Web-Seiten: `wss://mqtt.rosenweg4303.ch` (WebSocket mit TLS, 443), wahlweise MQTT über TLS (`adresse: 'mqtt.rosenweg4303.ch', port: 8883`). Kein ntfy.
+- Verbindet sich selbst wieder (2 s, 4 s … 60 s) und abonniert alles neu; wird der Zugang abgelehnt, holt `ueberApi` einmal einen neuen, danach „kein Zugriff“. `nochmals()` versucht es sofort (Knopf, App wieder vorne).
+- Gespeicherte Werte (retained) kommen gleich beim Abonnieren, auch für spätere Abos; sie zählen aber nicht als „live“, weil sie alt sein können. `EchtzeitAnzeige`: grün „live · Stand 14:32“, gelb „wartet auf neue Werte“ bzw. „veraltet“, grau „verbinde …“/„getrennt“ (antippen = nochmals), rot „kein Zugriff“.
+- Karten-, QR- und Handy-Sitzungen (`rw_app_…`) bekommen von der API keinen MQTT-Zugang; für öffentliche Daten den festen Lese-Benutzer nehmen.
+- Tests und Attrappe ohne Broker: `EchtzeitAttrappe({'thema': 'wert'})`, `senden(…)`, `standSetzen(…)`. Seiten sollten `EchtzeitQuelle` annehmen, nicht `RosenwegMqtt`.
+
 ## Beispiel-App
 
 `example/` zeigt jeden Baustein so, wie eine echte App ihn benutzt – ohne Anmeldung und ohne Server (Vorführdaten in `example/lib/attrappe.dart`), auf allen fünf Plattformen:
@@ -330,7 +362,7 @@ cd example && flutter run -d macos        # oder linux, windows, ein Android-/iO
 BEISPIEL_ZIEL=1 flutter run -d linux      # gleich mit Seite 1 (Liste) starten; 0 Rechte … 5 PDF
 ```
 
-Seiten: Rechte (Rolle und Stufe umschalten), Liste (137 Meldungen, Cursor, Filter, Sortierung, Auswahl), Formular (Fehler der API am Feld ausprobieren), Scannen, Dateien (hochladen mit Fortschritt, PDF speichern), PDF. Die CI baut sie auf Linux, Android, macOS, iOS (ohne Signatur) und Windows.
+Seiten: Rechte (Rolle und Stufe umschalten), Liste (137 Meldungen, Cursor, Filter, Sortierung, Auswahl), Formular (Fehler der API am Feld ausprobieren), Scannen, Dateien (hochladen mit Fortschritt, PDF speichern), PDF, Diagramm (Verlauf mit Zeitraum, Balken, Kleinverlauf, Echtzeit-Anzeige mit erfundenen Live-Werten). Die CI baut sie auf Linux, Android, macOS, iOS (ohne Signatur) und Windows.
 
 ## Was jede App einrichten muss
 
