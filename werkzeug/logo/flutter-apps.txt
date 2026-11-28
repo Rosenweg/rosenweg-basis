@@ -19,7 +19,7 @@ rosenweg-waschkueche|Rosenweg Waschküche|waschkueche|bewohner|waschkueche|verwa
 rosenweg-reparatur|Rosenweg Reparatur|reparatur|bewohner|reparatur|verwaltung,technik
 rosenweg-wetter|Rosenweg Wetter|wetter|bewohner|wetter
 rosenweg-energie|Rosenweg Energie|energie|bewohner|energie
-rosenweg-zev|Rosenweg ZEV|zev|bewohner|zev
+rosenweg-zev|Rosenweg ZEV|zev|bewohner|zev|verwaltung,technik
 rosenweg-termine|Rosenweg Termine|termine|bewohner|termine|verwaltung,technik
 rosenweg-vollmachten|Rosenweg Vollmachten|vollmachten|verwaltung|vollmachten
 rosenweg-unterlagen|Rosenweg Unterlagen|unterlagen|bewohner|unterlagen
