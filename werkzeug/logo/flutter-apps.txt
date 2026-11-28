@@ -22,9 +22,9 @@ rosenweg-energie|Rosenweg Energie|energie|bewohner|energie|verwaltung,technik
 rosenweg-zev|Rosenweg ZEV|zev|bewohner|zev|verwaltung,technik
 rosenweg-termine|Rosenweg Termine|termine|bewohner|termine|verwaltung,technik
 rosenweg-vollmachten|Rosenweg Vollmachten|vollmachten|bewohner|vollmachten|verwaltung,technik
-rosenweg-unterlagen|Rosenweg Unterlagen|unterlagen|bewohner|unterlagen
+rosenweg-unterlagen|Rosenweg Unterlagen|unterlagen|bewohner|unterlagen|verwaltung,technik
 rosenweg-projekte|Rosenweg Projekte|projekte|bewohner|projekte
-rosenweg-stweg|Rosenweg STWEG|stweg|bewohner|stweg
+rosenweg-stweg|Rosenweg STWEG|stweg|bewohner|stweg|verwaltung,technik
 rosenweg-internet|Rosenweg Internet|internet|bewohner|internet
 rosenweg-tv|Rosenweg TV|tv|bewohner|tv
 rosenweg-anlagen|Rosenweg Anlagen|anlagen|bewohner|anlagen
