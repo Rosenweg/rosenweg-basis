@@ -99,13 +99,24 @@ void main() {
       expect(Benachrichtigung.attrappe!.map((x) => x.id), [99]);
     });
 
-    test('geteiltes Telefon: nichts planen, Bestehendes entfernen', () async {
-      await Erinnerungen.abgleichen(null, [e('1', const Duration(hours: 2))]);
-      expect(await Erinnerungen.abgleichen(null, [e('1', const Duration(hours: 2))], geteilt: true), 0);
-      expect(Benachrichtigung.attrappe, isEmpty);
+    test('geteiltes Telefon: plant wie am eigenen Geraet', () async {
       final s = RosenwegSitzung(_app, transport: _Leer())..geteiltesTelefon = true;
-      expect(await Erinnerungen.abgleichen(s, [e('1', const Duration(hours: 2))]), 0);
+      expect(await Erinnerungen.abgleichen(s, [e('1', const Duration(hours: 2))]), 1);
+      expect(Benachrichtigung.attrappe, hasLength(1));
+    });
+
+    test('geteiltes Telefon: Personenwechsel entfernt Erinnerungen und Benachrichtigungen', () async {
+      final s = RosenwegSitzung(_app, geraetDa: () async => true, personWechsel: const Stream.empty());
+      await s.starten();
+      expect(s.geteiltesTelefon, isTrue);
+      await Erinnerungen.abgleichen(s, [e('1', const Duration(hours: 2))]);
+      await Benachrichtigung.zeigen(id: 99, titel: 'Jetzt', text: 'x');
+      expect(Benachrichtigung.attrappe, hasLength(2));
+      final vorher = s.personStand.value;
+      s.personGewechselt();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(Benachrichtigung.attrappe, isEmpty);
+      expect(s.personStand.value, vorher + 1);
     });
   });
 }

@@ -66,6 +66,13 @@ void main() {
     expect(s.phase, Phase.bereit);
   });
 
+  test('hintergrundStarten am geteilten Telefon: ueber Rosenweg Geraet', () async {
+    final s = RosenwegSitzung(_app, geraetDa: () async => true);
+    expect(await s.hintergrundStarten(), isTrue);
+    expect(s.geteiltesTelefon, isTrue);
+    expect(s.phase, Phase.bereit);
+  });
+
   test('AppVerweise: Attrappe', () async {
     AppVerweise.attrappe = Stream.value(Uri.parse('https://pwa.rosenweg4303.ch/reparatur/?ort=abcd2345'));
     expect((await AppVerweise.strom.first).queryParameters['ort'], 'abcd2345');

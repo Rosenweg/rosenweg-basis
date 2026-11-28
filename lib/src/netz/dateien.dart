@@ -99,9 +99,10 @@ String kopfDateiname(String name) => RegExp(r'^[\x20-\x7e]*$').hasMatch(name) ? 
 /// Bei 401 einmal das Token erneuern und nochmals (wie [HttpTransport]);
 /// Fehler der API wie bei [RosenwegApi] ([ApiFehler] mit dem Text der API).
 ///
-/// **Geteilte Telefone:** Rosenweg Geraet reicht heute nur JSON weiter —
-/// Dateien gehen dort (noch) nicht; es kommt ein [GeraetFehler] mit
-/// verstaendlichem Satz.
+/// **Geteilte Telefone:** Rosenweg Geraet reicht nur JSON weiter. Herunterladen
+/// geht dort stueckweise ueber [stueckweise] (`portal_bereich`, base64 in JSON,
+/// Stuecke zu [stueckGroesse], Dateien bis [geteiltHoechstens]); Hochladen geht
+/// dort noch nicht ([GeraetFehler] mit verstaendlichem Satz).
 class RosenwegDateien {
   RosenwegDateien({
     required this.basis,
@@ -109,6 +110,7 @@ class RosenwegDateien {
     http.Client? client,
     this.nichtAngemeldet,
     bool Function()? geteiltesTelefon,
+    this.stueckweiseApi,
     this.zeit = const Duration(minutes: 10),
     this.kopfzeilen = const {},
   })  : _zugang = zugang, // ignore: prefer_initializing_formals
@@ -121,11 +123,22 @@ class RosenwegDateien {
   final void Function()? nichtAngemeldet;
   final bool Function() _geteilt;
 
+  /// Geteiltes Telefon: die API, ueber die [stueckweise] laeuft (ohne sie gibt
+  /// es dort kein Herunterladen).
+  final RosenwegApi? Function()? stueckweiseApi;
+
   /// Hoechstdauer je Transfer.
   final Duration zeit;
 
   /// Zusaetzliche Kopfzeilen fuer jede Anfrage.
   final Map<String, String> kopfzeilen;
+
+  /// Stueck je Anfrage ueber Rosenweg Geraet (base64 bleibt unter der Binder-Grenze).
+  static const stueckGroesse = 320 * 1024;
+
+  /// Hoechstgroesse einer Datei am geteilten Telefon. Gleicher Wert wie
+  /// `PORTAL_BINAER_MAX` der Telefonanlage (pbx/api/app.py): beide zusammen aendern.
+  static const geteiltHoechstens = 20 * 1024 * 1024;
 
   static const geteiltText = 'Dateien hoch- oder herunterladen geht auf geteilten Rosenweg-Telefonen noch nicht. '
       'Bitte an einem eigenen Gerät oder an einer Station erledigen.';
@@ -188,6 +201,11 @@ class RosenwegDateien {
 
   /// Datei herunterladen. [name] = Ersatz, wenn die API keinen nennt.
   Future<DateiDaten> herunterladen(String pfad, {String? name, Fortschritt? fortschritt}) async {
+    if (_geteilt()) {
+      final api = stueckweiseApi?.call();
+      if (api == null) throw GeraetFehler(geteiltText);
+      return stueckweise(api, pfad, name ?? Uri.parse(pfad).pathSegments.lastOrNull ?? 'datei', fortschritt: fortschritt);
+    }
     final a = await _mitToken('Herunterladen $pfad', (token) async {
       final r = http.Request('GET', Uri.parse('$basis$pfad'))
         ..headers.addAll(kopfzeilen)
@@ -214,6 +232,36 @@ class RosenwegDateien {
     final n = dateinameAusKopf(h['content-disposition']) ?? name ?? Uri.parse(pfad).pathSegments.lastOrNull ?? 'datei';
     final typ = h['content-type']?.split(';').first.trim();
     return DateiDaten(name: n, bytes: a.$3!, typ: typ == null || typ.isEmpty || typ == 'application/octet-stream' ? null : typ);
+  }
+
+  /// Datei in Stuecken ueber den JSON-Weg (Rosenweg Geraet, `portal_bereich`):
+  /// je Stueck `{binaer: {daten (base64), von, bis, gesamt, typ, name}}`.
+  static Future<DateiDaten> stueckweise(RosenwegApi api, String pfad, String name, {Fortschritt? fortschritt}) async {
+    final teile = BytesBuilder(copy: false);
+    final trenner = pfad.contains('?') ? '&' : '?';
+    var von = 0;
+    int? gesamt;
+    String? typ;
+    String? kopfName;
+    do {
+      final j = await api.objekt('$pfad${trenner}portal_bereich=$von-${von + stueckGroesse - 1}');
+      final b = j['binaer'];
+      if (b is! Map) throw ApiFehler(200, 'Unerwartete Antwort vom Server.', j);
+      final daten = base64Decode('${b['daten'] ?? ''}');
+      gesamt = (b['gesamt'] as num?)?.toInt() ?? daten.length;
+      if (gesamt > geteiltHoechstens) {
+        throw GeraetFehler('Die Datei ist zu gross für ein geteiltes Telefon (höchstens ${geteiltHoechstens ~/ (1024 * 1024)} MB). '
+            'Bitte an einem eigenen Gerät oder an einer Station öffnen.');
+      }
+      typ ??= b['typ'] as String?;
+      kopfName ??= dateinameAusKopf('${b['name'] ?? ''}');
+      if (daten.isEmpty) break;
+      teile.add(daten);
+      von += daten.length;
+      fortschritt?.call(von, gesamt);
+    } while (von < gesamt);
+    final t = typ == null || typ.isEmpty || typ == 'application/octet-stream' ? null : typ;
+    return DateiDaten(name: kopfName ?? name, bytes: teile.takeBytes(), typ: t);
   }
 
   Object? _json(String text) {
