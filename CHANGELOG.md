@@ -1,3 +1,22 @@
+## 0.8.5 – Stationen-PR nach jedem Release
+
+Entscheid Stefan 28.11.2026.
+
+- **`app.yml`, Job `stationen`**: neue Eingabe `stationen_seite` (Web-Seite,
+  die die App auf den Stationen ersetzt). Gesetzt, öffnet jedes Release einen
+  PR in Rosenweg/os-stationen mit `pakete/<app>/paket.conf`: VERSION,
+  SHA256_amd64 (gegen `SHA256SUMS` des Release geprüft), STARTER aus dem
+  .deb; neu angelegt aus `linux/paket/paket.conf` der App mit SEITE und
+  Verweis `hochladen.sh`. Bestehende SEITE bleibt (Abweichung = Warnung im
+  PR). Schreibt über die GitHub App „Rosenweg Pakete“ (Org-Secrets
+  `PAKETE_APP_ID`, `PAKETE_APP_KEY`, nur os-stationen); fehlen sie, nur
+  eine Warnung. Label `paket-update`: os-stationen lädt das .deb auf den
+  PXE-Server. Gemergt wird von Hand.
+- **`SHA256SUMS`**: ist Linux gebaut, muss das .deb drinstehen, sonst
+  scheitert der Schritt.
+- **Vorlage**: `stationen_seite: ""` und die beiden Secrets in
+  `vorlage/.github/workflows/app.yml`.
+
 ## 0.8.4 – Gruppenfarbe nach der angemeldeten Person
 
 - **Gruppenfarbe nach der angemeldeten Person** (Entscheid Stefan
